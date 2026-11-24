@@ -26,12 +26,26 @@ Node 24 + TypeScript, Fastify, React, Docker Compose. Every service runs in its 
 
 ## Development
 
-Requires Node 24 and Docker Desktop.
+Requires **Node 24** and **Docker Desktop** (on Windows with WSL 2: run `wsl --install` once as admin and restart).
 
 ```bash
 npm install
-npm run dev
-npm test
+npm run dev          # server on :8787 + web UI with hot reload on http://localhost:5173
 ```
+
+On first start Mainframe asks you to set an admin password.
+
+| Command | What it does |
+| --- | --- |
+| `npm test` | All unit and component tests |
+| `DOCKER_IT=1 npm test` | Also runs the integration test against real Docker (starts and removes a tiny `whoami` container) |
+| `npm run typecheck` | TypeScript checks for all packages |
+| `npm run build` | Typecheck and build the web UI into `apps/web/dist` |
+| `npm start` | Run the server with the built UI on http://localhost:8787 (dev settings from `dev.env`) |
+| `npm run preview` | `build` + `start` in one go |
+
+The server runs TypeScript directly with Node's built-in type stripping, so there is no server build step.
+
+In dev mode, app data lives in `.data/` (git-ignored) and AdGuard's DNS listens on port `1053` instead of `53`.
 
 The interface is in German.
