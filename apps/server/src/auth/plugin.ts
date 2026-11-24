@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Db } from '../db.ts';
-import { HomebaseError } from '../errors.ts';
+import { MainframeError } from '../errors.ts';
 import { SESSION_COOKIE, validSession } from './sessions.ts';
 
 declare module 'fastify' {
@@ -19,6 +19,6 @@ export function registerAuthGuard(app: FastifyInstance, db: Db): void {
     req.sessionId = validSession(db, req.cookies[SESSION_COOKIE]);
     const path = req.url.split('?')[0]!;
     if (!path.startsWith('/api/') || PUBLIC_API.has(path)) return;
-    if (!req.sessionId) throw new HomebaseError('not_logged_in', 'Bitte melde dich an.', 401);
+    if (!req.sessionId) throw new MainframeError('not_logged_in', 'Bitte melde dich an.', 401);
   });
 }

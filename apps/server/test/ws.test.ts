@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SystemStats } from '@homebase/shared';
+import type { SystemStats } from '@mainframe/shared';
 import { buildApp } from '../src/app.ts';
 import { setupAndLogin, testDeps } from './helpers.ts';
 

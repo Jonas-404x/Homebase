@@ -1,37 +1,37 @@
-# Homebase Teil 1: Grundgerüst + AdGuard Home – Implementation Plan
+# Mainframe Teil 1: Grundgerüst + AdGuard Home – Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ein lauffähiges Homebase auf Jonas' Windows-Main-PC (gegen Docker Desktop): Login, Live-Dashboard, App-Katalog mit Ein-Klick-Installation und AdGuard Home als erste App inklusive Widget, in einer Oberfläche, die am Desktop und am Handy funktioniert.
+**Goal:** Ein lauffähiges Mainframe auf Jonas' Windows-Main-PC (gegen Docker Desktop): Login, Live-Dashboard, App-Katalog mit Ein-Klick-Installation und AdGuard Home als erste App inklusive Widget, in einer Oberfläche, die am Desktop und am Handy funktioniert.
 
 **Architecture:** npm-Workspaces-Monorepo. `apps/server` ist ein Fastify-Backend (TypeScript, ESM), das Host-Stats liest, Apps aus Vorlagen in `catalog/` als Docker-Compose-Projekte unter `<DATA_ROOT>/apps/<id>/` anlegt und per `docker compose` CLI steuert. Container-Status und Logs kommen über die Docker Engine API (dockerode). Live-Daten laufen über einen WebSocket. `apps/web` ist eine React-App (Vite), die im Dev-Modus über den Vite-Proxy und in Produktion als statische Dateien von Fastify ausgeliefert wird.
 
 **Tech Stack:** Node ≥ 24, TypeScript (strict), Fastify 5 (+ `@fastify/websocket`, `@fastify/cookie`, `@fastify/static`, `@fastify/rate-limit`), `dockerode`, `execa`, `systeminformation`, `yaml`, `zod`, `bcryptjs`, `node:sqlite`, Vitest. Frontend: React 19, Vite, `react-router`, `lucide-react`, `cmdk`, `@testing-library/react`.
 
-**Spec:** `docs/superpowers/specs/2026-11-23-homebase-design.md`
+**Spec:** `docs/superpowers/specs/2026-11-23-mainframe-design.md`
 
 **Gesamtprojekt in Teilen** (je ein eigener Plan, jeder liefert lauffähige Software):
 1. **Dieser Plan:** Grundgerüst, Login, Dashboard, App-Katalog, AdGuard Home, Command-Palette
 2. Minecraft-Bereich (Server, playit.gg, Spieler, Statistiken, Troll-Knöpfe, Welt, Plugins, Backups)
 3. Navidrome, eigene Container (Discord-Bot-Slot), Lese-API mit Tokens
-4. Server-Deployment: Homebase-Docker-Image, Setup-Skript (Ubuntu, Docker, Tailscale, ufw, Port 53), `homebase update`, HTTPS/PWA über `tailscale serve`
+4. Server-Deployment: Mainframe-Docker-Image, Setup-Skript (Ubuntu, Docker, Tailscale, ufw, Port 53), `mainframe update`, HTTPS/PWA über `tailscale serve`
 
 ## Global Constraints
 
 - Node ≥ 24, TypeScript `strict: true`, ESM überall (`"type": "module"`).
 - Oberfläche komplett **Deutsch, lockerer Ton, „du“**. Fehlermeldungen sagen, was los ist und was man tun kann.
-- Jeder von Homebase erzeugte Dienst bekommt `restart: unless-stopped` und das Label `homebase.app=<app-id>`. Dienste laufen ohne Homebase weiter.
+- Jeder von Mainframe erzeugte Dienst bekommt `restart: unless-stopped` und das Label `mainframe.app=<app-id>`. Dienste laufen ohne Mainframe weiter.
 - Compose-Dateien liegen unter `<DATA_ROOT>/apps/<app-id>/docker-compose.yml`, App-Daten unter `<DATA_ROOT>/apps/<app-id>/data/`. Bind-Mounts nutzen **absolute Pfade** unterhalb von `DATA_ROOT`.
-- Ports: Homebase-Backend Dev `8787`, Vite Dev `5173`, Produktion `80`. AdGuard-Weboberfläche `3000`, AdGuard-DNS Produktion `53`, Dev `5353`.
-- Homebase selbst bleibt unter ~150 MB RAM. Kein Polling schneller als alle 2 s.
-- Ein Admin-Passwort, gehasht (scrypt aus `node:crypto`), Session-Cookie `hb_session` (httpOnly, sameSite=lax, 30 Tage).
+- Ports: Mainframe-Backend Dev `8787`, Vite Dev `5173`, Produktion `80`. AdGuard-Weboberfläche `3000`, AdGuard-DNS Produktion `53`, Dev `5353`.
+- Mainframe selbst bleibt unter ~150 MB RAM. Kein Polling schneller als alle 2 s.
+- Ein Admin-Passwort, gehasht (scrypt aus `node:crypto`), Session-Cookie `mf_session` (httpOnly, sameSite=lax, 30 Tage).
 - Design laut Spec-Abschnitt „Aussehen“: System-Schrift, Monospace nur für Konsole/Zahlen, Farbrollen als CSS-Variablen, Hell/Dunkel über `prefers-color-scheme` (kein App-Schalter), Kontrast ≥ 4,5:1, Status nie nur über Farbe, Touch-Ziele ≥ 44 px, `prefers-reduced-motion` respektiert, Seitenleiste ab 768 px Breite, darunter Tab-Leiste unten.
 
 ## Review Focus
 
-1. **Docker Desktop läuft nicht.** Homebase startet trotzdem, das Dashboard zeigt „Docker läuft gerade nicht. Starte Docker Desktop und lad die Seite neu.“ und App-Aktionen schlagen mit derselben Meldung fehl statt abzustürzen. → Test in Task 7.
+1. **Docker Desktop läuft nicht.** Mainframe startet trotzdem, das Dashboard zeigt „Docker läuft gerade nicht. Starte Docker Desktop und lad die Seite neu.“ und App-Aktionen schlagen mit derselben Meldung fehl statt abzustürzen. → Test in Task 7.
 2. **Port beim Installieren belegt** (z. B. 3000 oder 5353). Die Installation endet mit Status `error` und verständlicher Meldung, die halb angelegten Container werden entfernt, eine erneute Installation mit anderem Port klappt. → Test in Task 7.
-3. **Homebase wird neu gestartet, während Apps laufen.** Die App-Liste wird aus `<DATA_ROOT>/apps/*/app-state.json` plus Docker-Labels wiederhergestellt, nichts wird neu installiert oder gestoppt. → Test in Task 7.
+3. **Mainframe wird neu gestartet, während Apps laufen.** Die App-Liste wird aus `<DATA_ROOT>/apps/*/app-state.json` plus Docker-Labels wiederhergestellt, nichts wird neu installiert oder gestoppt. → Test in Task 7.
 4. **Handy geht in Standby, WebSocket bricht ab.** Das Frontend verbindet sich mit Backoff (1 s, 2 s, 5 s, dann alle 10 s) neu und zeigt solange „Verbindung weg, versuche es erneut …“. → Test in Task 10.
 5. **Falsches Passwort wiederholt.** Nach 5 Fehlversuchen pro Minute und IP antwortet der Login mit 429 und „Zu viele Versuche, warte kurz.“ → Test in Task 4.
 
@@ -40,7 +40,7 @@
 ## Dateistruktur
 
 ```
-homebase/
+mainframe/
   package.json                 # Workspaces: packages/*, apps/*
   tsconfig.base.json
   .gitignore                   # node_modules, dist, .data
@@ -55,7 +55,7 @@ homebase/
     src/index.ts               # startet Server
     src/app.ts                 # buildApp(deps) → FastifyInstance
     src/config.ts              # loadConfig()
-    src/errors.ts              # HomebaseError
+    src/errors.ts              # MainframeError
     src/db.ts                  # openDb()
     src/auth/{passwords,sessions,plugin,routes}.ts
     src/system/{stats,routes}.ts
@@ -84,7 +84,7 @@ homebase/
 - Test: `apps/server/test/shared-types.test.ts`
 
 **Interfaces:**
-- Produces (in `@homebase/shared`):
+- Produces (in `@mainframe/shared`):
   ```ts
   export interface SystemStats {
     cpu: { model: string; cores: number; loadPercent: number };
@@ -106,7 +106,7 @@ homebase/
     | { type: 'log'; appId: string; line: string };
   export interface ApiError { code: string; message: string }
   ```
-- `zod`-Schemas `catalogAppSchema` und `catalogFieldSchema` werden ebenfalls aus `@homebase/shared` exportiert.
+- `zod`-Schemas `catalogAppSchema` und `catalogFieldSchema` werden ebenfalls aus `@mainframe/shared` exportiert.
 
 - [ ] **Step 1:** `git init`, Root-`package.json` mit `"workspaces": ["packages/*", "apps/*"]`, Skripten `dev` (Server + Web parallel), `test` (`vitest run` in allen Workspaces), `build`. `tsconfig.base.json` mit `strict`, `module: NodeNext`, `target: ES2023`.
 - [ ] **Step 2: Failing test** `shared-types.test.ts`: `catalogAppSchema.parse()` akzeptiert ein gültiges Manifest `{ id: 'adguard', name: 'AdGuard Home', description: 'x', icon: 'shield', fields: [], ports: [] }` und wirft bei `id: 'Ad Guard'` (nur `[a-z0-9-]` erlaubt).
@@ -128,11 +128,11 @@ homebase/
   ```ts
   export interface Config { dataRoot: string; port: number; dev: boolean; catalogDir: string; webDistDir: string | null }
   export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config
-  export class HomebaseError extends Error { constructor(public code: string, message: string, public status = 400) }
+  export class MainframeError extends Error { constructor(public code: string, message: string, public status = 400) }
   ```
-- Env-Variablen: `HOMEBASE_DATA_ROOT` (Default Dev: `<repo>/.data`, Prod: `/srv/homebase`), `HOMEBASE_PORT` (Default Dev 8787, Prod 80), `HOMEBASE_DEV` (`"1"` → dev), `HOMEBASE_CATALOG_DIR` (Default `<repo>/catalog`), `HOMEBASE_WEB_DIST` (optional).
+- Env-Variablen: `MAINFRAME_DATA_ROOT` (Default Dev: `<repo>/.data`, Prod: `/srv/mainframe`), `MAINFRAME_PORT` (Default Dev 8787, Prod 80), `MAINFRAME_DEV` (`"1"` → dev), `MAINFRAME_CATALOG_DIR` (Default `<repo>/catalog`), `MAINFRAME_WEB_DIST` (optional).
 
-- [ ] **Step 1: Failing tests:** `loadConfig({ HOMEBASE_DEV: '1' })` → `port === 8787`, `dev === true`, `dataRoot` endet auf `.data`; `loadConfig({})` → `port === 80`, `dataRoot === '/srv/homebase'`; `loadConfig({ HOMEBASE_PORT: 'abc' })` wirft `HomebaseError` mit `code === 'config_invalid'`; `dataRoot` ist immer absolut (`path.isAbsolute`).
+- [ ] **Step 1: Failing tests:** `loadConfig({ MAINFRAME_DEV: '1' })` → `port === 8787`, `dev === true`, `dataRoot` endet auf `.data`; `loadConfig({})` → `port === 80`, `dataRoot === '/srv/mainframe'`; `loadConfig({ MAINFRAME_PORT: 'abc' })` wirft `MainframeError` mit `code === 'config_invalid'`; `dataRoot` ist immer absolut (`path.isAbsolute`).
 - [ ] **Step 2:** Run → FAIL. **Step 3:** Implementieren. **Step 4:** Run → PASS.
 - [ ] **Step 5: Commit** `feat(server): konfiguration`
 
@@ -158,7 +158,7 @@ homebase/
   }
   export function openDb(filePath: string): Db   // ':memory:' erlaubt
   ```
-- `node:sqlite` (`DatabaseSync`), Tabellen `settings(key TEXT PRIMARY KEY, value TEXT)`, `sessions(id TEXT PRIMARY KEY, expires_at INTEGER)`. Schema-Version in `settings.schema_version = '1'`. Datei: `<DATA_ROOT>/homebase.db`.
+- `node:sqlite` (`DatabaseSync`), Tabellen `settings(key TEXT PRIMARY KEY, value TEXT)`, `sessions(id TEXT PRIMARY KEY, expires_at INTEGER)`. Schema-Version in `settings.schema_version = '1'`. Datei: `<DATA_ROOT>/mainframe.db`.
 
 - [ ] **Step 1: Failing tests:** Setting setzen/lesen/überschreiben; unbekannter Key → `null`; Session anlegen, lesen, löschen; `deleteExpiredSessions(1000)` entfernt Session mit `expiresAt 999`, behält `1001`; zweimal `openDb` auf dieselbe Datei verliert keine Daten.
 - [ ] **Step 2:** FAIL. **Step 3:** Implementieren. **Step 4:** PASS.
@@ -173,7 +173,7 @@ homebase/
 - Test: `apps/server/test/auth.test.ts`
 
 **Interfaces:**
-- Consumes: `Db`, `Config`, `HomebaseError`.
+- Consumes: `Db`, `Config`, `MainframeError`.
 - Produces:
   ```ts
   export function hashPassword(pw: string): Promise<string>          // "scrypt$<saltHex>$<hashHex>"
@@ -189,19 +189,19 @@ homebase/
   - `POST /api/auth/logout` → 204, Session gelöscht.
   - `POST /api/auth/password` `{ current, next }` (auth) → 204, alle anderen Sessions werden gelöscht.
 - Alle `/api/*`-Routen außer `/api/auth/state|setup|login` verlangen eine gültige Session, sonst 401 `not_logged_in`.
-- Fehlerantworten immer als `ApiError` (`{ code, message }`), via Fastify-Error-Handler für `HomebaseError`.
+- Fehlerantworten immer als `ApiError` (`{ code, message }`), via Fastify-Error-Handler für `MainframeError`.
 
 - [ ] **Step 1: Failing tests** mit `app.inject()` und `openDb(':memory:')`:
   - `state` vor Setup → `{ setupDone: false, loggedIn: false }`
   - Setup mit `"kurz"` → 400 `password_too_short`
-  - Setup mit `"geheim123"` → 204, `set-cookie` enthält `hb_session`, `HttpOnly`, `SameSite=Lax`
+  - Setup mit `"geheim123"` → 204, `set-cookie` enthält `mf_session`, `HttpOnly`, `SameSite=Lax`
   - zweites Setup → 409
   - Login falsch → 401 `wrong_password`; richtig → 204
   - geschützte Route `GET /api/system/ping` (Test-Route, nur im Test registriert) ohne Cookie → 401, mit Cookie → 200
   - Logout, danach dieselbe Route → 401
   - Passwort ändern löscht andere Sessions
   - **Review Focus 5:** 6. Fehlversuch innerhalb einer Minute von derselben IP → 429 `too_many_attempts`, Meldung „Zu viele Versuche, warte kurz.“
-- [ ] **Step 2:** FAIL. **Step 3:** Implementieren (`@fastify/rate-limit` nur auf `login` und `setup`, `max: 5, timeWindow: '1 minute'`). `index.ts` ruft `loadConfig`, `openDb(<dataRoot>/homebase.db)`, `buildApp` und `listen({ port, host: '0.0.0.0' })`, legt `dataRoot` bei Bedarf an. **Step 4:** PASS.
+- [ ] **Step 2:** FAIL. **Step 3:** Implementieren (`@fastify/rate-limit` nur auf `login` und `setup`, `max: 5, timeWindow: '1 minute'`). `index.ts` ruft `loadConfig`, `openDb(<dataRoot>/mainframe.db)`, `buildApp` und `listen({ port, host: '0.0.0.0' })`, legt `dataRoot` bei Bedarf an. **Step 4:** PASS.
 - [ ] **Step 5: Commit** `feat(server): login und sessions`
 
 ---
@@ -241,14 +241,14 @@ homebase/
 - Produces:
   ```ts
   export interface CatalogEntry { app: CatalogApp; composeTemplate: string; dir: string }
-  export function loadCatalog(dir: string): Promise<CatalogEntry[]>     // ungültige Einträge → HomebaseError('catalog_invalid') mit Ordnernamen
+  export function loadCatalog(dir: string): Promise<CatalogEntry[]>     // ungültige Einträge → MainframeError('catalog_invalid') mit Ordnernamen
   export interface RenderContext { appId: string; appDataDir: string; dev: boolean }
   export function resolveValues(app: CatalogApp, input: Record<string, unknown>, dev: boolean): Record<string, string>
   export function renderCompose(template: string, values: Record<string, string>, ctx: RenderContext): string
   ```
-- Platzhalter-Syntax in `compose.yml`: `${field.<key>}`, `${port.<key>}`, `${app.dataDir}`, `${app.id}`. Unbekannter Platzhalter → `HomebaseError('template_unknown_placeholder')` mit Namen.
-- `resolveValues`: Pflichtfeld fehlt → `HomebaseError('field_required')` mit deutscher Meldung „<Label> fehlt noch.“; Ports: Eingabe > `devDefault` (wenn dev) > `default`, Bereich 1–65535; Felder mit `generate: 'password'` und ohne Eingabe → zufällige 20 Zeichen.
-- `renderCompose` parst das Ergebnis mit `yaml` und setzt für **jeden** Service `restart: unless-stopped` und das Label `homebase.app: <appId>` (bestehende Labels bleiben), Projektname `name: hb-<appId>`.
+- Platzhalter-Syntax in `compose.yml`: `${field.<key>}`, `${port.<key>}`, `${app.dataDir}`, `${app.id}`. Unbekannter Platzhalter → `MainframeError('template_unknown_placeholder')` mit Namen.
+- `resolveValues`: Pflichtfeld fehlt → `MainframeError('field_required')` mit deutscher Meldung „<Label> fehlt noch.“; Ports: Eingabe > `devDefault` (wenn dev) > `default`, Bereich 1–65535; Felder mit `generate: 'password'` und ohne Eingabe → zufällige 20 Zeichen.
+- `renderCompose` parst das Ergebnis mit `yaml` und setzt für **jeden** Service `restart: unless-stopped` und das Label `mainframe.app: <appId>` (bestehende Labels bleiben), Projektname `name: mf-<appId>`.
 
 - [ ] **Step 1: Failing tests:** Fixture lädt; Manifest mit fehlendem `name` → `catalog_invalid`; `${port.web}` wird im Dev zu `devDefault`, sonst `default`, Eingabe überschreibt beides; Port `70000` → Fehler; Pflichtfeld fehlt → `field_required` mit Label in der Meldung; `${foo.bar}` → `template_unknown_placeholder`; gerendertes YAML hat bei allen Services `restart` und Label; `generate: 'password'` liefert 20 Zeichen und bei zwei Aufrufen verschiedene Werte.
 - [ ] **Step 2:** FAIL. **Step 3:** Implementieren. **Step 4:** PASS.
@@ -285,9 +285,9 @@ homebase/
   }
   export function createAppEngine(deps: { config: Config; catalog: CatalogEntry[]; compose: ComposeRunner; docker: DockerStatus; store: StateStore }): AppEngine
   ```
-- `install`: schon installiert → `HomebaseError('already_installed', …, 409)`. Ablauf: Werte auflösen → Ordner `<dataRoot>/apps/<id>/data` anlegen → `beforeUp`-Hook (falls registriert) → Compose schreiben → State speichern → `up`. Schlägt `up` fehl: `down` aufrufen, `lastError` setzen, Fehler mit Meldung weiterwerfen (`install_failed`). Bei „port is already allocated“ im stderr lautet die Meldung „Port <n> ist schon belegt. Nimm einen anderen Port.“
+- `install`: schon installiert → `MainframeError('already_installed', …, 409)`. Ablauf: Werte auflösen → Ordner `<dataRoot>/apps/<id>/data` anlegen → `beforeUp`-Hook (falls registriert) → Compose schreiben → State speichern → `up`. Schlägt `up` fehl: `down` aufrufen, `lastError` setzen, Fehler mit Meldung weiterwerfen (`install_failed`). Bei „port is already allocated“ im stderr lautet die Meldung „Port <n> ist schon belegt. Nimm einen anderen Port.“
 - `list`: State-Dateien + `containersByApp()`. Zustand: alle Container `running` → `running`; einer `restarting` → `restarting`; keiner läuft und `lastError` → `error`; sonst `stopped`. `webUiUrl` = `http://<host>:<port>` aus `webUi.portKey` (Host wird von der Route eingesetzt, Engine liefert `:<port><path>`).
-- Docker nicht erreichbar (`ping()` false oder Verbindungsfehler) → jede Aktion wirft `HomebaseError('docker_down', 'Docker läuft gerade nicht. Starte Docker Desktop und lad die Seite neu.', 503)`; `list()` liefert dann die Apps mit `state: 'error'` und dieser Meldung in `error`.
+- Docker nicht erreichbar (`ping()` false oder Verbindungsfehler) → jede Aktion wirft `MainframeError('docker_down', 'Docker läuft gerade nicht. Starte Docker Desktop und lad die Seite neu.', 503)`; `list()` liefert dann die Apps mit `state: 'error'` und dieser Meldung in `error`.
 
 - [ ] **Step 1: Failing tests** mit Fake-`ComposeRunner`, Fake-`DockerStatus`, temporärem `dataRoot`:
   - Installation schreibt `docker-compose.yml` und `app-state.json`, ruft `up` genau einmal
@@ -320,7 +320,7 @@ homebase/
   - `DELETE /api/apps/:id?deleteData=true|false` → 204
 - WS: Client sendet `{ type: 'subscribe-logs', appId }` / `{ type: 'unsubscribe-logs', appId }`, Server streamt `{ type: 'log', appId, line }`. Nach jeder App-Aktion sendet der Server `{ type: 'apps', data }` an alle.
 
-- [ ] **Step 1: Failing tests** (Fake-Engine): jede Route ruft die passende Engine-Methode; `webUiUrl` für Host `192.168.1.20:8787` und Engine-Wert `:3000/` → `http://192.168.1.20:3000/`; `HomebaseError` der Engine kommt als `ApiError` mit richtigem Status an; nach `start` erhält ein WS-Client eine `apps`-Nachricht; `subscribe-logs` liefert Zeilen, `unsubscribe-logs` ruft die Stop-Funktion.
+- [ ] **Step 1: Failing tests** (Fake-Engine): jede Route ruft die passende Engine-Methode; `webUiUrl` für Host `192.168.1.20:8787` und Engine-Wert `:3000/` → `http://192.168.1.20:3000/`; `MainframeError` der Engine kommt als `ApiError` mit richtigem Status an; nach `start` erhält ein WS-Client eine `apps`-Nachricht; `subscribe-logs` liefert Zeilen, `unsubscribe-logs` ruft die Stop-Funktion.
 - [ ] **Step 2:** FAIL. **Step 3:** Implementieren. **Step 4:** PASS.
 - [ ] **Step 5: Commit** `feat(server): app-routen und live-logs`
 
@@ -370,7 +370,7 @@ homebase/
   ```
 - Tokens in `tokens.css` als CSS-Variablen mit Rollen-Namen: `--surface`, `--surface-raised`, `--surface-sunken`, `--text`, `--text-secondary`, `--separator`, `--accent`, `--accent-text`, `--ok`, `--warn`, `--danger`, `--radius-s/m/l`, `--space-1…6`, `--font-ui` (System-Stack: `system-ui, -apple-system, "Segoe UI Variable", "Segoe UI", sans-serif`), `--font-mono` (`ui-monospace, "Cascadia Mono", Consolas, monospace`). Dunkel ist die Basis, Hell über `@media (prefers-color-scheme: light)`. Akzentfarbe: ein ruhiges Blau. Jede Text/Fläche-Kombination ≥ 4,5:1, das wird in Step 5 mit dem apple-design-Skill geprüft.
 - Navigation: Übersicht (`/`), Apps (`/apps`), Minecraft (`/minecraft`, Platzhalter „Kommt bald: hier steuerst du deinen Minecraft-Server.“), Einstellungen (`/settings`). Ab 768 px Breite Seitenleiste links, darunter Tab-Leiste unten mit Symbol + einwortiger Beschriftung, aktive Seite hervorgehoben und mit `aria-current="page"`.
-- Ablauf: `GET /api/auth/state` → kein Setup → `Setup` („Willkommen bei Homebase. Leg ein Passwort fest.“), nicht eingeloggt → `Login`, sonst `Shell`. Einstellungen-Seite: Passwort ändern, Abmelden.
+- Ablauf: `GET /api/auth/state` → kein Setup → `Setup` („Willkommen bei Mainframe. Leg ein Passwort fest.“), nicht eingeloggt → `Login`, sonst `Shell`. Einstellungen-Seite: Passwort ändern, Abmelden.
 - `ConnectionBanner` zeigt bei `reconnecting` „Verbindung weg, versuche es erneut …“.
 
 - [ ] **Step 1: Failing tests:**
@@ -411,7 +411,7 @@ homebase/
 **Interfaces:**
 - Consumes: `GET /api/catalog`, `GET /api/apps`, `POST /api/apps/:id/install|start|stop|restart`, `DELETE /api/apps/:id`, WS `apps`/`log`.
 - Oben „Installiert“ (Name, Status als Symbol + Text: „Läuft“, „Gestoppt“, „Startet neu“, „Fehler“, „Wird installiert“), Werkzeugleiste pro App: Öffnen (wenn `webUiUrl`), Start/Stop, Neustart, Logs, Entfernen. Darunter „Katalog“ mit noch nicht installierten Apps.
-- `InstallSheet`: Formular aus `fields` und `ports` (Ports vorausgefüllt), `secret`-Felder als Passwortfeld mit Hinweis „Leer lassen, dann denkt sich Homebase eins aus.“, Knopf „Installieren“, während der Installation Fortschrittsanzeige und Formular gesperrt, Fehler erscheinen im Sheet.
+- `InstallSheet`: Formular aus `fields` und `ports` (Ports vorausgefüllt), `secret`-Felder als Passwortfeld mit Hinweis „Leer lassen, dann denkt sich Mainframe eins aus.“, Knopf „Installieren“, während der Installation Fortschrittsanzeige und Formular gesperrt, Fehler erscheinen im Sheet.
 - Entfernen: Bestätigungsdialog „<Name> entfernen?“ mit Checkbox „Auch alle Daten löschen“ (aus) und Knöpfen „Abbrechen“ / „Entfernen“.
 - `LogDrawer`: Monospace, folgt automatisch nach unten, Auto-Scroll stoppt, wenn man hochscrollt, maximal 2000 Zeilen im Speicher.
 
@@ -442,10 +442,10 @@ homebase/
 
 **Files:**
 - Modify: `README.md` (Voraussetzungen: Node 24, Docker Desktop; Start: `npm install`, `npm run dev`, Browser `http://localhost:5173`; Tests: `npm test`, Docker-Integration: `DOCKER_IT=1 npm test`)
-- Modify: Root-`package.json` (`build`: Web bauen, Server mit `tsc` bauen; `start`: gebauter Server mit `HOMEBASE_WEB_DIST=apps/web/dist`)
+- Modify: Root-`package.json` (`build`: Web bauen, Server mit `tsc` bauen; `start`: gebauter Server mit `MAINFRAME_WEB_DIST=apps/web/dist`)
 
 - [ ] **Step 1:** `npm test` → alle Tests grün.
-- [ ] **Step 2:** `npm run build && npm start` mit `HOMEBASE_DEV=1`. `http://localhost:8787` liefert die Oberfläche (SPA-Fallback funktioniert bei Direktaufruf von `/apps`).
-- [ ] **Step 3: Durchspielen** im Browser (Desktop 1280 px und Handy-Ansicht 375 px): Passwort festlegen → Dashboard zeigt Live-Werte → AdGuard installieren → Widget erscheint mit Zahlen → per `Strg+K` AdGuard neu starten → Docker Desktop beenden → Hinweis „Docker läuft gerade nicht …“ erscheint → Docker wieder starten → alles normal. Homebase-Prozess beenden: AdGuard-Container läuft weiter (`docker ps`).
-- [ ] **Step 4:** Speicherverbrauch des Homebase-Prozesses nach 5 min mit offenem Dashboard prüfen (Task-Manager): unter 150 MB.
+- [ ] **Step 2:** `npm run build && npm start` mit `MAINFRAME_DEV=1`. `http://localhost:8787` liefert die Oberfläche (SPA-Fallback funktioniert bei Direktaufruf von `/apps`).
+- [ ] **Step 3: Durchspielen** im Browser (Desktop 1280 px und Handy-Ansicht 375 px): Passwort festlegen → Dashboard zeigt Live-Werte → AdGuard installieren → Widget erscheint mit Zahlen → per `Strg+K` AdGuard neu starten → Docker Desktop beenden → Hinweis „Docker läuft gerade nicht …“ erscheint → Docker wieder starten → alles normal. Mainframe-Prozess beenden: AdGuard-Container läuft weiter (`docker ps`).
+- [ ] **Step 4:** Speicherverbrauch des Mainframe-Prozesses nach 5 min mit offenem Dashboard prüfen (Task-Manager): unter 150 MB.
 - [ ] **Step 5: Commit** `docs: readme und build-skripte`

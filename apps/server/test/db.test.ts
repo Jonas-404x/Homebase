@@ -35,8 +35,8 @@ describe('openDb', () => {
   });
 
   it('behält Daten über erneutes Öffnen hinweg', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hb-db-'));
-    const file = path.join(dir, 'homebase.db');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mf-db-'));
+    const file = path.join(dir, 'mainframe.db');
     const a = openDb(file);
     a.setSetting('x', 'y');
     a.close();

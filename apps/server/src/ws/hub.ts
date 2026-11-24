@@ -1,5 +1,5 @@
 import type { WebSocket } from 'ws';
-import type { WsMessage } from '@homebase/shared';
+import type { WsMessage } from '@mainframe/shared';
 
 export interface WsHub {
   add(socket: WebSocket): void;

@@ -1,5 +1,5 @@
 import si from 'systeminformation';
-import type { SystemStats } from '@homebase/shared';
+import type { SystemStats } from '@mainframe/shared';
 
 /** Der Teil von systeminformation, den wir brauchen (für Tests austauschbar). */
 export interface SiLike {

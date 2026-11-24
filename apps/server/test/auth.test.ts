@@ -37,7 +37,7 @@ describe('Login-Routen', () => {
     const res = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { password: 'geheim123' } });
     expect(res.statusCode).toBe(204);
     const raw = String(res.headers['set-cookie']);
-    expect(raw).toContain('hb_session=');
+    expect(raw).toContain('mf_session=');
     expect(raw).toContain('HttpOnly');
     expect(raw).toContain('SameSite=Lax');
   });
@@ -58,7 +58,7 @@ describe('Login-Routen', () => {
     expect(bad.json()).toEqual({ code: 'wrong_password', message: 'Passwort stimmt nicht.' });
     const ok = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { password: 'geheim123' } });
     expect(ok.statusCode).toBe(204);
-    expect(sessionCookie(ok)).toMatch(/^hb_session=/);
+    expect(sessionCookie(ok)).toMatch(/^mf_session=/);
   });
 
   it('schützt API-Routen und gibt sie mit Session frei', async () => {

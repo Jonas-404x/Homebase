@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { FastifyReply } from 'fastify';
 import type { Db } from '../db.ts';
 
-export const SESSION_COOKIE = 'hb_session';
+export const SESSION_COOKIE = 'mf_session';
 export const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 
 export function startSession(db: Db, reply: FastifyReply, now = Date.now()): string {

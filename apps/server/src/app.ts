@@ -1,12 +1,12 @@
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
-import type { ApiError } from '@homebase/shared';
+import type { ApiError } from '@mainframe/shared';
 import { registerAuthGuard } from './auth/plugin.ts';
 import { registerAuthRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
 import type { Db } from './db.ts';
-import { HomebaseError } from './errors.ts';
+import { MainframeError } from './errors.ts';
 import websocket from '@fastify/websocket';
 import { registerSystemRoutes } from './system/routes.ts';
 import { createStatsProvider, type StatsProvider } from './system/stats.ts';
@@ -30,7 +30,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({ logger: deps.config.dev ? false : { level: 'info' } });
 
   app.setErrorHandler((err, req, reply) => {
-    if (err instanceof HomebaseError) {
+    if (err instanceof MainframeError) {
       return reply.code(err.status).send({ code: err.code, message: err.message } satisfies ApiError);
     }
     const status = (err as { statusCode?: number }).statusCode;

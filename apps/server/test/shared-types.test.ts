@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { catalogAppSchema } from '@homebase/shared';
+import { catalogAppSchema } from '@mainframe/shared';
 
 const valid = { id: 'adguard', name: 'AdGuard Home', description: 'x', icon: 'shield', fields: [], ports: [] };
 

@@ -1,7 +1,35 @@
-# Homebase
+# Mainframe
 
-Mein selbstgebautes Cockpit für den Heimserver: Live-Dashboard, App-Katalog mit Ein-Klick-Installation (AdGuard Home, Minecraft, Navidrome …) und ein Minecraft-Bereich wie bei gemieteten Servern. Läuft im Browser am PC und am Handy.
+**The control center for your home server.** Mainframe turns a cheap second-hand PC into your own little data center, and lets you run it from any browser, on your desktop or on your phone.
 
-> Noch in Arbeit. Was neu ist, steht im [CHANGELOG](CHANGELOG.md).
+- **Live dashboard**: CPU, RAM, disks, temperature, network, all updating in real time
+- **One-click apps**: install, start, stop and watch services like AdGuard Home, a Minecraft server or your own music streaming, no terminal needed
+- **Network-wide ad blocking** with AdGuard Home, preconfigured out of the box
+- **Minecraft panel like a paid host** *(coming next)*: players with skins, stats, live console, troll buttons, world uploads, plugins, backups, plus a public address your friends can join via playit.gg
+- **Command palette**: hit `Ctrl+K` and do anything in a second
+- **Built for a small box**: the whole thing is tuned to run next to a Minecraft server on an 8 GB machine
 
-Design: [docs/superpowers/specs/2026-11-23-homebase-design.md](docs/superpowers/specs/2026-11-23-homebase-design.md)
+> 🚧 Work in progress. See the [changelog](CHANGELOG.md) for what's new.
+
+## Stack
+
+Node 24 + TypeScript, Fastify, React, Docker Compose. Every service runs in its own container and keeps running even if Mainframe itself is down.
+
+## Roadmap
+
+1. **Foundation**: login, live dashboard, app catalog, AdGuard Home, command palette ← *in progress*
+2. **Minecraft**: server, playit.gg, players, stats, troll buttons, worlds, plugins, backups
+3. **More apps**: Navidrome music server, custom containers (e.g. your own Discord bot), read-only API
+4. **Deployment**: one setup script for Ubuntu Server (Docker, Tailscale, firewall), HTTPS and phone app (PWA)
+
+## Development
+
+Requires Node 24 and Docker Desktop.
+
+```bash
+npm install
+npm run dev
+npm test
+```
+
+The interface is in German.
