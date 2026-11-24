@@ -1,0 +1,24 @@
+{
+  "name": "homebase",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,magenta \"npm run dev -w apps/server\" \"npm run dev -w apps/web --if-present\"",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run typecheck && npm run build -w apps/web --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "concurrently": "^9.2.5",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}
