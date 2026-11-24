@@ -25,6 +25,7 @@ export function AuthScreen({ mode, onDone }: { mode: 'setup' | 'login'; onDone: 
   return (
     <div className="auth">
       <form className="card auth-card" onSubmit={submit}>
+        <img className="auth-logo" src="/icon-192.png" alt="" width={64} height={64} />
         <h1>{setup ? 'Willkommen bei Mainframe' : 'Mainframe'}</h1>
         <p className="secondary">
           {setup ? 'Leg ein Passwort fest. Damit meldest du dich künftig an.' : 'Melde dich mit deinem Passwort an.'}

@@ -13,6 +13,7 @@ export function Navigation() {
   return (
     <nav className="nav" aria-label="Hauptnavigation">
       <div className="nav-brand" aria-hidden="true">
+        <img src="/icon-192.png" alt="" width={28} height={28} />
         Mainframe
       </div>
       <ul>

@@ -151,7 +151,9 @@ a {
     padding: var(--space-5) var(--space-3);
   }
   .nav-brand {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
     padding: 0 var(--space-3) var(--space-5);
     font-weight: 700;
     font-size: 1.125rem;
@@ -705,4 +707,9 @@ fieldset {
   border: 1px solid var(--separator);
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.3);
   font-weight: 600;
+}
+
+.auth-logo {
+  display: block;
+  border-radius: 14px;
 }

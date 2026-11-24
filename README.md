@@ -1,4 +1,6 @@
-# Mainframe
+<p align="center"><img src="assets/brand/logo-512.png" alt="Mainframe logo" width="120" /></p>
+
+<h1 align="center">Mainframe</h1>
 
 **The control center for your home server.** Mainframe turns a cheap second-hand PC into your own little data center, and lets you run it from any browser, on your desktop or on your phone.
 
