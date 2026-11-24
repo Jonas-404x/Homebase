@@ -21,8 +21,8 @@ export function sessionCookie(res: { headers: Record<string, unknown> }): string
 }
 
 /** Legt das Passwort fest und gibt das Session-Cookie zurück. */
-export async function setupAndLogin(app: FastifyInstance, password = 'geheim123'): Promise<string> {
-  const res = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { password } });
+export async function setupAndLogin(app: FastifyInstance, password = 'geheim123', username = 'jonas'): Promise<string> {
+  const res = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { username, password } });
   if (res.statusCode !== 204) throw new Error(`setup fehlgeschlagen: ${res.statusCode} ${res.body}`);
   return sessionCookie(res);
 }

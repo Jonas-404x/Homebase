@@ -9,9 +9,9 @@ afterEach(() => vi.unstubAllGlobals());
 const noSocket = () => ({ status: () => 'open' as const, on: () => () => {}, onStatus: () => () => {}, send: () => {}, close: () => {} });
 
 describe('Anmelde-Ablauf', () => {
-  it('führt durch das Setup bis zur Oberfläche', async () => {
+  it('führt durch das Setup mit Benutzername und Passwort bis zur Oberfläche', async () => {
     let setupDone = false;
-    mockApi({
+    const calls = mockApi({
       'GET /api/auth/state': () => ({ json: { setupDone, loggedIn: setupDone } }),
       'POST /api/auth/setup': (body) => {
         if ((body as { password: string }).password.length < 8) {
@@ -27,6 +27,7 @@ describe('Anmelde-Ablauf', () => {
     render(<App socketFactory={noSocket} />);
 
     expect(await screen.findByText('Willkommen bei Mainframe')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Benutzername'), 'jonas');
     const field = screen.getByLabelText('Passwort');
     await user.type(field, 'kurz');
     await user.click(screen.getByRole('button', { name: 'Loslegen' }));
@@ -36,17 +37,25 @@ describe('Anmelde-Ablauf', () => {
     await user.type(field, 'geheim123');
     await user.click(screen.getByRole('button', { name: 'Loslegen' }));
     expect(await screen.findByRole('navigation', { name: 'Hauptnavigation' })).toBeInTheDocument();
+    expect(calls.filter((c) => c.path === '/api/auth/setup').at(-1)?.body).toEqual({ username: 'jonas', password: 'geheim123', remember: true });
   });
 
-  it('zeigt den Login, wenn eingerichtet aber nicht angemeldet', async () => {
-    mockApi({
+  it('meldet mit Benutzername und Passwort an, „Angemeldet bleiben“ ist vorausgewählt', async () => {
+    const calls = mockApi({
       'GET /api/auth/state': () => ({ json: { setupDone: true, loggedIn: false } }),
-      'POST /api/auth/login': () => ({ status: 401, json: { code: 'wrong_password', message: 'Passwort stimmt nicht.' } }),
+      'POST /api/auth/login': () => ({ status: 401, json: { code: 'wrong_login', message: 'Benutzername oder Passwort stimmt nicht.' } }),
     });
     const user = userEvent.setup();
     render(<App socketFactory={noSocket} />);
-    await user.type(await screen.findByLabelText('Passwort'), 'falsch123');
+    const name = await screen.findByLabelText('Benutzername');
+    expect(name).toHaveAttribute('autocomplete', 'username');
+    const remember = screen.getByRole('checkbox', { name: 'Angemeldet bleiben' });
+    expect(remember).toBeChecked();
+    await user.type(name, 'jonas');
+    await user.type(screen.getByLabelText('Passwort'), 'falsch123');
+    await user.click(remember);
     await user.click(screen.getByRole('button', { name: 'Anmelden' }));
-    expect(await screen.findByText('Passwort stimmt nicht.')).toBeInTheDocument();
+    expect(await screen.findByText('Benutzername oder Passwort stimmt nicht.')).toBeInTheDocument();
+    expect(calls.find((c) => c.path === '/api/auth/login')?.body).toEqual({ username: 'jonas', password: 'falsch123', remember: false });
   });
 });
