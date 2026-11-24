@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { registerAdguardHook, registerAdguardRoutes } from './adguard/routes.ts';
 import { buildApp } from './app.ts';
 import { createComposeRunner } from './apps/compose-runner.ts';
 import { createDockerStatus } from './apps/docker-status.ts';
@@ -21,7 +22,8 @@ const engine = createAppEngine({
   store: createStateStore(config.dataRoot),
 });
 
-const app = await buildApp({ config, db, engine });
+registerAdguardHook(engine);
+const app = await buildApp({ config, db, engine, plugins: [(a) => registerAdguardRoutes(a, engine)] });
 
 setInterval(() => db.deleteExpiredSessions(Date.now()), 60 * 60 * 1000).unref();
 

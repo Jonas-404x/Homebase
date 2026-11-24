@@ -1,0 +1,15 @@
+{
+  "id": "adguard",
+  "name": "AdGuard Home",
+  "description": "Blockt Werbung und Tracker für alle Geräte in deinem WLAN.",
+  "icon": "shield",
+  "fields": [
+    { "key": "adminUser", "label": "Benutzername", "type": "string", "required": true, "default": "admin" },
+    { "key": "adminPassword", "label": "Passwort", "type": "secret", "required": false, "generate": "password" }
+  ],
+  "ports": [
+    { "key": "dns", "label": "DNS-Port", "container": 53, "protocol": "udp", "default": 53, "devDefault": 5353 },
+    { "key": "web", "label": "Weboberfläche", "container": 3000, "protocol": "tcp", "default": 3000, "devDefault": 3000 }
+  ],
+  "webUi": { "portKey": "web", "path": "/" }
+}
