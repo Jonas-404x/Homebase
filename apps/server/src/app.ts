@@ -50,17 +50,17 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(cookie);
   await app.register(rateLimit, { global: false });
   await app.register(websocket);
-  registerAuthGuard(app, deps.db);
-  registerAuthRoutes(app, deps.db);
-
   const hub = deps.hub ?? createWsHub();
   app.decorate('hub', hub);
+  registerAuthGuard(app, deps.db);
+  // Nach Abmelden/Passwortwechsel offene Live-Verbindungen ohne gültige Session trennen.
+  registerAuthRoutes(app, deps.db, () => hub.closeInvalidSessions((sid) => deps.db.getSession(sid) !== null));
   app.get('/api/ws', { websocket: true }, (socket, req) => {
     if (!req.sessionId) {
       socket.close(4401, 'not_logged_in');
       return;
     }
-    hub.add(socket);
+    hub.add(socket, req.sessionId);
   });
   app.addHook('preClose', async () => hub.closeAll());
   registerSystemRoutes(app, hub, deps.statsProvider ?? createStatsProvider(), deps.statsIntervalMs ?? 2000);

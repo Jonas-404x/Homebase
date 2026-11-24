@@ -22,7 +22,7 @@ function checkLength(pw: unknown): string {
   return pw;
 }
 
-export function registerAuthRoutes(app: FastifyInstance, db: Db): void {
+export function registerAuthRoutes(app: FastifyInstance, db: Db, onSessionsChanged: () => void = () => {}): void {
   app.get('/api/auth/state', async (req) => ({
     setupDone: db.getSetting(PASSWORD_KEY) !== null,
     loggedIn: req.sessionId !== null,
@@ -50,6 +50,7 @@ export function registerAuthRoutes(app: FastifyInstance, db: Db): void {
 
   app.post('/api/auth/logout', async (req, reply) => {
     if (req.sessionId) db.deleteSession(req.sessionId);
+    onSessionsChanged();
     reply.clearCookie(SESSION_COOKIE, { path: '/' });
     return reply.code(204).send();
   });
@@ -63,6 +64,7 @@ export function registerAuthRoutes(app: FastifyInstance, db: Db): void {
     }
     db.setSetting(PASSWORD_KEY, await hashPassword(checkLength(req.body?.next)));
     db.deleteAllSessionsExcept(req.sessionId);
+    onSessionsChanged();
     return reply.code(204).send();
   });
 }

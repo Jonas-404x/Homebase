@@ -1,9 +1,10 @@
-import { CircleAlert, CircleCheck, CircleDot, CirclePause, ExternalLink, LoaderCircle, Play, RotateCw, ScrollText, Square, Trash2, type LucideIcon } from 'lucide-react';
+import { CircleAlert, CircleCheck, CircleDot, CirclePause, ExternalLink, KeyRound, LoaderCircle, Play, RotateCw, ScrollText, Square, Trash2, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { AppState, CatalogApp, InstalledApp } from '@mainframe/shared';
 import { api, errorText, post } from '../api/client.ts';
 import { useApps } from '../api/useApps.ts';
 import { AppIcon } from '../components/AppIcon.tsx';
+import { CredentialsDialog } from '../components/CredentialsDialog.tsx';
 import { Dialog } from '../components/Dialog.tsx';
 import { InstallSheet } from '../components/InstallSheet.tsx';
 import { LogDrawer } from '../components/LogDrawer.tsx';
@@ -33,6 +34,7 @@ export function Apps() {
   const [installing, setInstalling] = useState<CatalogApp | null>(null);
   const [removing, setRemoving] = useState<InstalledApp | null>(null);
   const [logsFor, setLogsFor] = useState<InstalledApp | null>(null);
+  const [credsFor, setCredsFor] = useState<{ id: string; name: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,6 +45,7 @@ export function Apps() {
   const installedIds = new Set((apps ?? []).map((a) => a.id));
   const available = catalog.filter((c) => !installedIds.has(c.id));
   const iconOf = (id: string) => catalog.find((c) => c.id === id)?.icon ?? 'box';
+  const hasFields = (id: string) => (catalog.find((c) => c.id === id)?.fields.length ?? 0) > 0;
 
   async function act(app: InstalledApp, action: 'start' | 'stop' | 'restart') {
     setBusy(`${app.id}:${action}`);
@@ -100,6 +103,11 @@ export function Apps() {
                   <button type="button" className="button icon-button" aria-label={`${app.name} neu starten`} title="Neu starten" disabled={busy !== null} onClick={() => act(app, 'restart')}>
                     <RotateCw aria-hidden="true" size={18} />
                   </button>
+                  {hasFields(app.id) && (
+                    <button type="button" className="button icon-button" aria-label={`Zugangsdaten von ${app.name}`} title="Zugangsdaten" onClick={() => setCredsFor(app)}>
+                      <KeyRound aria-hidden="true" size={18} />
+                    </button>
+                  )}
                   <button type="button" className="button icon-button" aria-label={`Logs von ${app.name}`} title="Logs" onClick={() => setLogsFor(app)}>
                     <ScrollText aria-hidden="true" size={18} />
                   </button>
@@ -135,12 +143,16 @@ export function Apps() {
           app={installing}
           onClose={() => setInstalling(null)}
           onInstalled={() => {
+            const app = installing;
             setInstalling(null);
+            // Erzeugte Zugangsdaten direkt zeigen, sonst kennt man das Passwort nicht.
+            if (app.fields.length > 0) setCredsFor({ id: app.id, name: app.name });
             void reload();
           }}
         />
       )}
       {removing && <RemoveDialog app={removing} onClose={() => setRemoving(null)} onDone={() => { setRemoving(null); void reload(); }} />}
+      {credsFor && <CredentialsDialog appId={credsFor.id} appName={credsFor.name} onClose={() => setCredsFor(null)} />}
       {logsFor && <LogDrawer appId={logsFor.id} appName={logsFor.name} onClose={() => setLogsFor(null)} />}
     </section>
   );

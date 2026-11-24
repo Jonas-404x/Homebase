@@ -27,10 +27,14 @@ describe('writeAdguardPreseed', () => {
     expect(cfg.dns.upstream_dns).toContain('https://dns.quad9.net/dns-query');
   });
 
-  it('überschreibt eine vorhandene Konfiguration nicht', async () => {
-    fs.writeFileSync(path.join(dir, 'AdGuardHome.yaml'), 'eigene: true\n');
-    await writeAdguardPreseed(dir, { adminUser: 'admin', adminPassword: 'x' });
-    expect(fs.readFileSync(path.join(dir, 'AdGuardHome.yaml'), 'utf8')).toBe('eigene: true\n');
+  it('setzt bei vorhandener Konfiguration nur die Zugangsdaten neu (Review I2)', async () => {
+    fs.writeFileSync(path.join(dir, 'AdGuardHome.yaml'), 'eigene: true\nusers:\n  - name: alt\n    password: altHash\n');
+    await writeAdguardPreseed(dir, { adminUser: 'jonas', adminPassword: 'neu12345' });
+    const cfg = parse(fs.readFileSync(path.join(dir, 'AdGuardHome.yaml'), 'utf8'));
+    expect(cfg.eigene).toBe(true);
+    expect(cfg.users).toHaveLength(1);
+    expect(cfg.users[0].name).toBe('jonas');
+    expect(bcrypt.compareSync('neu12345', cfg.users[0].password)).toBe(true);
   });
 });
 

@@ -1,23 +1,27 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import bcrypt from 'bcryptjs';
-import { stringify } from 'yaml';
+import { parse, stringify } from 'yaml';
 
 /**
  * Schreibt eine Start-Konfiguration, damit AdGuard ohne Einrichtungsassistent startet.
  * Fehlende Felder ergänzt AdGuard beim ersten Start selbst.
+ * Gibt es schon eine Konfiguration (Neuinstallation mit behaltenen Daten), bleiben alle
+ * Einstellungen erhalten und nur die Zugangsdaten werden auf die neuen Werte gesetzt –
+ * sonst passt Mainframes gespeichertes Passwort nicht mehr zu AdGuard.
  */
 export async function writeAdguardPreseed(confDir: string, values: { adminUser: string; adminPassword: string }): Promise<void> {
   const file = path.join(confDir, 'AdGuardHome.yaml');
-  try {
-    await fs.access(file);
+  const users = [{ name: values.adminUser, password: bcrypt.hashSync(values.adminPassword, 10) }];
+  const existing = await fs.readFile(file, 'utf8').catch(() => null);
+  if (existing !== null) {
+    const cfg = (parse(existing) ?? {}) as Record<string, unknown>;
+    await fs.writeFile(file, stringify({ ...cfg, users }));
     return;
-  } catch {
-    // existiert noch nicht → schreiben
   }
   const config = {
     http: { address: '0.0.0.0:3000', session_ttl: '720h' },
-    users: [{ name: values.adminUser, password: bcrypt.hashSync(values.adminPassword, 10) }],
+    users,
     language: 'de',
     theme: 'auto',
     dns: {

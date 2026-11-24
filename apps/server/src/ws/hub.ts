@@ -2,7 +2,9 @@ import type { WebSocket } from 'ws';
 import type { WsMessage } from '@mainframe/shared';
 
 export interface WsHub {
-  add(socket: WebSocket): void;
+  add(socket: WebSocket, sessionId?: string): void;
+  /** Schließt mit 4401 alle Verbindungen, deren Session nicht mehr gültig ist. */
+  closeInvalidSessions(isValid: (sessionId: string) => boolean): void;
   broadcast(msg: WsMessage): void;
   clientCount(): number;
   onFirstClient(cb: () => void): void;
@@ -14,14 +16,16 @@ export interface WsHub {
 
 export function createWsHub(): WsHub {
   const clients = new Set<WebSocket>();
+  const sessions = new Map<WebSocket, string>();
   const first: (() => void)[] = [];
   const none: (() => void)[] = [];
   const msgs: ((s: WebSocket, m: Record<string, unknown>) => void)[] = [];
   const gone: ((s: WebSocket) => void)[] = [];
 
   return {
-    add(socket) {
+    add(socket, sessionId) {
       clients.add(socket);
+      if (sessionId) sessions.set(socket, sessionId);
       if (clients.size === 1) first.forEach((cb) => cb());
       socket.on('message', (raw) => {
         let parsed: unknown;
@@ -33,6 +37,7 @@ export function createWsHub(): WsHub {
         if (parsed && typeof parsed === 'object') msgs.forEach((cb) => cb(socket, parsed as Record<string, unknown>));
       });
       socket.on('close', () => {
+        sessions.delete(socket);
         if (!clients.delete(socket)) return;
         gone.forEach((cb) => cb(socket));
         if (clients.size === 0) none.forEach((cb) => cb());
@@ -47,6 +52,9 @@ export function createWsHub(): WsHub {
     onNoClients: (cb) => void none.push(cb),
     onMessage: (cb) => void msgs.push(cb),
     onDisconnect: (cb) => void gone.push(cb),
+    closeInvalidSessions(isValid) {
+      for (const [socket, sid] of sessions) if (!isValid(sid)) socket.close(4401, 'not_logged_in');
+    },
     closeAll() {
       for (const c of clients) c.terminate();
     },

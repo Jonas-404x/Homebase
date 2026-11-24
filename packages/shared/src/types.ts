@@ -65,6 +65,14 @@ export interface InstalledApp {
   installedAt: string;
 }
 
+/** Ein Eingabefeld einer installierten App mit seinem Wert (z. B. Benutzername und Passwort). */
+export interface AppCredential {
+  key: string;
+  label: string;
+  value: string;
+  secret: boolean;
+}
+
 export type WsMessage =
   | { type: 'stats'; data: SystemStats }
   | { type: 'apps'; data: InstalledApp[] }

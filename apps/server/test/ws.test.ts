@@ -32,6 +32,34 @@ describe('WebSocket /api/ws', () => {
     await app.close();
   });
 
+  it('trennt offene Verbindungen beim Abmelden mit 4401 (Review I6)', async () => {
+    const { app } = await setup();
+    const cookie = await setupAndLogin(app);
+    const ws = await app.injectWS('/api/ws', { headers: { cookie } });
+    const closed = new Promise<number>((r) => ws.on('close', (c) => r(c)));
+    await app.inject({ method: 'POST', url: '/api/auth/logout', headers: { cookie } });
+    expect(await closed).toBe(4401);
+    await app.close();
+  });
+
+  it('trennt beim Passwortwechsel nur die anderen Sessions (Review I6)', async () => {
+    const { app } = await setup();
+    const mine = await setupAndLogin(app);
+    const loginRes = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { password: 'geheim123' } });
+    const other = String(loginRes.headers['set-cookie']).split(';')[0]!;
+    const wsMine = await app.injectWS('/api/ws', { headers: { cookie: mine } });
+    const wsOther = await app.injectWS('/api/ws', { headers: { cookie: other } });
+    let mineClosed = false;
+    wsMine.on('close', () => (mineClosed = true));
+    const otherClosed = new Promise<number>((r) => wsOther.on('close', (c) => r(c)));
+    await app.inject({ method: 'POST', url: '/api/auth/password', headers: { cookie: mine }, payload: { current: 'geheim123', next: 'neuesPasswort1' } });
+    expect(await otherClosed).toBe(4401);
+    await sleep(50);
+    expect(mineClosed).toBe(false);
+    wsMine.terminate();
+    await app.close();
+  });
+
   it('schickt eingeloggten Clients regelmäßig Stats', async () => {
     const { app } = await setup();
     const cookie = await setupAndLogin(app);

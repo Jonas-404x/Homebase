@@ -15,7 +15,19 @@ function fakeEngine() {
   ];
   const engine: AppEngine = {
     hooks: new Map(),
-    catalog: () => [{ id: 'adguard', name: 'AdGuard Home', description: '', icon: 'shield', fields: [], ports: [] }],
+    catalog: () => [
+      {
+        id: 'adguard',
+        name: 'AdGuard Home',
+        description: '',
+        icon: 'shield',
+        fields: [
+          { key: 'adminUser', label: 'Benutzername', type: 'string', required: true },
+          { key: 'adminPassword', label: 'Passwort', type: 'secret', required: false, generate: 'password' },
+        ],
+        ports: [{ key: 'web', label: 'Weboberfläche', container: 3000, protocol: 'tcp', default: 3000 }],
+      },
+    ],
     list: async () => apps,
     install: async (id, input) => (calls.push(`install ${id} ${JSON.stringify(input)}`), apps[0]!),
     start: async (id) => void calls.push(`start ${id}`),
@@ -29,7 +41,7 @@ function fakeEngine() {
       onLine(`hallo von ${id}`);
       return () => void logStopped++;
     },
-    values: async () => ({}),
+    values: async () => ({ adminUser: 'admin', adminPassword: 'geheimXYZ', web: '3000' }),
     dockerStatus: async () => ({ ok: false, message: "Docker läuft gerade nicht." }),
   };
   return { engine, calls, logStopped: () => logStopped };
@@ -50,6 +62,22 @@ describe('App-Routen', () => {
     expect(cat.json()[0].id).toBe('adguard');
     const res = await app.inject({ method: 'GET', url: '/api/apps', headers: { cookie, host: 'boese.example:8787' } });
     expect(res.json()[0].webUiUrl).toBe(':3000/');
+    await app.close();
+  });
+
+  it('zeigt eingeloggten Nutzern die Zugangsdaten einer App (Review I3)', async () => {
+    const { app, cookie } = await setup();
+    const anon = await app.inject({ method: 'GET', url: '/api/apps/adguard/credentials' });
+    expect(anon.statusCode).toBe(401);
+    const res = await app.inject({ method: 'GET', url: '/api/apps/adguard/credentials', headers: { cookie } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([
+      { key: 'adminUser', label: 'Benutzername', value: 'admin', secret: false },
+      { key: 'adminPassword', label: 'Passwort', value: 'geheimXYZ', secret: true },
+    ]);
+    // Die normale App-Liste verrät das Passwort weiterhin nicht.
+    const list = await app.inject({ method: 'GET', url: '/api/apps', headers: { cookie } });
+    expect(list.body).not.toContain('geheimXYZ');
     await app.close();
   });
 

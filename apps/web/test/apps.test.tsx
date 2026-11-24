@@ -35,6 +35,12 @@ function renderApps(opts: { installResult?: () => { status?: number; json?: unkn
     'GET /api/apps': () => ({ json: [demoInstalled] }),
     'POST /api/apps/adguard/install': opts.installResult ?? (() => ({ json: { ...demoInstalled, id: 'adguard', name: 'AdGuard Home' } })),
     'DELETE /api/apps/demo': () => ({ status: 204 }),
+    'GET /api/apps/adguard/credentials': () => ({
+      json: [
+        { key: 'adminUser', label: 'Benutzername', value: 'admin', secret: false },
+        { key: 'adminPassword', label: 'Passwort', value: 'geheimXYZ', secret: true },
+      ],
+    }),
   });
   const socket = fakeSocket();
   render(
@@ -101,6 +107,18 @@ describe('Apps-Seite', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Installieren' }));
     const call = calls.find((c) => c.path === '/api/apps/adguard/install');
     expect(call?.body).toEqual({ values: { adminUser: 'admin', dns: 5353, web: 3001 } });
+  });
+
+  it('zeigt nach dem Installieren die Zugangsdaten, Passwort erst auf Klick (Review I3)', async () => {
+    renderApps();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'AdGuard Home installieren' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Installieren' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Zugangsdaten: AdGuard Home' });
+    expect(await within(dialog).findByText('admin')).toBeInTheDocument();
+    expect(within(dialog).queryByText('geheimXYZ')).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Passwort anzeigen' }));
+    expect(within(dialog).getByText('geheimXYZ')).toBeInTheDocument();
   });
 
   it('zeigt Server-Fehler im Installations-Dialog', async () => {

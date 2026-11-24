@@ -1,8 +1,8 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { WebSocket } from 'ws';
+import type { AppCredential } from '@mainframe/shared';
 import type { WsHub } from '../ws/hub.ts';
 import type { AppEngine } from './engine.ts';
-
 
 type IdParams = { Params: { id: string } };
 
@@ -17,7 +17,16 @@ export function registerAppRoutes(app: FastifyInstance, engine: AppEngine, hub: 
 
   app.get('/api/catalog', async () => engine.catalog());
   app.get('/api/system/docker', async () => engine.dockerStatus());
-  app.get('/api/apps', async (req) => await engine.list());
+  app.get('/api/apps', async () => await engine.list());
+
+  // Zugangsdaten (z. B. das von Mainframe erzeugte AdGuard-Passwort) – nur mit Session (Auth-Guard).
+  app.get<IdParams>('/api/apps/:id/credentials', async (req): Promise<AppCredential[]> => {
+    const values = await engine.values(req.params.id);
+    const fields = engine.catalog().find((c) => c.id === req.params.id)?.fields ?? [];
+    return fields
+      .filter((f) => values[f.key] !== undefined && values[f.key] !== '')
+      .map((f) => ({ key: f.key, label: f.label, value: String(values[f.key]), secret: f.type === 'secret' }));
+  });
 
   app.post<IdParams & { Body: { values?: Record<string, unknown> } }>('/api/apps/:id/install', async (req) => {
     try {
