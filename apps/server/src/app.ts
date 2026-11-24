@@ -7,6 +7,7 @@ import { registerAuthRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
 import type { Db } from './db.ts';
 import { MainframeError } from './errors.ts';
+import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
 import type { AppEngine } from './apps/engine.ts';
 import { registerAppRoutes } from './apps/routes.ts';
@@ -65,6 +66,17 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerSystemRoutes(app, hub, deps.statsProvider ?? createStatsProvider(), deps.statsIntervalMs ?? 2000);
   if (deps.engine) registerAppRoutes(app, deps.engine, hub);
   for (const p of deps.plugins ?? []) await p(app);
+
+  if (deps.config.webDistDir) {
+    await app.register(fastifyStatic, { root: deps.config.webDistDir, wildcard: false });
+  }
+  app.setNotFoundHandler((req, reply) => {
+    const path = req.url.split('?')[0]!;
+    if (deps.config.webDistDir && req.method === 'GET' && !path.startsWith('/api/')) {
+      return reply.type('text/html').sendFile('index.html');
+    }
+    return reply.code(404).send({ code: 'not_found', message: 'Gibt es nicht.' } satisfies ApiError);
+  });
 
   return app;
 }

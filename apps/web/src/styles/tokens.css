@@ -1,0 +1,77 @@
+/*
+ * Mainframe Design-Tokens. Rollen statt fester Werte.
+ * Dunkel ist die Basis, Hell folgt der Systemeinstellung (kein App-Schalter).
+ * Kontrastwerte: siehe scripts/contrast.mjs.
+ */
+:root {
+  color-scheme: dark;
+
+  --surface: #111317;
+  --surface-raised: #1a1d23;
+  --surface-sunken: #0b0d10;
+  --surface-hover: #232730;
+  --separator: #2b3039;
+
+  --text: #f1f3f6;
+  --text-secondary: #a4abb6;
+
+  --accent: #2f6fe4;        /* Flächen von Hauptknöpfen */
+  --accent-on: #ffffff;     /* Text auf --accent */
+  --accent-text: #7aa8ff;   /* Links, aktive Navigation auf dunklem Grund */
+  --accent-soft: #1b2a47;   /* Hintergrund aktiver Navigation */
+
+  --ok: #4cc77a;
+  --warn: #e6b03c;
+  --danger: #f06a6a;
+  --warn-soft: #3a2f14;
+  --danger-soft: #3d1c1c;
+
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 16px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --font-ui: system-ui, -apple-system, 'Segoe UI Variable Text', 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+
+  --text-body: 1rem;
+  --text-small: 0.875rem;
+  --text-title: 1.75rem;
+  --text-heading: 1.125rem;
+  --text-figure: 1.625rem;
+
+  --tap: 44px;
+  --nav-width: 232px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+
+    --surface: #f4f5f7;
+    --surface-raised: #ffffff;
+    --surface-sunken: #e9ecf0;
+    --surface-hover: #eceef2;
+    --separator: #dcdfe5;
+
+    --text: #15181d;
+    --text-secondary: #555c67;
+
+    --accent: #2560d4;
+    --accent-on: #ffffff;
+    --accent-text: #1f57c3;
+    --accent-soft: #e3ebfb;
+
+    --ok: #1d7f44;
+    --warn: #8a5d00;
+    --danger: #c0302f;
+    --warn-soft: #fbf1dc;
+    --danger-soft: #fbe5e5;
+  }
+}

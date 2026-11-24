@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mainframe",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--env-file=dev.env", "apps/server/src/index.ts"],
+      "port": 8787
+    }
+  ]
+}
