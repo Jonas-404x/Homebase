@@ -9,7 +9,8 @@ declare module 'fastify' {
   }
 }
 
-const PUBLIC_API = new Set(['/api/auth/state', '/api/auth/setup', '/api/auth/login']);
+// /api/ws prüft die Session selbst und schließt dann mit Code 4401 statt HTTP 401.
+const PUBLIC_API = new Set(['/api/auth/state', '/api/auth/setup', '/api/auth/login', '/api/ws']);
 
 /** Alle /api/*-Routen brauchen eine gültige Session, außer den öffentlichen Login-Routen. */
 export function registerAuthGuard(app: FastifyInstance, db: Db): void {
