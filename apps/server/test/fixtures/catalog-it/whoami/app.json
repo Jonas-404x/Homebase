@@ -1,0 +1,9 @@
+{
+  "id": "whoami",
+  "name": "Whoami",
+  "description": "Integrationstest",
+  "icon": "box",
+  "fields": [],
+  "ports": [{ "key": "web", "label": "Web", "container": 80, "protocol": "tcp", "default": 18080 }],
+  "webUi": { "portKey": "web", "path": "/" }
+}

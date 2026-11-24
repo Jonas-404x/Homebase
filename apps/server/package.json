@@ -14,11 +14,14 @@
     "@fastify/rate-limit": "^10.3.0",
     "@fastify/websocket": "^11.3.7",
     "@mainframe/shared": "*",
+    "dockerode": "^4.0.12",
+    "execa": "^9.6.1",
     "fastify": "^5.12.8",
     "systeminformation": "^5.33.24",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
+    "@types/dockerode": "^4.0.2",
     "@types/ws": "^8.18.2"
   }
 }
