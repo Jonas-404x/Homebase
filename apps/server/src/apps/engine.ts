@@ -114,7 +114,12 @@ export function createAppEngine(deps: {
 
   return {
     hooks,
-    catalog: () => catalog.map((c) => c.app),
+    // Ports mit dem Standard, der in dieser Umgebung wirklich gilt (Dev: devDefault).
+    catalog: () =>
+      catalog.map((c) => ({
+        ...c.app,
+        ports: c.app.ports.map((p) => ({ ...p, default: config.dev && p.devDefault ? p.devDefault : p.default })),
+      })),
     list,
 
     async install(id, input) {

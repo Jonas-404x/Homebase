@@ -18,7 +18,7 @@ const pairs = [
   ['text', 'surface', 4.5], ['text', 'surface-raised', 4.5], ['text-secondary', 'surface', 4.5], ['text-secondary', 'surface-raised', 4.5],
   ['accent-on', 'accent', 4.5], ['accent-text', 'surface-raised', 4.5], ['accent-text', 'accent-soft', 4.5], ['accent-text', 'surface', 4.5],
   ['danger', 'surface-raised', 4.5], ['danger', 'danger-soft', 4.5], ['ok', 'surface-raised', 4.5], ['warn', 'surface-raised', 3], ['text', 'warn-soft', 4.5],
-  ['text', 'surface-sunken', 4.5],
+  ['text', 'surface-sunken', 4.5], ['warn', 'warn-soft', 4.5], ['text-secondary', 'surface-sunken', 4.5], 
 ];
 let fail = 0;
 for (const [name, t] of [['dunkel', tokens(dark)], ['hell', tokens(light)]]) {

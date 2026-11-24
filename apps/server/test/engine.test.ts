@@ -179,3 +179,10 @@ describe('AppEngine.dockerStatus', () => {
     expect(await engine.dockerStatus()).toEqual({ ok: false, message: 'Docker läuft gerade nicht. Starte Docker Desktop und lad die Seite neu.' });
   });
 });
+
+describe('AppEngine.catalog', () => {
+  it('liefert im Dev-Modus devDefault als Standard-Port', async () => {
+    const { engine } = await make();
+    expect(engine.catalog()[0]!.ports[0]!.default).toBe(18080);
+  });
+});
