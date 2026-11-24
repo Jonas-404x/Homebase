@@ -1,0 +1,28 @@
+import type { FastifyInstance } from 'fastify';
+import type { Config } from '../src/config.ts';
+import { openDb } from '../src/db.ts';
+import type { AppDeps } from '../src/app.ts';
+
+export function testConfig(overrides: Partial<Config> = {}): Config {
+  return { dataRoot: '/tmp/hb-test', port: 0, dev: true, catalogDir: '/tmp/hb-catalog', webDistDir: null, ...overrides };
+}
+
+export function testDeps(overrides: Partial<AppDeps> = {}): AppDeps {
+  return { config: testConfig(), db: openDb(':memory:'), ...overrides };
+}
+
+/** Holt "hb_session=…" aus einer Antwort. */
+export function sessionCookie(res: { headers: Record<string, unknown> }): string {
+  const raw = res.headers['set-cookie'];
+  const list = Array.isArray(raw) ? raw : [String(raw)];
+  const c = list.find((v) => String(v).startsWith('hb_session='));
+  if (!c) throw new Error('kein hb_session-Cookie');
+  return String(c).split(';')[0]!;
+}
+
+/** Legt das Passwort fest und gibt das Session-Cookie zurück. */
+export async function setupAndLogin(app: FastifyInstance, password = 'geheim123'): Promise<string> {
+  const res = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { password } });
+  if (res.statusCode !== 204) throw new Error(`setup fehlgeschlagen: ${res.statusCode} ${res.body}`);
+  return sessionCookie(res);
+}

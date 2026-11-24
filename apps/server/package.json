@@ -9,5 +9,10 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json"
   },
-  "dependencies": { "@homebase/shared": "*" }
+  "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/rate-limit": "^10.3.0",
+    "@homebase/shared": "*",
+    "fastify": "^5.12.8"
+  }
 }
