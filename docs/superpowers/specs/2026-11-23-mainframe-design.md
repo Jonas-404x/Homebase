@@ -142,6 +142,17 @@ Jonas hat **A** gewählt.
 - **Lese-API**: unter `/api/v1/...` auf demselben Port. Tokens werden in den Mainframe-Einstellungen erstellt und widerrufen, es kann mehrere geben. Endpunkte: Stats, App-Liste mit Status, Minecraft-Status und Spieler. Eigene Container erreichen die API über das Host-Netz (`http://host.docker.internal` bzw. die Server-IP).
 - **Dev-Modus**: Temperatur, Tailscale-Status und Port-53-Handling sind auf Windows nicht testbar und werden dort ausgeblendet. AdGuard-DNS läuft in Dev auf Port 5353. Das Setup-Skript wird getestet, sobald die Hardware da ist (optional vorher in einer Hyper-V-VM).
 
+## Veröffentlichung und Sicherheit (Wunsch von Jonas, 2026-11-24)
+
+Ziel: Mainframe ist am Ende fertige Software, die sich jeder von GitHub holen und auf **seinem eigenen** Server installieren kann. Wer sie herunterlädt, darf **auf keinen Fall** Zugriff auf Jonas' Server bekommen, und generell soll niemand von außen reinkommen.
+
+- **Jede Installation ist eine eigene Insel.** Es gibt keinen zentralen Mainframe-Server, keine gemeinsamen Konten, kein „Nach-Hause-Telefonieren“. Der Code auf GitHub enthält keine Zugangsdaten, Adressen oder Schlüssel von Jonas. Wer ihn installiert, hat nur seinen eigenen Server mit seinem eigenen Passwort.
+- **Verteilung:** Mainframe läuft auf einem Linux-Server, die Oberfläche im Browser. Deshalb gibt es statt einer `.exe` ein **GitHub-Release** mit einem fertigen Docker-Image (GitHub Container Registry) und einem **Ein-Zeilen-Installationsskript** für Ubuntu. Releases bekommen Prüfsummen. (Eine Windows-`.exe` wäre höchstens später ein optionaler Helfer, kein Muss.)
+- **Erstes Einrichten absichern:** Solange kein Passwort gesetzt ist, verlangt die Einrichtung einen **einmaligen Einrichtungscode**, den nur der Besitzer sieht (Ausgabe des Installationsskripts bzw. Server-Log). So kann niemand anderes im WLAN schneller sein und sich das Admin-Konto schnappen. (Umsetzung in Teil 4.)
+- **Nicht aus dem Internet erreichbar:** Das Panel ist nur im LAN und über Tailscale erreichbar (`ufw`, kein Port-Forwarding). playit.gg tunnelt **nur den Minecraft-Port**, nie das Panel.
+- **Schutz im Code:** Passwörter mit scrypt gehasht, Login-Bremse (5 Versuche pro Minute), Session-Cookie `httpOnly` + `SameSite`, unter HTTPS zusätzlich `Secure`. Dazu (Teil 4): Origin-Prüfung bei allen schreibenden Anfragen (gegen CSRF), Sicherheits-Header (CSP, `X-Frame-Options`, `nosniff`), API-Tokens nur gehasht gespeichert, Abhängigkeiten automatisch auf Lücken geprüft (Dependabot bzw. `npm audit` in CI).
+- **Die Grenze ehrlich benannt:** Mainframe steuert Docker und ist damit faktisch Admin auf dem Server. Deshalb bleibt es hinter LAN/Tailscale, und das Admin-Passwort ist der wichtigste Schlüssel.
+
 ## Dem Builder überlassen
 
 - Konkrete Libraries (Web-Framework, Docker-Client, Stats-Library, UI-Kit), Projektstruktur, Speicherformat der Einstellungen
