@@ -60,6 +60,7 @@ export interface InstalledApp {
   name: string;
   state: AppState;
   error: string | null;
+  /** Nur ":<port><pfad>" – den Host setzt der Browser davor (siehe apps/web/src/api/webUi.ts). */
   webUiUrl: string | null;
   installedAt: string;
 }

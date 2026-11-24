@@ -10,7 +10,7 @@ import { mockApi } from './mock-api.ts';
 
 afterEach(() => vi.unstubAllGlobals());
 
-const adguard: InstalledApp = { id: 'adguard', name: 'AdGuard Home', state: 'running', error: null, webUiUrl: 'http://localhost:3000/', installedAt: '' };
+const adguard: InstalledApp = { id: 'adguard', name: 'AdGuard Home', state: 'running', error: null, webUiUrl: ':3000/', installedAt: '' };
 const demo: InstalledApp = { id: 'demo', name: 'Demo', state: 'stopped', error: null, webUiUrl: null, installedAt: '' };
 
 function renderPalette() {

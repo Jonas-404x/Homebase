@@ -73,6 +73,15 @@ describe('Login-Routen', () => {
     expect(state.json()).toEqual({ setupDone: true, loggedIn: true });
   });
 
+  it('lässt sich nicht mit kodierten Pfaden umgehen (Review C1)', async () => {
+    const app = await appWithPing();
+    for (const url of ['/%61pi/system/ping', '/api/%73ystem/ping', '/API/system/ping', '/api//system/ping', '/%2561pi/system/ping']) {
+      const res = await app.inject({ method: 'GET', url });
+      expect(res.statusCode, url).not.toBe(200);
+      expect(res.body, url).not.toContain('"ok":true');
+    }
+  });
+
   it('beendet die Session beim Abmelden', async () => {
     const app = await appWithPing();
     const cookie = await setupAndLogin(app);
@@ -109,5 +118,16 @@ describe('Login-Routen', () => {
     const sixth = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { password: 'falsch123' } });
     expect(sixth.statusCode).toBe(429);
     expect(sixth.json()).toEqual({ code: 'too_many_attempts', message: 'Zu viele Versuche, warte kurz.' });
+  });
+
+  it('bremst auch Fehlversuche beim Passwortwechsel (Review I1)', async () => {
+    const app = await appWithPing();
+    const cookie = await setupAndLogin(app);
+    const attempt = () =>
+      app.inject({ method: 'POST', url: '/api/auth/password', headers: { cookie }, payload: { current: 'falsch123', next: 'neuesPasswort1' } });
+    for (let i = 0; i < 5; i++) expect((await attempt()).statusCode).toBe(401);
+    const sixth = await attempt();
+    expect(sixth.statusCode).toBe(429);
+    expect(sixth.json().code).toBe('too_many_attempts');
   });
 });

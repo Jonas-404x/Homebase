@@ -120,6 +120,17 @@ describe('AppEngine', () => {
     expect(fs.existsSync(path.join(dataRoot, 'apps', 'demo'))).toBe(false);
   });
 
+  it('weist ungültige App-IDs ab, bevor ein Pfad gebaut wird (Review M6)', async () => {
+    const { engine, compose } = await make();
+    for (const id of ['../../etc', '..\\x','Demo', 'a/b', '']) {
+      await expect(engine.start(id), id).rejects.toMatchObject({ code: 'unknown_app', status: 404 });
+      await expect(engine.remove(id, { deleteData: true }), id).rejects.toMatchObject({ code: 'unknown_app' });
+      await expect(engine.followLogs(id, () => {}), id).rejects.toMatchObject({ code: 'unknown_app' });
+      await expect(engine.values(id), id).rejects.toMatchObject({ code: 'unknown_app' });
+    }
+    expect(compose.calls).toEqual([]);
+  });
+
   it('erkennt auch die Docker-Desktop-Meldung für belegte Ports', async () => {
     const { engine, compose } = await make();
     compose.failUp = 'Error response from daemon: ports are not available: exposing port TCP 0.0.0.0:5353 -> 127.0.0.1:0: listen tcp 0.0.0.0:5353: bind: Only one usage of each socket address';

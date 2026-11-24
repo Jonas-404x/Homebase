@@ -54,7 +54,8 @@ export function registerAuthRoutes(app: FastifyInstance, db: Db): void {
     return reply.code(204).send();
   });
 
-  app.post<{ Body: { current?: unknown; next?: unknown } }>('/api/auth/password', async (req, reply) => {
+  app.post<{ Body: { current?: unknown; next?: unknown } }>('/api/auth/password', { config: limited }, async (req, reply) => {
+    if (!req.sessionId) throw new MainframeError('not_logged_in', 'Bitte melde dich an.', 401);
     const stored = db.getSetting(PASSWORD_KEY);
     const current = req.body?.current;
     if (!stored || typeof current !== 'string' || !(await verifyPassword(current, stored))) {

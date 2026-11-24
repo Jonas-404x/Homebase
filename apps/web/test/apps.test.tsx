@@ -48,6 +48,22 @@ function renderApps(opts: { installResult?: () => { status?: number; json?: unkn
 }
 
 describe('Apps-Seite', () => {
+  it('baut den Öffnen-Link mit der eigenen Adresse des Browsers (Review I4)', async () => {
+    mockApi({
+      'GET /api/catalog': () => ({ json: [demoCatalog] }),
+      'GET /api/apps': () => ({ json: [{ ...demoInstalled, webUiUrl: ':8080/admin/' }] }),
+    });
+    render(
+      <MemoryRouter>
+        <LiveProvider socket={fakeSocket()}>
+          <Apps />
+        </LiveProvider>
+      </MemoryRouter>,
+    );
+    const link = await screen.findByRole('link', { name: 'Demo öffnen' });
+    expect(link).toHaveAttribute('href', `http://${window.location.hostname}:8080/admin/`);
+  });
+
   it('trennt installierte Apps und Katalog', async () => {
     renderApps();
     const installed = await screen.findByRole('region', { name: 'Installiert' });

@@ -35,9 +35,12 @@ export function registerAdguardRoutes(app: FastifyInstance, engine: AppEngine, f
   });
 
   app.post<{ Body: { enabled?: unknown } }>('/api/adguard/protection', async (req, reply) => {
+    // Nur ein echtes true/false schaltet – ein leerer oder kaputter Body darf den Schutz nicht abschalten.
+    const enabled = req.body?.enabled;
+    if (typeof enabled !== 'boolean') throw new MainframeError('invalid_input', 'enabled muss true oder false sein.', 400);
     const c = await client();
     try {
-      await c.setProtection(req.body?.enabled === true);
+      await c.setProtection(enabled);
     } catch {
       throw unreachable();
     }

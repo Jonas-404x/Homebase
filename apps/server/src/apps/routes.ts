@@ -1,21 +1,15 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { WebSocket } from 'ws';
-import type { InstalledApp } from '@mainframe/shared';
 import type { WsHub } from '../ws/hub.ts';
 import type { AppEngine } from './engine.ts';
 
-/** Engine liefert ":<port><pfad>", hier kommt der Host der Anfrage davor. */
-function withHost(apps: InstalledApp[], req: FastifyRequest): InstalledApp[] {
-  const host = req.hostname.replace(/:\d+$/, '');
-  return apps.map((a) => ({ ...a, webUiUrl: a.webUiUrl ? `http://${host}${a.webUiUrl}` : null }));
-}
 
 type IdParams = { Params: { id: string } };
 
 export function registerAppRoutes(app: FastifyInstance, engine: AppEngine, hub: WsHub): void {
   const announce = async (req: FastifyRequest) => {
     try {
-      hub.broadcast({ type: 'apps', data: withHost(await engine.list(), req) });
+      hub.broadcast({ type: 'apps', data: await engine.list() });
     } catch (err) {
       req.log.warn({ err }, 'App-Liste konnte nicht verschickt werden');
     }
@@ -23,12 +17,11 @@ export function registerAppRoutes(app: FastifyInstance, engine: AppEngine, hub: 
 
   app.get('/api/catalog', async () => engine.catalog());
   app.get('/api/system/docker', async () => engine.dockerStatus());
-  app.get('/api/apps', async (req) => withHost(await engine.list(), req));
+  app.get('/api/apps', async (req) => await engine.list());
 
   app.post<IdParams & { Body: { values?: Record<string, unknown> } }>('/api/apps/:id/install', async (req) => {
     try {
-      const installed = await engine.install(req.params.id, req.body?.values ?? {});
-      return withHost([installed], req)[0];
+      return await engine.install(req.params.id, req.body?.values ?? {});
     } finally {
       await announce(req);
     }

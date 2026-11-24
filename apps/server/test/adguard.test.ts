@@ -126,6 +126,23 @@ describe('AdGuard-Routen', () => {
     expect(res.json().blockedPercent).toBe(10);
     expect(seen[0]!.url.startsWith('http://127.0.0.1:3000/')).toBe(true);
   });
+
+  it('schaltet nur bei echtem true/false, sonst 400 (Review I5)', async () => {
+    const seen: { url: string; init?: RequestInit }[] = [];
+    const engine = engineWith([{ id: 'adguard', name: 'AdGuard Home', state: 'running', error: null, webUiUrl: null, installedAt: '' }]);
+    const { app, cookie } = await setup(engine, fakeFetch({ '/control/protection': {} }, seen));
+    for (const payload of [{}, { enabled: 'false' }, { enabled: 0 }]) {
+      const res = await app.inject({ method: 'POST', url: '/api/adguard/protection', headers: { cookie }, payload });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().code).toBe('invalid_input');
+    }
+    const none = await app.inject({ method: 'POST', url: '/api/adguard/protection', headers: { cookie } });
+    expect(none.statusCode).toBe(400);
+    expect(seen).toHaveLength(0);
+    const ok = await app.inject({ method: 'POST', url: '/api/adguard/protection', headers: { cookie }, payload: { enabled: false } });
+    expect(ok.statusCode).toBe(204);
+    expect(seen).toHaveLength(1);
+  });
 });
 
 describe('AdGuard-Compose-Vorlage', () => {

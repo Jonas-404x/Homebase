@@ -44,12 +44,12 @@ async function setup() {
 }
 
 describe('App-Routen', () => {
-  it('liefert Katalog und Apps mit vollständiger Web-URL', async () => {
+  it('liefert Katalog und Apps mit Port und Pfad, ohne Host aus der Anfrage (Review I4)', async () => {
     const { app, cookie } = await setup();
     const cat = await app.inject({ method: 'GET', url: '/api/catalog', headers: { cookie } });
     expect(cat.json()[0].id).toBe('adguard');
-    const res = await app.inject({ method: 'GET', url: '/api/apps', headers: { cookie, host: '192.168.1.20:8787' } });
-    expect(res.json()[0].webUiUrl).toBe('http://192.168.1.20:3000/');
+    const res = await app.inject({ method: 'GET', url: '/api/apps', headers: { cookie, host: 'boese.example:8787' } });
+    expect(res.json()[0].webUiUrl).toBe(':3000/');
     await app.close();
   });
 

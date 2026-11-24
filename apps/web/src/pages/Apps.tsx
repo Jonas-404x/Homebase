@@ -7,6 +7,7 @@ import { AppIcon } from '../components/AppIcon.tsx';
 import { Dialog } from '../components/Dialog.tsx';
 import { InstallSheet } from '../components/InstallSheet.tsx';
 import { LogDrawer } from '../components/LogDrawer.tsx';
+import { webUiHref } from '../api/webUi.ts';
 
 const stateInfo: Record<AppState, { label: string; icon: LucideIcon; tone: string }> = {
   running: { label: 'Läuft', icon: CircleCheck, tone: 'ok' },
@@ -83,7 +84,7 @@ export function Apps() {
                 </div>
                 <div className="toolbar" role="toolbar" aria-label={`Aktionen für ${app.name}`}>
                   {app.webUiUrl && (
-                    <a className="button icon-button" href={app.webUiUrl} target="_blank" rel="noreferrer" aria-label={`${app.name} öffnen`} title="Öffnen">
+                    <a className="button icon-button" href={webUiHref(app.webUiUrl)} target="_blank" rel="noreferrer" aria-label={`${app.name} öffnen`} title="Öffnen">
                       <ExternalLink aria-hidden="true" size={18} />
                     </a>
                   )}

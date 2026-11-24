@@ -57,7 +57,12 @@ export function createAppEngine(deps: {
   const { config, catalog, compose, docker, store } = deps;
   const hooks = new Map<string, AppHook>();
   const installing = new Set<string>();
-  const appDir = (id: string) => path.join(config.dataRoot, 'apps', id);
+  // App-IDs landen in Dateipfaden: nur das Katalog-Format zulassen (kein "..", kein "/").
+  const checkId = (id: string) => {
+    if (!/^[a-z0-9-]+$/.test(id)) throw new MainframeError('unknown_app', 'Diese App gibt es nicht.', 404);
+    return id;
+  };
+  const appDir = (id: string) => path.join(config.dataRoot, 'apps', checkId(id));
 
   const entryOf = (id: string): CatalogEntry => {
     const e = catalog.find((c) => c.app.id === id);
@@ -70,7 +75,7 @@ export function createAppEngine(deps: {
   };
 
   const installed = async (id: string): Promise<AppStateFile> => {
-    const s = await store.get(id);
+    const s = await store.get(checkId(id));
     if (!s) throw new MainframeError('not_installed', 'Diese App ist nicht installiert.', 404);
     return s;
   };

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { InstalledApp } from '@mainframe/shared';
 import { api, errorText, post } from '../api/client.ts';
 import { count, percent } from '../format.ts';
+import { webUiHref } from '../api/webUi.ts';
 
 interface AdguardStats {
   queriesToday: number;
@@ -53,7 +54,7 @@ export function AdGuardWidget({ app }: { app: InstalledApp }) {
           Werbeblocker
         </h2>
         {app.webUiUrl && (
-          <a className="button" href={app.webUiUrl} target="_blank" rel="noreferrer">
+          <a className="button" href={webUiHref(app.webUiUrl)} target="_blank" rel="noreferrer">
             AdGuard öffnen
             <ExternalLink aria-hidden="true" size={16} />
           </a>

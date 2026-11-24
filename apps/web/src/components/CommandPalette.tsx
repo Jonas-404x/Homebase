@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import { api, errorText, post } from '../api/client.ts';
 import { useApps } from '../api/useApps.ts';
 import { Dialog } from './Dialog.tsx';
+import { webUiHref } from '../api/webUi.ts';
 
 /** Event, mit dem z. B. der Suchknopf auf dem Handy die Palette öffnet. */
 export const OPEN_PALETTE_EVENT = 'mainframe:open-palette';
@@ -91,7 +92,7 @@ export function CommandPalette() {
     else if (app.state !== 'installing') action('start', 'starten', 'wird gestartet');
     if (app.state !== 'installing') action('restart', 'neu starten', 'wird neu gestartet');
     if (app.webUiUrl && app.state === 'running') {
-      const url = app.webUiUrl;
+      const url = webUiHref(app.webUiUrl);
       entries.push({ id: `${app.id}:open`, label: `${app.name} öffnen`, group: 'Apps', run: () => (window.open(url, '_blank', 'noopener'), null) });
     }
   }
