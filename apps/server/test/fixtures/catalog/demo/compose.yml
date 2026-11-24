@@ -1,0 +1,15 @@
+services:
+  web:
+    image: traefik/whoami
+    ports:
+      - "${port.web}:80"
+    environment:
+      GREETING: "${field.greeting}"
+      SECRET: "${field.secret}"
+    volumes:
+      - "${app.dataDir}:/data"
+    labels:
+      custom: "ja"
+  sidecar:
+    image: alpine
+    command: ["sleep", "infinity"]

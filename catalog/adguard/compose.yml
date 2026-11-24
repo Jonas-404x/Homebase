@@ -1,0 +1,14 @@
+services:
+  adguard:
+    image: adguard/adguardhome:latest
+    volumes:
+      # Filterlisten, Statistik, Abfrage-Log: Docker-Volume, weil AdGuard auf Windows-Ordnern
+      # (Docker Desktop) seine Filter nicht umbenennen kann. "Entfernen mit Daten" löscht es mit.
+      - "work:/opt/adguardhome/work"
+      - "${app.dataDir}/conf:/opt/adguardhome/conf"
+    ports:
+      - "${port.dns}:53/udp"
+      - "${port.dns}:53/tcp"
+      - "${port.web}:3000/tcp"
+volumes:
+  work: {}
