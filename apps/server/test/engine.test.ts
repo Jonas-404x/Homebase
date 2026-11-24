@@ -93,14 +93,31 @@ describe('AppEngine', () => {
       message: 'Port 3000 ist schon belegt. Nimm einen anderen Port.',
     });
     expect(compose.calls).toEqual(['up demo', 'down demo']);
-    const [listed] = await engine.list();
-    expect(listed!.state).toBe('error');
-    expect(listed!.error).toBe('Port 3000 ist schon belegt. Nimm einen anderen Port.');
+    // Fehlgeschlagene Installation wird komplett zurückgerollt: nichts bleibt als "installiert" hängen.
+    expect(await engine.list()).toEqual([]);
 
-    await engine.remove('demo', { deleteData: true });
     docker.containers.set('demo', [{ state: 'running' }]);
     const again = await engine.install('demo', { greeting: 'hi', web: 3001 });
     expect(again.state).toBe('running');
+  });
+
+  it('behält beim Zurückrollen alte Daten einer früheren Installation', async () => {
+    const { engine, compose } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    await engine.remove('demo', { deleteData: false });
+    const marker = path.join(dataRoot, 'apps', 'demo', 'data', 'welt.txt');
+    fs.writeFileSync(marker, 'alt');
+    compose.failUp = 'port is already allocated 0.0.0.0:3000';
+    await expect(engine.install('demo', { greeting: 'hi' })).rejects.toMatchObject({ code: 'install_failed' });
+    expect(await engine.list()).toEqual([]);
+    expect(fs.readFileSync(marker, 'utf8')).toBe('alt');
+  });
+
+  it('löscht beim Zurückrollen einen frisch angelegten App-Ordner ganz', async () => {
+    const { engine, compose } = await make();
+    compose.failUp = 'port is already allocated 0.0.0.0:3000';
+    await expect(engine.install('demo', { greeting: 'hi' })).rejects.toMatchObject({ code: 'install_failed' });
+    expect(fs.existsSync(path.join(dataRoot, 'apps', 'demo'))).toBe(false);
   });
 
   it('erkennt auch die Docker-Desktop-Meldung für belegte Ports', async () => {

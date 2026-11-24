@@ -140,7 +140,7 @@ Jonas hat **A** gewählt.
 - **Minecraft**: „Version“ ist eine Auswahl der Minecraft-Version. Upgrades sind erlaubt (mit Hinweis), Downgrades einer bestehenden Welt werden blockiert. Einstellungsänderungen erzeugen den Container neu (die Welt bleibt erhalten). **Welt-Backups**: Knopf „Backup jetzt“ plus automatisch täglich, die letzten 7 bleiben.
 - **Eigene Container (Discord-Bot-Slot)**: Beliebig viele. Quelle ist entweder ein Docker-Image oder ein **Git-Repo-URL mit Dockerfile** (so schreibt Jonas den Bot am Main-PC, pusht auf GitHub und Mainframe baut ihn). Einstellbar sind Umgebungsvariablen (Geheimnisse wie der Bot-Token werden verdeckt angezeigt), Ports und ein Daten-Volume. Build-Logs sind live sichtbar. Ein Knopf „Neu bauen“ holt den neuesten Stand.
 - **Lese-API**: unter `/api/v1/...` auf demselben Port. Tokens werden in den Mainframe-Einstellungen erstellt und widerrufen, es kann mehrere geben. Endpunkte: Stats, App-Liste mit Status, Minecraft-Status und Spieler. Eigene Container erreichen die API über das Host-Netz (`http://host.docker.internal` bzw. die Server-IP).
-- **Dev-Modus**: Temperatur, Tailscale-Status und Port-53-Handling sind auf Windows nicht testbar und werden dort ausgeblendet. AdGuard-DNS läuft in Dev auf Port 5353. Das Setup-Skript wird getestet, sobald die Hardware da ist (optional vorher in einer Hyper-V-VM).
+- **Dev-Modus**: Temperatur, Tailscale-Status und Port-53-Handling sind auf Windows nicht testbar und werden dort ausgeblendet. AdGuard-DNS läuft in Dev auf Port 1053 (5353 belegt unter Windows der mDNS-Dienst). Das Setup-Skript wird getestet, sobald die Hardware da ist (optional vorher in einer Hyper-V-VM).
 
 ## Veröffentlichung und Sicherheit (Wunsch von Jonas, 2026-11-24)
 

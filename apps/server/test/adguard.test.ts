@@ -127,3 +127,16 @@ describe('AdGuard-Routen', () => {
     expect(seen[0]!.url.startsWith('http://127.0.0.1:3000/')).toBe(true);
   });
 });
+
+describe('AdGuard-Compose-Vorlage', () => {
+  it('legt den Arbeitsordner in ein Docker-Volume, die Konfiguration in den Datenordner', async () => {
+    const { loadCatalog } = await import('../src/catalog/loader.ts');
+    const { renderCompose } = await import('../src/catalog/render.ts');
+    const { repoRoot } = await import('../src/config.ts');
+    const entry = (await loadCatalog(path.join(repoRoot, 'catalog'))).find((e) => e.app.id === 'adguard')!;
+    const yml = renderCompose(entry.composeTemplate, { adminUser: 'admin', adminPassword: 'pw', dns: '1053', web: '3000' }, { appId: 'adguard', appDataDir: '/srv/mainframe/apps/adguard/data', dev: false });
+    const doc = parse(yml) as { volumes?: Record<string, unknown>; services: Record<string, { volumes: string[] }> };
+    expect(doc.volumes).toHaveProperty('work');
+    expect(doc.services.adguard!.volumes).toEqual(['work:/opt/adguardhome/work', '/srv/mainframe/apps/adguard/data/conf:/opt/adguardhome/conf']);
+  });
+});

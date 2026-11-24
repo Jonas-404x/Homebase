@@ -130,6 +130,7 @@ export function createAppEngine(deps: {
       const values = resolveValues(entry.app, input, config.dev);
       const dir = appDir(id);
       const dataDir = path.join(dir, 'data');
+      const existedBefore = await fs.stat(dir).then(() => true, () => false);
       await fs.mkdir(dataDir, { recursive: true });
 
       installing.add(id);
@@ -143,8 +144,14 @@ export function createAppEngine(deps: {
           await compose.up(dir);
         } catch (err) {
           const message = explainComposeError(err instanceof Error ? err.message : String(err));
+          // Komplett zurückrollen, damit man direkt mit anderen Werten neu installieren kann.
           await compose.down(dir).catch(() => {});
-          await store.save({ ...state, lastError: message });
+          if (existedBefore) {
+            await store.remove(id);
+            await fs.rm(path.join(dir, 'docker-compose.yml'), { force: true });
+          } else {
+            await fs.rm(dir, { recursive: true, force: true });
+          }
           throw new MainframeError('install_failed', message, 500);
         }
       } finally {
