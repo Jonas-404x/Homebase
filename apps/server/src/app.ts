@@ -8,6 +8,8 @@ import type { Config } from './config.ts';
 import type { Db } from './db.ts';
 import { MainframeError } from './errors.ts';
 import websocket from '@fastify/websocket';
+import type { AppEngine } from './apps/engine.ts';
+import { registerAppRoutes } from './apps/routes.ts';
 import { registerSystemRoutes } from './system/routes.ts';
 import { createStatsProvider, type StatsProvider } from './system/stats.ts';
 import { createWsHub, type WsHub } from './ws/hub.ts';
@@ -24,6 +26,9 @@ export interface AppDeps {
   statsProvider?: StatsProvider;
   statsIntervalMs?: number;
   hub?: WsHub;
+  engine?: AppEngine;
+  /** Weitere Routen (z. B. AdGuard), die Zugriff auf Engine und Hub brauchen. */
+  plugins?: ((app: FastifyInstance) => void | Promise<void>)[];
 }
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
@@ -58,6 +63,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   app.addHook('preClose', async () => hub.closeAll());
   registerSystemRoutes(app, hub, deps.statsProvider ?? createStatsProvider(), deps.statsIntervalMs ?? 2000);
+  if (deps.engine) registerAppRoutes(app, deps.engine, hub);
+  for (const p of deps.plugins ?? []) await p(app);
 
   return app;
 }

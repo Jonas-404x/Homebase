@@ -1,13 +1,27 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildApp } from './app.ts';
+import { createComposeRunner } from './apps/compose-runner.ts';
+import { createDockerStatus } from './apps/docker-status.ts';
+import { createAppEngine } from './apps/engine.ts';
+import { createStateStore } from './apps/state-store.ts';
+import { loadCatalog } from './catalog/loader.ts';
 import { loadConfig } from './config.ts';
 import { openDb } from './db.ts';
 
 const config = loadConfig();
 fs.mkdirSync(config.dataRoot, { recursive: true });
 const db = openDb(path.join(config.dataRoot, 'mainframe.db'));
-const app = await buildApp({ config, db });
+
+const engine = createAppEngine({
+  config,
+  catalog: await loadCatalog(config.catalogDir),
+  compose: createComposeRunner(),
+  docker: createDockerStatus(),
+  store: createStateStore(config.dataRoot),
+});
+
+const app = await buildApp({ config, db, engine });
 
 setInterval(() => db.deleteExpiredSessions(Date.now()), 60 * 60 * 1000).unref();
 
