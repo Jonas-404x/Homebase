@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased: Part 1, Foundation
+## Unreleased
+
+- Login now asks for a **username and password**; "Stay signed in" (on by default) keeps you logged in for 30 days, browsers can save the login
+- `start-mainframe.cmd`: double-click to start Mainframe on Windows and open it in the browser
+
+## Part 1: Foundation
 
 - **Security:** closed a login bypass via URL-encoded paths (e.g. `/%61pi/...`); the auth check now uses the matched route
 - **Security:** password changes are rate-limited; live connections are cut on logout and password change; app ids and the AdGuard protection switch are strictly validated

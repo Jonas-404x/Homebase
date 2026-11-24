@@ -33,7 +33,9 @@ npm install
 npm run dev          # server on :8787 + web UI with hot reload on http://localhost:5173
 ```
 
-On first start Mainframe asks you to set an admin password.
+On first start Mainframe asks you to choose a username and password.
+
+On Windows you can also just double-click `start-mainframe.cmd`.
 
 | Command | What it does |
 | --- | --- |

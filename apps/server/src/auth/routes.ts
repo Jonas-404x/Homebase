@@ -5,7 +5,9 @@ import { hashPassword, verifyPassword } from './passwords.ts';
 import { SESSION_COOKIE, startSession } from './sessions.ts';
 
 const PASSWORD_KEY = 'admin_password';
+const USER_KEY = 'admin_user';
 const MIN_LENGTH = 8;
+const USERNAME = /^[A-Za-z0-9._-]{2,32}$/;
 
 const limited = {
   rateLimit: {
@@ -22,29 +24,45 @@ function checkLength(pw: unknown): string {
   return pw;
 }
 
+function checkUsername(name: unknown): string {
+  if (typeof name !== 'string' || !USERNAME.test(name.trim())) {
+    throw new MainframeError('username_invalid', 'Benutzername: 2 bis 32 Zeichen, nur Buchstaben, Zahlen und . _ -');
+  }
+  return name.trim();
+}
+
+type LoginBody = { Body: { username?: unknown; password?: unknown; remember?: unknown } };
+
 export function registerAuthRoutes(app: FastifyInstance, db: Db, onSessionsChanged: () => void = () => {}): void {
+  // Eingerichtet heißt: Benutzername UND Passwort sind gesetzt. Ältere Installationen ohne
+  // Benutzernamen (nur aus der Entwicklung) landen so noch einmal in der Einrichtung.
+  const setupDone = () => db.getSetting(PASSWORD_KEY) !== null && db.getSetting(USER_KEY) !== null;
+
   app.get('/api/auth/state', async (req) => ({
-    setupDone: db.getSetting(PASSWORD_KEY) !== null,
+    setupDone: setupDone(),
     loggedIn: req.sessionId !== null,
+    ...(req.sessionId ? { username: db.getSetting(USER_KEY) } : {}),
   }));
 
-  app.post<{ Body: { password?: unknown } }>('/api/auth/setup', { config: limited }, async (req, reply) => {
-    if (db.getSetting(PASSWORD_KEY) !== null) {
-      throw new MainframeError('already_setup', 'Mainframe ist schon eingerichtet.', 409);
-    }
+  app.post<LoginBody>('/api/auth/setup', { config: limited }, async (req, reply) => {
+    if (setupDone()) throw new MainframeError('already_setup', 'Mainframe ist schon eingerichtet.', 409);
+    const username = checkUsername(req.body?.username);
     const pw = checkLength(req.body?.password);
     db.setSetting(PASSWORD_KEY, await hashPassword(pw));
-    startSession(db, reply);
+    db.setSetting(USER_KEY, username);
+    startSession(db, reply, req.body?.remember !== false);
     return reply.code(204).send();
   });
 
-  app.post<{ Body: { password?: unknown } }>('/api/auth/login', { config: limited }, async (req, reply) => {
+  app.post<LoginBody>('/api/auth/login', { config: limited }, async (req, reply) => {
     const stored = db.getSetting(PASSWORD_KEY);
-    const pw = req.body?.password;
-    if (!stored || typeof pw !== 'string' || !(await verifyPassword(pw, stored))) {
-      throw new MainframeError('wrong_password', 'Passwort stimmt nicht.', 401);
-    }
-    startSession(db, reply);
+    const storedUser = db.getSetting(USER_KEY);
+    const { username, password } = req.body ?? {};
+    // Passwort immer prüfen, auch bei falschem Namen, damit die Antwortzeit nichts verrät.
+    const pwOk = stored !== null && typeof password === 'string' && (await verifyPassword(password, stored));
+    const userOk = storedUser !== null && typeof username === 'string' && username.trim().toLowerCase() === storedUser.toLowerCase();
+    if (!pwOk || !userOk) throw new MainframeError('wrong_login', 'Benutzername oder Passwort stimmt nicht.', 401);
+    startSession(db, reply, req.body?.remember !== false);
     return reply.code(204).send();
   });
 
