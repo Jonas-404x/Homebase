@@ -1,0 +1,12 @@
+{
+  "id": "demo",
+  "name": "Demo",
+  "description": "Testapp",
+  "icon": "box",
+  "fields": [
+    { "key": "greeting", "label": "Begrüßung", "type": "string", "required": true },
+    { "key": "secret", "label": "Geheimnis", "type": "secret", "required": false, "generate": "password" }
+  ],
+  "ports": [{ "key": "web", "label": "Weboberfläche", "container": 80, "protocol": "tcp", "default": 8080, "devDefault": 18080 }],
+  "webUi": { "portKey": "web", "path": "/" }
+}
