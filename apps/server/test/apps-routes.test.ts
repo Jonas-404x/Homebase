@@ -30,6 +30,7 @@ function fakeEngine() {
       return () => void logStopped++;
     },
     values: async () => ({}),
+    dockerStatus: async () => ({ ok: false, message: "Docker läuft gerade nicht." }),
   };
   return { engine, calls, logStopped: () => logStopped };
 }
@@ -97,6 +98,15 @@ describe('App-Routen', () => {
     await sleep(50);
     expect(logStopped()).toBe(1);
     ws.terminate();
+    await app.close();
+  });
+});
+
+describe('Docker-Status', () => {
+  it('meldet, ob Docker läuft', async () => {
+    const { app, cookie } = await setup();
+    const res = await app.inject({ method: 'GET', url: '/api/system/docker', headers: { cookie } });
+    expect(res.json()).toEqual({ ok: false, message: 'Docker läuft gerade nicht.' });
     await app.close();
   });
 });

@@ -170,3 +170,12 @@ describe('AppEngine', () => {
     await expect(engine.stop('demo')).rejects.toMatchObject({ code: 'not_installed', status: 404 });
   });
 });
+
+describe('AppEngine.dockerStatus', () => {
+  it('meldet den Zustand von Docker mit verständlicher Meldung', async () => {
+    const { engine, docker } = await make();
+    expect(await engine.dockerStatus()).toEqual({ ok: true, message: null });
+    docker.up = false;
+    expect(await engine.dockerStatus()).toEqual({ ok: false, message: 'Docker läuft gerade nicht. Starte Docker Desktop und lad die Seite neu.' });
+  });
+});

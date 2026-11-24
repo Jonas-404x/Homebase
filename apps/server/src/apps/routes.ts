@@ -22,6 +22,7 @@ export function registerAppRoutes(app: FastifyInstance, engine: AppEngine, hub: 
   };
 
   app.get('/api/catalog', async () => engine.catalog());
+  app.get('/api/system/docker', async () => engine.dockerStatus());
   app.get('/api/apps', async (req) => withHost(await engine.list(), req));
 
   app.post<IdParams & { Body: { values?: Record<string, unknown> } }>('/api/apps/:id/install', async (req) => {

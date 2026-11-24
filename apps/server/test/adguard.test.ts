@@ -89,6 +89,7 @@ describe('AdGuard-Routen', () => {
       remove: async () => {},
       followLogs: async () => () => {},
       values: async () => ({ adminUser: 'admin', adminPassword: 'pw', web: '3000', dns: '5353' }),
+      dockerStatus: async () => ({ ok: true, message: null }),
     };
   }
 

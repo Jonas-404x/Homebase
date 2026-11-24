@@ -23,6 +23,7 @@ export interface AppEngine {
   remove(id: string, opts: { deleteData: boolean }): Promise<void>;
   followLogs(id: string, onLine: (line: string) => void): Promise<() => void>;
   values(id: string): Promise<Record<string, string>>;
+  dockerStatus(): Promise<{ ok: boolean; message: string | null }>;
   hooks: Map<string, AppHook>;
 }
 
@@ -173,6 +174,11 @@ export function createAppEngine(deps: {
 
     async values(id) {
       return (await installed(id)).values;
+    },
+
+    async dockerStatus() {
+      const ok = await docker.ping();
+      return { ok, message: ok ? null : DOCKER_DOWN_MESSAGE };
     },
   };
 }
