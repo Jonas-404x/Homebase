@@ -8,6 +8,7 @@ export function ConfirmWithPassword({
   children,
   confirmLabel,
   destructive,
+  withCode,
   onConfirm,
   onClose,
 }: {
@@ -15,20 +16,24 @@ export function ConfirmWithPassword({
   children: ReactNode;
   confirmLabel: string;
   destructive?: boolean;
-  onConfirm: (password: string) => Promise<void>;
+  /** Zusätzlich den Code der Zwei-Faktor-Anmeldung abfragen. */
+  withCode?: boolean;
+  onConfirm: (password: string, code: string) => Promise<void>;
   onClose: () => void;
 }) {
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const ready = Boolean(password) && (!withCode || code.trim().length >= 6);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!password) return;
+    if (!ready) return;
     setBusy(true);
     setError(null);
     try {
-      await onConfirm(password);
+      await onConfirm(password, code.trim());
       onClose();
     } catch (err) {
       setError(errorText(err));
@@ -44,6 +49,12 @@ export function ConfirmWithPassword({
           <span>Passwort</span>
           <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
+        {withCode && (
+          <label className="field">
+            <span>Code aus der App</span>
+            <input autoComplete="one-time-code" autoCapitalize="none" spellCheck={false} maxLength={9} value={code} onChange={(e) => setCode(e.target.value)} />
+          </label>
+        )}
         {error && (
           <p className="error" role="alert">
             {error}
@@ -53,7 +64,7 @@ export function ConfirmWithPassword({
           <button type="button" className="button" onClick={onClose}>
             Abbrechen
           </button>
-          <button type="submit" className={destructive ? 'button button-destructive' : 'button button-primary'} disabled={!password || busy}>
+          <button type="submit" className={destructive ? 'button button-destructive' : 'button button-primary'} disabled={!ready || busy}>
             {confirmLabel}
           </button>
         </div>

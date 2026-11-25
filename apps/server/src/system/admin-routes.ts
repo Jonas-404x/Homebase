@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { DOCKER_DOWN_MESSAGE } from '../apps/engine.ts';
 import { verifyPassword } from '../auth/passwords.ts';
-import { TOTP_KEYS } from '../auth/routes.ts';
+import { TOTP_KEYS, requireSecondFactorIfOn } from '../auth/routes.ts';
 import { SESSION_COOKIE } from '../auth/sessions.ts';
 import type { Config } from '../config.ts';
 import type { Db } from '../db.ts';
@@ -63,8 +63,9 @@ export function registerAdminRoutes(app: FastifyInstance, d: AdminDeps): void {
     return reply.code(204).send();
   });
 
-  app.post<{ Body: { password?: unknown } }>('/api/system/reset', { config: limited }, async (req, reply) => {
+  app.post<{ Body: { password?: unknown; code?: unknown } }>('/api/system/reset', { config: limited }, async (req, reply) => {
     await requirePassword(req.body?.password);
+    await requireSecondFactorIfOn(d.db, req.body?.code);
     for (const key of ['admin_password', 'admin_user', 'prefs', ...TOTP_KEYS]) d.db.deleteSetting(key);
     d.db.deleteAllSessionsExcept(null);
     d.db.clearLoginLog();

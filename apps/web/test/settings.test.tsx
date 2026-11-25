@@ -235,6 +235,19 @@ describe('Einstellungen', () => {
     expect(await screen.findByRole('link', { name: 'Konto & Sicherheit › Zwei-Faktor-Anmeldung' })).toBeInTheDocument();
   });
 
+  it('fragt beim Zurücksetzen nach dem Code, wenn die Zwei-Faktor-Anmeldung an ist', async () => {
+    const user = userEvent.setup();
+    const calls = renderAt('/settings/backup', { 'GET /api/auth/2fa': () => ({ json: { enabled: true } }) });
+    await user.click(await screen.findByRole('button', { name: 'Zurücksetzen …' }));
+    const dialog = await screen.findByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Endgültig zurücksetzen' });
+    await user.type(within(dialog).getByLabelText('Passwort'), 'geheim-123');
+    expect(confirm).toBeDisabled();
+    await user.type(within(dialog).getByLabelText('Code aus der App'), '123456');
+    await user.click(confirm);
+    await waitFor(() => expect(calls.find((c) => c.path === '/api/system/reset')?.body).toEqual({ password: 'geheim-123', code: '123456' }));
+  });
+
   it('setzt nur mit Passwort zurück', async () => {
     const user = userEvent.setup();
     const calls = renderAt('/settings/backup');

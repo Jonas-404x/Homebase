@@ -1,6 +1,6 @@
 import { Download, Upload } from 'lucide-react';
-import { useRef, useState } from 'react';
-import { post } from '../../api/client.ts';
+import { useEffect, useRef, useState } from 'react';
+import { api, post } from '../../api/client.ts';
 import { ConfirmWithPassword } from './ConfirmWithPassword.tsx';
 import { Group, Row, useSettings } from './Row.tsx';
 
@@ -9,6 +9,12 @@ export function Backup() {
   const file = useRef<HTMLInputElement>(null);
   const [importData, setImportData] = useState<{ name: string; data: unknown } | null>(null);
   const [reset, setReset] = useState(false);
+  const [twoFactor, setTwoFactor] = useState(false);
+  useEffect(() => {
+    api<{ enabled: boolean }>('/api/auth/2fa')
+      .then((r) => setTwoFactor(r.enabled))
+      .catch(() => {});
+  }, []);
 
   async function pick(f: File | undefined) {
     if (!f) return;
@@ -67,9 +73,10 @@ export function Backup() {
           title="Mainframe zurücksetzen?"
           confirmLabel="Endgültig zurücksetzen"
           destructive
+          withCode={twoFactor}
           onClose={() => setReset(false)}
-          onConfirm={async (password) => {
-            await post('/api/system/reset', { password });
+          onConfirm={async (password, code) => {
+            await post('/api/system/reset', twoFactor ? { password, code } : { password });
             onLoggedOut();
           }}
         >

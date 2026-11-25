@@ -87,12 +87,38 @@ describe('Zwei-Faktor-Anmeldung', () => {
     await app.close();
   });
 
-  it('wird beim Zurücksetzen mit gelöscht', async () => {
+  it('lässt sich nicht neu einrichten, solange sie an ist', async () => {
+    const app = await buildApp(testDeps());
+    const cookie = await setupAndLogin(app);
+    await enable(app, cookie);
+    const again = await app.inject({ method: 'POST', url: '/api/auth/2fa/setup', headers: { cookie }, payload: { password: 'geheim123' } });
+    expect(again.statusCode).toBe(409);
+    expect(again.json().code).toBe('totp_enabled');
+    expect((await app.inject({ method: 'POST', url: '/api/auth/2fa/enable', headers: { cookie }, payload: { code: '123456' } })).statusCode).toBe(409);
+    await app.close();
+  });
+
+  it('verbraucht zwei gleichzeitig benutzte Wiederherstellungs-Codes beide', async () => {
+    const app = await buildApp(testDeps());
+    const cookie = await setupAndLogin(app);
+    const { recoveryCodes } = await enable(app, cookie);
+    const [a, b] = await Promise.all([login(app, { code: recoveryCodes[0] }), login(app, { code: recoveryCodes[1] })]);
+    expect([a.statusCode, b.statusCode]).toEqual([204, 204]);
+    expect((await login(app, { code: recoveryCodes[0] })).statusCode).toBe(401);
+    expect((await login(app, { code: recoveryCodes[1] })).statusCode).toBe(401);
+    await app.close();
+  });
+
+  it('wird beim Zurücksetzen mit gelöscht, wenn der Code stimmt', async () => {
     const deps = testDeps();
     const app = await buildApp(deps);
     const cookie = await setupAndLogin(app);
-    await enable(app, cookie);
-    expect((await app.inject({ method: 'POST', url: '/api/system/reset', headers: { cookie }, payload: { password: 'geheim123' } })).statusCode).toBe(204);
+    const { recoveryCodes } = await enable(app, cookie);
+    const noCode = await app.inject({ method: 'POST', url: '/api/system/reset', headers: { cookie }, payload: { password: 'geheim123' } });
+    expect(noCode.statusCode).toBe(401);
+    expect(noCode.json().code).toBe('code_required');
+    expect(deps.db.getSetting('totp_secret')).not.toBeNull();
+    expect((await app.inject({ method: 'POST', url: '/api/system/reset', headers: { cookie }, payload: { password: 'geheim123', code: recoveryCodes[2] } })).statusCode).toBe(204);
     for (const k of ['totp_secret', 'totp_pending', 'totp_last_step', 'totp_recovery']) expect(deps.db.getSetting(k)).toBeNull();
     await app.close();
   });

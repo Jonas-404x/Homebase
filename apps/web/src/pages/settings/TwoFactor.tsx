@@ -166,7 +166,7 @@ function DisableDialog({ onClose, onDisabled }: { onClose: () => void; onDisable
           </label>
           <label className="field">
             <span>Code aus der App</span>
-            <input inputMode="numeric" autoComplete="one-time-code" maxLength={9} value={code} onChange={(e) => setCode(e.target.value)} />
+            <input autoComplete="one-time-code" autoCapitalize="none" spellCheck={false} maxLength={9} value={code} onChange={(e) => setCode(e.target.value)} />
           </label>
         </fieldset>
         <ErrorLine error={error} />

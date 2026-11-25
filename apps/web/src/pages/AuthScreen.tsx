@@ -68,7 +68,6 @@ export function AuthScreen({ mode, onDone }: { mode: 'setup' | 'login'; onDone: 
               <input
                 type="text"
                 name="code"
-                inputMode="numeric"
                 autoComplete="one-time-code"
                 autoCapitalize="none"
                 spellCheck={false}

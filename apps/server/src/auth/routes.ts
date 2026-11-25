@@ -38,6 +38,36 @@ type LoginBody = { Body: { username?: unknown; password?: unknown; remember?: un
 /** Schlüssel der Zwei-Faktor-Anmeldung in der Tabelle settings. */
 export const TOTP_KEYS = ['totp_secret', 'totp_pending', 'totp_last_step', 'totp_recovery'] as const;
 
+/** Prüft einen Code der Authenticator-App oder einen Wiederherstellungs-Code (der dann verbraucht ist). */
+export async function secondFactorOk(db: Db, raw: unknown): Promise<boolean> {
+  const secret = db.getSetting('totp_secret');
+  if (!secret || typeof raw !== 'string') return false;
+  const code = raw.replace(/\s/g, '').toLowerCase();
+  const step = verifyTotp(base32Decode(secret), code, Date.now(), Number(db.getSetting('totp_last_step') ?? 0));
+  if (step !== null) {
+    db.setSetting('totp_last_step', String(step));
+    return true;
+  }
+  if (!/^[a-z0-9]{4}-[a-z0-9]{4}$/.test(code)) return false;
+  const hashes = JSON.parse(db.getSetting('totp_recovery') ?? '[]') as string[];
+  for (const h of hashes) {
+    if (!(await verifyPassword(code, h))) continue;
+    // Nach dem Warten neu lesen: eine gleichzeitige Anmeldung kann inzwischen einen anderen Code verbraucht haben.
+    const now = JSON.parse(db.getSetting('totp_recovery') ?? '[]') as string[];
+    if (!now.includes(h)) return false;
+    db.setSetting('totp_recovery', JSON.stringify(now.filter((x) => x !== h)));
+    return true;
+  }
+  return false;
+}
+
+/** Heikle Schritte (Zurücksetzen) brauchen bei eingeschalteter Zwei-Faktor-Anmeldung auch den Code. */
+export async function requireSecondFactorIfOn(db: Db, raw: unknown): Promise<void> {
+  if (!db.getSetting('totp_secret')) return;
+  if (typeof raw !== 'string' || !raw.trim()) throw new MainframeError('code_required', 'Bitte den Code aus deiner Authenticator-App eingeben.', 401);
+  if (!(await secondFactorOk(db, raw))) throw new MainframeError('wrong_code', 'Der Code stimmt nicht. Nimm den aktuellen aus der App.', 401);
+}
+
 export function registerAuthRoutes(app: FastifyInstance, db: Db, onSessionsChanged: () => void = () => {}): void {
   // Eingerichtet heißt: Benutzername UND Passwort sind gesetzt. Ältere Installationen ohne
   // Benutzernamen (nur aus der Entwicklung) landen so noch einmal in der Einrichtung.
@@ -50,27 +80,7 @@ export function registerAuthRoutes(app: FastifyInstance, db: Db, onSessionsChang
   };
   const setupDone = () => db.getSetting(PASSWORD_KEY) !== null && db.getSetting(USER_KEY) !== null;
 
-  /** Prüft einen Code der Authenticator-App oder einen Wiederherstellungs-Code (der dann verbraucht ist). */
-  const checkSecondFactor = async (raw: unknown): Promise<boolean> => {
-    const secret = db.getSetting('totp_secret');
-    if (!secret || typeof raw !== 'string') return false;
-    const code = raw.replace(/\s/g, '').toLowerCase();
-    const step = verifyTotp(base32Decode(secret), code, Date.now(), Number(db.getSetting('totp_last_step') ?? 0));
-    if (step !== null) {
-      db.setSetting('totp_last_step', String(step));
-      return true;
-    }
-    if (!/^[a-z0-9]{4}-[a-z0-9]{4}$/.test(code)) return false;
-    const hashes = JSON.parse(db.getSetting('totp_recovery') ?? '[]') as string[];
-    for (const [i, h] of hashes.entries()) {
-      if (await verifyPassword(code, h)) {
-        hashes.splice(i, 1);
-        db.setSetting('totp_recovery', JSON.stringify(hashes));
-        return true;
-      }
-    }
-    return false;
-  };
+  const checkSecondFactor = (raw: unknown) => secondFactorOk(db, raw);
 
   app.get('/api/auth/state', async (req) => ({
     setupDone: setupDone(),
@@ -173,6 +183,7 @@ export function registerAuthRoutes(app: FastifyInstance, db: Db, onSessionsChang
   app.get('/api/auth/2fa', async () => ({ enabled: db.getSetting('totp_secret') !== null }));
 
   app.post<{ Body: { password?: unknown } }>('/api/auth/2fa/setup', { config: limited }, async (req) => {
+    if (db.getSetting('totp_secret')) throw new MainframeError('totp_enabled', 'Die Zwei-Faktor-Anmeldung ist schon an. Schalte sie erst aus.', 409);
     await requirePassword(req.body?.password);
     const secret = base32Encode(newSecret());
     db.setSetting('totp_pending', secret);
@@ -181,6 +192,7 @@ export function registerAuthRoutes(app: FastifyInstance, db: Db, onSessionsChang
   });
 
   app.post<{ Body: { code?: unknown } }>('/api/auth/2fa/enable', { config: limited }, async (req) => {
+    if (db.getSetting('totp_secret')) throw new MainframeError('totp_enabled', 'Die Zwei-Faktor-Anmeldung ist schon an. Schalte sie erst aus.', 409);
     const pending = db.getSetting('totp_pending');
     if (!pending) throw new MainframeError('invalid_input', 'Bitte die Einrichtung neu starten.', 400);
     const code = typeof req.body?.code === 'string' ? req.body.code.replace(/\s/g, '') : '';

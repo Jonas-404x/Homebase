@@ -78,7 +78,8 @@ describe('Anmelde-Ablauf', () => {
     await user.click(screen.getByRole('button', { name: 'Anmelden' }));
     const code = await screen.findByLabelText('Code');
     expect(code).toHaveAttribute('autocomplete', 'one-time-code');
-    expect(code).toHaveAttribute('inputmode', 'numeric');
+    // Kein reines Ziffernfeld: Wiederherstellungs-Codes enthalten Buchstaben und einen Bindestrich.
+    expect(code).not.toHaveAttribute('inputmode', 'numeric');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     await user.type(code, '123456');
     await user.click(screen.getByRole('button', { name: 'Anmelden' }));
