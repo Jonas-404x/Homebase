@@ -86,7 +86,7 @@ describe('/api/system/history', () => {
 const details: SystemDetails = {
   cpu: { model: 'AMD Ryzen', cores: 16, physicalCores: 8, speedGHz: 3.8, perCore: [10, 20] },
   memory: { totalBytes: 100, usedBytes: 60, freeBytes: 40, cacheBytes: 10, swapTotalBytes: 50, swapUsedBytes: 5 },
-  network: [{ iface: 'Ethernet', ip: '192.168.0.170', speedMbit: 1000 }],
+  network: [{ iface: 'Ethernet', ip: '192.168.1.20', speedMbit: 1000 }],
   temperature: { mainC: null, maxC: null, coresC: [] },
 };
 

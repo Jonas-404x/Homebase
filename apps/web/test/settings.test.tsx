@@ -11,7 +11,7 @@ const info: SystemInfo = {
   hostname: 'optiplex',
   platform: 'win32',
   isServer: false,
-  addresses: [{ iface: 'Ethernet', ip: '192.168.0.170' }],
+  addresses: [{ iface: 'Ethernet', ip: '192.168.1.20' }],
   port: 8787,
   version: '0.2.0',
   mainframeUptimeSec: 3600,
@@ -41,7 +41,7 @@ function renderAt(path: string, extra: Record<string, (body: unknown) => { statu
     'GET /api/system/docker/usage': () => ({ json: { version: '29.0.1', usage } }),
     'POST /api/system/docker/prune': () => ({ json: { reclaimedBytes: 1.5e9 } }),
     'GET /api/system/events': () => ({ json: [] }),
-    'GET /api/auth/sessions': () => ({ json: [{ id: 'abc123def456', device: 'Chrome auf Windows', ip: '192.168.0.170', createdAt: 1, lastSeen: 2, current: true }] }),
+    'GET /api/auth/sessions': () => ({ json: [{ id: 'abc123def456', device: 'Chrome auf Windows', ip: '192.168.1.20', createdAt: 1, lastSeen: 2, current: true }] }),
     'GET /api/auth/login-log': () => ({ json: [] }),
     'DELETE /api/auth/sessions/abc123def456': () => {
       loggedIn = false;
@@ -148,10 +148,10 @@ describe('Einstellungen', () => {
 
   it('zeigt den Fernzugriff über Tailscale mit eigenem QR-Code', async () => {
     renderAt('/settings/network', {
-      'GET /api/system/info': () => ({ json: { ...info, addresses: [...info.addresses, { iface: 'Tailscale', ip: '100.79.241.122' }] } }),
+      'GET /api/system/info': () => ({ json: { ...info, addresses: [...info.addresses, { iface: 'Tailscale', ip: '100.64.0.20' }] } }),
     });
-    expect(await screen.findByRole('img', { name: 'QR-Code für http://100.79.241.122:8787' })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'QR-Code für http://192.168.0.170:8787' })).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: 'QR-Code für http://100.64.0.20:8787' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'QR-Code für http://192.168.1.20:8787' })).toBeInTheDocument();
     expect(screen.getByText('Aktiv über Tailscale')).toBeInTheDocument();
   });
 

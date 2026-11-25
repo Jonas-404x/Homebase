@@ -14,7 +14,7 @@ afterEach(() => vi.unstubAllGlobals());
 const details: SystemDetails = {
   cpu: { model: 'AMD Ryzen 7 5800X', cores: 4, physicalCores: 2, speedGHz: 3.8, perCore: [10, 20, 30, 40] },
   memory: { totalBytes: 32e9, usedBytes: 24e9, freeBytes: 8e9, cacheBytes: 2e9, swapTotalBytes: 20e9, swapUsedBytes: 1e9 },
-  network: [{ iface: 'Ethernet', ip: '192.168.0.170', speedMbit: 1000 }],
+  network: [{ iface: 'Ethernet', ip: '192.168.1.20', speedMbit: 1000 }],
   temperature: { mainC: null, maxC: null, coresC: [] },
 };
 const procs: ProcessInfo[] = [{ name: 'brave', count: 20, cpuPercent: 12.1, memBytes: 3.6e9 }];
