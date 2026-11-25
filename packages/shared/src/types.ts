@@ -148,3 +148,70 @@ export interface ApiError {
   code: string;
   message: string;
 }
+
+/** Eigener Link auf der Dienste-Seite (z. B. die Router-Oberfläche). */
+export interface ServiceLink {
+  id: string;
+  name: string;
+  /** http(s)://… oder tcp://host:port */
+  url: string;
+  createdAt: number;
+}
+
+/** Ein Dienst mit seinem Prüf-Stand. */
+export interface ServiceStatus {
+  id: string;
+  name: string;
+  url: string;
+  kind: 'app' | 'link';
+  /** null = noch nicht geprüft */
+  up: boolean | null;
+  ms: number | null;
+  /** App ist gestoppt, wird dann nicht geprüft */
+  stopped: boolean;
+  /** Verfügbarkeit in Prozent, null = keine Prüfungen im Zeitraum */
+  uptime24h: number | null;
+  uptime7d: number | null;
+  /** 48 Abschnitte über 24 Stunden, Anteil erfolgreicher Prüfungen 0 bis 1 */
+  bars: (number | null)[];
+}
+
+/** Ein Gerät im Heimnetz. */
+export interface DeviceInfo {
+  mac: string;
+  ip: string;
+  hostname: string | null;
+  vendor: string | null;
+  /** Zufällige (private) MAC-Adresse, typisch für Handys und Tablets */
+  randomMac: boolean;
+  name: string;
+  note: string;
+  known: boolean;
+  firstSeen: number;
+  lastSeen: number;
+  /** Beim letzten Scan gesehen */
+  online: boolean;
+}
+
+export interface SpeedtestResult {
+  at: number;
+  downMbps: number;
+  upMbps: number;
+  pingMs: number;
+}
+
+export interface Outage {
+  from: number;
+  /** null = dauert noch an */
+  to: number | null;
+  minutes: number;
+}
+
+export interface InternetStatus {
+  /** null = noch keine Probe */
+  online: boolean | null;
+  lastProbe: number | null;
+  outages: Outage[];
+  speedtests: SpeedtestResult[];
+  running: boolean;
+}

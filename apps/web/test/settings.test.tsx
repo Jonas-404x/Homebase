@@ -114,6 +114,7 @@ describe('Einstellungen', () => {
     });
     render(<App socketFactory={socket as never} />);
     await screen.findByRole('heading', { name: 'Allgemein', level: 2 });
+    await waitFor(() => expect(push).not.toBeNull());
     loggedIn = false;
     await act(async () => push!('loggedOut'));
     expect(await screen.findByRole('button', { name: 'Anmelden' })).toBeInTheDocument();
@@ -171,6 +172,80 @@ describe('Einstellungen', () => {
     expect(await screen.findByRole('button', { name: 'Neu starten' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Herunterfahren' })).toBeDisabled();
     expect(screen.getAllByText('Nur auf dem Server').length).toBeGreaterThan(0);
+  });
+
+  it('richtet die Zwei-Faktor-Anmeldung mit QR-Code ein und zeigt die Wiederherstellungs-Codes', async () => {
+    const user = userEvent.setup();
+    const codes = Array.from({ length: 10 }, (_, i) => `abcd-${String(i).padStart(4, '0')}`);
+    const calls = renderAt('/settings/account', {
+      'GET /api/auth/2fa': () => ({ json: { enabled: false } }),
+      'POST /api/auth/2fa/setup': () => ({ json: { secret: 'JBSWY3DPEHPK3PXP', uri: 'otpauth://totp/Mainframe:jonas?secret=JBSWY3DPEHPK3PXP&issuer=Mainframe' } }),
+      'POST /api/auth/2fa/enable': () => ({ json: { recoveryCodes: codes } }),
+    });
+    await user.click(await screen.findByRole('button', { name: 'Einrichten …' }));
+    let dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Passwort'), 'geheim-123');
+    await user.click(within(dialog).getByRole('button', { name: 'Weiter' }));
+    await waitFor(() => expect(calls.find((c) => c.path === '/api/auth/2fa/setup')?.body).toEqual({ password: 'geheim-123' }));
+    dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByRole('img', { name: 'QR-Code für die Authenticator-App' })).toBeInTheDocument();
+    expect(within(dialog).getByText('JBSWY3DPEHPK3PXP')).toBeInTheDocument();
+    await user.type(within(dialog).getByLabelText('Code aus der App'), '123456');
+    await user.click(within(dialog).getByRole('button', { name: 'Einschalten' }));
+    await waitFor(() => expect(calls.find((c) => c.path === '/api/auth/2fa/enable')?.body).toEqual({ code: '123456' }));
+    dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('abcd-0009')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Kopieren' })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Fertig' }));
+    expect(await screen.findByText('Eingeschaltet')).toBeInTheDocument();
+  });
+
+  it('schaltet die Zwei-Faktor-Anmeldung nur mit Passwort und Code aus', async () => {
+    const user = userEvent.setup();
+    const calls = renderAt('/settings/account', {
+      'GET /api/auth/2fa': () => ({ json: { enabled: true } }),
+      'POST /api/auth/2fa/disable': () => ({ status: 204 }),
+    });
+    await user.click(await screen.findByRole('button', { name: 'Ausschalten …' }));
+    const dialog = await screen.findByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Ausschalten' });
+    await user.type(within(dialog).getByLabelText('Passwort'), 'geheim-123');
+    expect(confirm).toBeDisabled();
+    await user.type(within(dialog).getByLabelText('Code aus der App'), '654321');
+    await user.click(confirm);
+    await waitFor(() => expect(calls.find((c) => c.path === '/api/auth/2fa/disable')?.body).toEqual({ password: 'geheim-123', code: '654321' }));
+  });
+
+  it('speichert die Prüf-Intervalle für Dienste, Geräte-Scan und Speedtest', async () => {
+    const user = userEvent.setup();
+    const calls = renderAt('/settings/network');
+    await user.click(await screen.findByRole('radio', { name: '5 Min.' }));
+    await user.click(within(screen.getByRole('radiogroup', { name: 'Automatischer Scan' })).getByRole('radio', { name: 'Aus' }));
+    await user.click(screen.getByRole('radio', { name: 'alle 6 Std.' }));
+    await waitFor(() => {
+      const bodies = calls.filter((c) => c.method === 'PUT' && c.path === '/api/prefs').map((c) => c.body);
+      expect(bodies).toEqual([{ checkIntervalSec: 300 }, { scanMinutes: 0 }, { speedtestHours: 6 }]);
+    });
+  });
+
+  it('findet die Zwei-Faktor-Anmeldung über die Suche', async () => {
+    const user = userEvent.setup();
+    renderAt('/settings/general');
+    await user.type(await screen.findByRole('searchbox', { name: 'Einstellungen durchsuchen' }), 'authenticator');
+    expect(await screen.findByRole('link', { name: 'Konto & Sicherheit › Zwei-Faktor-Anmeldung' })).toBeInTheDocument();
+  });
+
+  it('fragt beim Zurücksetzen nach dem Code, wenn die Zwei-Faktor-Anmeldung an ist', async () => {
+    const user = userEvent.setup();
+    const calls = renderAt('/settings/backup', { 'GET /api/auth/2fa': () => ({ json: { enabled: true } }) });
+    await user.click(await screen.findByRole('button', { name: 'Zurücksetzen …' }));
+    const dialog = await screen.findByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Endgültig zurücksetzen' });
+    await user.type(within(dialog).getByLabelText('Passwort'), 'geheim-123');
+    expect(confirm).toBeDisabled();
+    await user.type(within(dialog).getByLabelText('Code aus der App'), '123456');
+    await user.click(confirm);
+    await waitFor(() => expect(calls.find((c) => c.path === '/api/system/reset')?.body).toEqual({ password: 'geheim-123', code: '123456' }));
   });
 
   it('setzt nur mit Passwort zurück', async () => {

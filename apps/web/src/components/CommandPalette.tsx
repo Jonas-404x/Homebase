@@ -15,7 +15,11 @@ type Entry = { id: string; label: string; group: 'Navigation' | 'Apps'; run: () 
 
 const pages = [
   { path: '/', name: 'Übersicht' },
+  { path: '/dienste', name: 'Dienste' },
+  { path: '/dienste/geraete', name: 'Geräte im Netzwerk' },
+  { path: '/dienste/internet', name: 'Internet' },
   { path: '/apps', name: 'Apps' },
+  { path: '/minecraft', name: 'Minecraft' },
   { path: '/settings', name: 'Einstellungen' },
 ];
 

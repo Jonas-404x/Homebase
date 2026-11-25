@@ -31,11 +31,11 @@ function renderNav(prefs = defaultPrefs) {
 }
 
 describe('Einstellungen im Browser', () => {
-  it('Navigation: vier Bereiche, Gerätename als Marke', async () => {
+  it('Navigation: fünf Bereiche, Gerätename als Marke', async () => {
     renderNav({ ...defaultPrefs, deviceName: 'Keller-Server' });
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
     expect(await within(nav).findByText('Keller-Server')).toBeInTheDocument();
-    expect(within(nav).getAllByRole('link').map((l) => l.textContent)).toEqual(['Übersicht', 'Apps', 'Minecraft', 'Einstellungen']);
+    expect(within(nav).getAllByRole('link').map((l) => l.textContent)).toEqual(['Übersicht', 'Dienste', 'Apps', 'Minecraft', 'Einstellungen']);
     expect(document.title).toBe('Keller-Server');
   });
 

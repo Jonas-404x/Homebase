@@ -1,9 +1,10 @@
-import { Boxes, LayoutDashboard, Pickaxe, Settings, type LucideIcon } from 'lucide-react';
+import { Activity, Boxes, LayoutDashboard, Pickaxe, Settings, type LucideIcon } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 import { usePrefs } from '../api/prefs.tsx';
 
 const items: { to: string; label: string; icon: LucideIcon; also?: string }[] = [
   { to: '/', label: 'Übersicht', icon: LayoutDashboard, also: '/details' },
+  { to: '/dienste', label: 'Dienste', icon: Activity },
   { to: '/apps', label: 'Apps', icon: Boxes },
   { to: '/minecraft', label: 'Minecraft', icon: Pickaxe },
   { to: '/settings', label: 'Einstellungen', icon: Settings },

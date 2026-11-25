@@ -44,6 +44,12 @@ export const prefsShape = {
   historyMinutes: z.union([z.literal(1), z.literal(15), z.literal(60), z.literal(360)]),
   /** Standard-Zeitraum der großen Kurve in der Detailansicht. */
   detailMinutes: z.union([z.literal(1440), z.literal(15), z.literal(60), z.literal(360), z.literal(4320), z.literal(10080)]),
+  /** Takt der Erreichbarkeits-Prüfung auf der Dienste-Seite. */
+  checkIntervalSec: z.union([z.literal(60), z.literal(30), z.literal(300)]),
+  /** Automatischer Netzwerk-Scan in Minuten, 0 = nur per Knopf. */
+  scanMinutes: z.union([z.literal(60), z.literal(0), z.literal(15), z.literal(360)]),
+  /** Automatischer Speedtest alle N Stunden, 0 = nur per Knopf. */
+  speedtestHours: z.union([z.literal(24), z.literal(0), z.literal(6)]),
 };
 
 export const prefsSchema = z.object(prefsShape).strict();
@@ -65,6 +71,9 @@ export const defaultPrefs: Prefs = {
   thresholds: { memory: 90, disk: 90, temperature: 80 },
   historyMinutes: 1,
   detailMinutes: 1440,
+  checkIntervalSec: 60,
+  scanMinutes: 60,
+  speedtestHours: 24,
 };
 
 /** Karten aus einer älteren oder neueren Version: bekannte in ihrer Reihenfolge behalten, fehlende sichtbar anhängen. */

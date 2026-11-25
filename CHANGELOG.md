@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Part 3: Services and network
+
+- **New "Services" tab** with three sections: Services, Devices and Internet
+- **Uptime checks**: every installed app and every link you add (http, https or `tcp://host:port`) is checked on a timer (30 s, 1 min or 5 min); each tile shows reachable / unreachable / stopped, response time, uptime for 24 hours and 7 days and 48 half-hour bars; going down and coming back is written to the event log once
+- **Network scanner**: finds the devices on your home network (name, maker from the IEEE list, IP, MAC, online/offline), marks phones with a private random address, lets you add a name and a note, and logs "New device on the network" after the first scan; runs automatically every 15 min, 1 h or 6 h, or on demand
+- **Internet watcher**: checks the connection every minute, lists outages with start, end and length (a single lost packet is not an outage), and logs when the internet goes down and comes back
+- **Speedtest** via Cloudflare's free speed test, on demand or every 6 hours / daily, with a chart for 24 hours or 7 days
+- **Two-factor login** (TOTP) in Settings › Account & security: scan a QR code with any authenticator app, confirm with a code, get ten recovery codes that work once each; turning it off needs password and code; the login asks for the code only when it is on
+- Settings › Network: new "Monitoring" group for the check interval, automatic scan and speedtest schedule
+- Command palette: jump straight to Services, Devices, Internet and Minecraft
+
 ### Part 2.1: Details, more apps and remote access
 
 - **Detail view**: click a card (CPU, RAM, temperature, network) for a large chart with its own range switch (15 min up to 7 days), min/average/max, a readout under your finger or mouse, per-core load, CPU info, RAM breakdown and network adapters

@@ -42,6 +42,8 @@ export interface Db {
   /** Mittelwerte in höchstens `points` gleich großen Zeitabschnitten zwischen from und to. */
   queryStats(from: number, to: number, points: number): HistoryPoint[];
   pruneStats(before: number): void;
+  /** Rohzugriff für die Speicher der einzelnen Bereiche (Dienste, Geräte, Internet). */
+  sql: DatabaseSync;
   close(): void;
 }
 
@@ -88,6 +90,22 @@ export function openDb(filePath: string): Db {
         at INTEGER PRIMARY KEY, cpu REAL NOT NULL, memory REAL NOT NULL, rx INTEGER NOT NULL, tx INTEGER NOT NULL, temp REAL
       );
       UPDATE settings SET value = '3' WHERE key = 'schema_version';
+    `);
+  }
+  // Version 4: Dienste-Prüfungen, Geräte im Netzwerk, Internet-Wächter.
+  if (version < 4) {
+    migrate(`
+      CREATE TABLE IF NOT EXISTS service_links (id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL, created_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS service_checks (
+        target TEXT NOT NULL, at INTEGER NOT NULL, ok INTEGER NOT NULL, ms REAL, PRIMARY KEY (target, at)
+      );
+      CREATE TABLE IF NOT EXISTS devices (
+        mac TEXT PRIMARY KEY, ip TEXT NOT NULL, hostname TEXT, vendor TEXT, name TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '',
+        known INTEGER NOT NULL DEFAULT 0, first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS net_probes (at INTEGER PRIMARY KEY, ok INTEGER NOT NULL, ms REAL);
+      CREATE TABLE IF NOT EXISTS speedtests (at INTEGER PRIMARY KEY, down REAL NOT NULL, up REAL NOT NULL, ping REAL NOT NULL);
+      UPDATE settings SET value = '4' WHERE key = 'schema_version';
     `);
   }
   const addStat = db.prepare('INSERT OR REPLACE INTO stats_history (at, cpu, memory, rx, tx, temp) VALUES (?, ?, ?, ?, ?, ?)');
@@ -161,6 +179,7 @@ export function openDb(filePath: string): Db {
       return rows.map((r) => ({ at: Math.round(r.at), cpu: r1(r.cpu), memory: r1(r.memory), rx: Math.round(r.rx), tx: Math.round(r.tx), temp: r.temp === null ? null : r1(r.temp) }));
     },
     pruneStats: (before) => void pruneStat.run(before),
+    sql: db,
     close: () => db.close(),
   };
 }

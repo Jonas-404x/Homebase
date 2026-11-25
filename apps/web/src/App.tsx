@@ -10,6 +10,7 @@ import { AuthScreen } from './pages/AuthScreen.tsx';
 import { Details } from './pages/Details.tsx';
 import { Minecraft } from './pages/Minecraft.tsx';
 import { Overview } from './pages/Overview.tsx';
+import { Services } from './pages/Services.tsx';
 import { SettingsLayout } from './pages/settings/SettingsLayout.tsx';
 
 type AuthState = { setupDone: boolean; loggedIn: boolean } | null;
@@ -43,6 +44,7 @@ function Inside({ socketFactory, onLoggedOut }: { socketFactory: (url: string) =
           <Routes>
             <Route path="/" element={<Overview />} />
             <Route path="/apps" element={<Apps />} />
+            <Route path="/dienste/*" element={<Services />} />
             <Route path="/details/:metric" element={<Details />} />
             <Route path="/minecraft" element={<Minecraft />} />
             <Route path="/settings/*" element={<SettingsLayout onLoggedOut={onLoggedOut} />} />
