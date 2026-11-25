@@ -31,11 +31,11 @@ function renderNav(prefs = defaultPrefs) {
 }
 
 describe('Einstellungen im Browser', () => {
-  it('Navigation: drei Bereiche, kein Minecraft-Platzhalter, Gerätename als Marke', async () => {
+  it('Navigation: vier Bereiche, Gerätename als Marke', async () => {
     renderNav({ ...defaultPrefs, deviceName: 'Keller-Server' });
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
     expect(await within(nav).findByText('Keller-Server')).toBeInTheDocument();
-    expect(within(nav).getAllByRole('link').map((l) => l.textContent)).toEqual(['Übersicht', 'Apps', 'Einstellungen']);
+    expect(within(nav).getAllByRole('link').map((l) => l.textContent)).toEqual(['Übersicht', 'Apps', 'Minecraft', 'Einstellungen']);
     expect(document.title).toBe('Keller-Server');
   });
 
@@ -64,8 +64,21 @@ describe('Startseite und alte Adressen', () => {
     expect(await screen.findByRole('heading', { name: 'Apps', level: 1 })).toBeInTheDocument();
   });
 
-  it('leitet /minecraft zur Übersicht um', async () => {
+  it('zeigt unter /minecraft, dass der Minecraft-Server mit einem späteren Update kommt', async () => {
     window.history.replaceState(null, '', '/minecraft');
+    mockApi({
+      'GET /api/auth/state': () => ({ json: { setupDone: true, loggedIn: true, username: 'jonas' } }),
+      'GET /api/prefs': () => ({ json: defaultPrefs }),
+      'GET /api/apps': () => ({ json: [] }),
+    });
+    render(<App socketFactory={noSocket} />);
+    expect(await screen.findByRole('heading', { name: 'Minecraft', level: 1 })).toBeInTheDocument();
+    expect(screen.getByText('Kommt bald')).toBeInTheDocument();
+    expect(screen.getByText(/Live-Konsole/)).toBeInTheDocument();
+  });
+
+  it('leitet unbekannte Adressen zur Übersicht um', async () => {
+    window.history.replaceState(null, '', '/gibtsnicht');
     mockApi({
       'GET /api/auth/state': () => ({ json: { setupDone: true, loggedIn: true, username: 'jonas' } }),
       'GET /api/prefs': () => ({ json: defaultPrefs }),

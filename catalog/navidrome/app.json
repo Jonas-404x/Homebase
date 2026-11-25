@@ -1,0 +1,20 @@
+{
+  "id": "navidrome",
+  "name": "Navidrome",
+  "description": "Deine Musiksammlung als eigener Streaming-Dienst, mit Apps fürs Handy (Subsonic-kompatibel).",
+  "icon": "music",
+  "fields": [],
+  "ports": [
+    {
+      "key": "web",
+      "label": "Weboberfläche",
+      "container": 4533,
+      "protocol": "tcp",
+      "default": 4533
+    }
+  ],
+  "webUi": {
+    "portKey": "web",
+    "path": "/"
+  }
+}

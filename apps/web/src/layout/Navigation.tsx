@@ -1,10 +1,11 @@
-import { Boxes, LayoutDashboard, Settings, type LucideIcon } from 'lucide-react';
+import { Boxes, LayoutDashboard, Pickaxe, Settings, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router';
 import { usePrefs } from '../api/prefs.tsx';
 
 const items: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
   { to: '/', label: 'Übersicht', icon: LayoutDashboard, end: true },
   { to: '/apps', label: 'Apps', icon: Boxes },
+  { to: '/minecraft', label: 'Minecraft', icon: Pickaxe },
   { to: '/settings', label: 'Einstellungen', icon: Settings },
 ];
 
@@ -21,7 +22,9 @@ export function Navigation() {
         {items.map(({ to, label, icon: Icon, end }) => (
           <li key={to}>
             <NavLink to={to} end={end} className="nav-link">
-              <Icon aria-hidden="true" size={22} strokeWidth={2} />
+              <span className="nav-icon">
+                <Icon aria-hidden="true" size={22} strokeWidth={2} />
+              </span>
               <span>{label}</span>
             </NavLink>
           </li>

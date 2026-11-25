@@ -1,0 +1,20 @@
+{
+  "id": "vaultwarden",
+  "name": "Vaultwarden",
+  "description": "Passwort-Manager für die Bitwarden-Apps. Anmelden von anderen Geräten klappt erst mit HTTPS (kommt mit dem Server-Umzug).",
+  "icon": "key",
+  "fields": [],
+  "ports": [
+    {
+      "key": "web",
+      "label": "Weboberfläche",
+      "container": 80,
+      "protocol": "tcp",
+      "default": 8081
+    }
+  ],
+  "webUi": {
+    "portKey": "web",
+    "path": "/"
+  }
+}

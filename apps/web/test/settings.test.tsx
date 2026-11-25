@@ -146,6 +146,15 @@ describe('Einstellungen', () => {
     }
   });
 
+  it('zeigt den Fernzugriff über Tailscale mit eigenem QR-Code', async () => {
+    renderAt('/settings/network', {
+      'GET /api/system/info': () => ({ json: { ...info, addresses: [...info.addresses, { iface: 'Tailscale', ip: '100.79.241.122' }] } }),
+    });
+    expect(await screen.findByRole('img', { name: 'QR-Code für http://100.79.241.122:8787' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'QR-Code für http://192.168.0.170:8787' })).toBeInTheDocument();
+    expect(screen.getByText('Aktiv über Tailscale')).toBeInTheDocument();
+  });
+
   it('räumt Docker erst nach Bestätigung auf und nennt vorher den Platz', async () => {
     const user = userEvent.setup();
     const calls = renderAt('/settings/docker');

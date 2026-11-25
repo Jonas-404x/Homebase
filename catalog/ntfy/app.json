@@ -1,0 +1,20 @@
+{
+  "id": "ntfy",
+  "name": "ntfy",
+  "description": "Push-Nachrichten aufs Handy, ohne fremden Dienst. Mainframe nutzt das später für Warnungen.",
+  "icon": "bell",
+  "fields": [],
+  "ports": [
+    {
+      "key": "web",
+      "label": "Weboberfläche",
+      "container": 80,
+      "protocol": "tcp",
+      "default": 8082
+    }
+  ],
+  "webUi": {
+    "portKey": "web",
+    "path": "/"
+  }
+}
