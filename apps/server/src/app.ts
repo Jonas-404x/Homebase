@@ -22,6 +22,7 @@ import { registerPrefsRoutes } from './prefs/routes.ts';
 import { registerServiceRoutes } from './services/routes.ts';
 import { registerDeviceRoutes } from './network/routes.ts';
 import { realScanDeps, type ScanDeps } from './network/scanner.ts';
+import { registerInternetRoutes, type InternetDeps } from './internet/routes.ts';
 import { createPrefsStore, type PrefsStore } from './prefs/store.ts';
 
 declare module 'fastify' {
@@ -52,6 +53,8 @@ export interface AppDeps {
   network?: ScanDeps;
   /** Takt des Internet-Wächters, 0 = aus (Tests). */
   internetIntervalMs?: number;
+  /** Probe und Speedtest (Tests). */
+  internet?: InternetDeps;
   /** Quelle für Detailansicht und Prozess-Liste (Tests). */
   system?: SystemSource;
   /** Weitere Routen (z. B. AdGuard), die Zugriff auf Engine und Hub brauchen. */
@@ -114,6 +117,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   if (deps.engine) registerAppRoutes(app, deps.engine, hub);
   registerServiceRoutes(app, { db: deps.db, prefs, events, engine: deps.engine, intervalMs: deps.checkIntervalMs });
+  registerInternetRoutes(app, { db: deps.db, prefs, events, deps: deps.internet, intervalMs: deps.internetIntervalMs });
   registerDeviceRoutes(app, { db: deps.db, prefs, events, deps: deps.network ?? realScanDeps(deps.config.dataRoot), intervalMs: deps.scanIntervalMs });
   for (const p of deps.plugins ?? []) await p(app);
 
