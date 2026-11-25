@@ -1,31 +1,47 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { api } from './api/client.ts';
 import { LiveProvider } from './api/live.tsx';
+import { PrefsProvider, usePrefs } from './api/prefs.tsx';
 import { createLiveSocket, defaultSocketUrl, type LiveSocket } from './api/ws.ts';
 import { Shell } from './layout/Shell.tsx';
 import { Apps } from './pages/Apps.tsx';
 import { AuthScreen } from './pages/AuthScreen.tsx';
-import { Minecraft } from './pages/Minecraft.tsx';
 import { Overview } from './pages/Overview.tsx';
 import { Settings } from './pages/Settings.tsx';
 
 type AuthState = { setupDone: boolean; loggedIn: boolean } | null;
+
+/** Springt nach dem Anmelden einmal auf die eingestellte Startseite (nur wenn man auf „/“ gelandet ist). */
+function StartPage() {
+  const { prefs } = usePrefs();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current || !prefs) return;
+    done.current = true;
+    if (location.pathname === '/' && prefs.startPage !== '/') navigate(prefs.startPage, { replace: true });
+  }, [prefs, location.pathname, navigate]);
+  return null;
+}
 
 function Inside({ socketFactory, onLoggedOut }: { socketFactory: (url: string) => LiveSocket; onLoggedOut: () => void }) {
   const socket = useMemo(() => socketFactory(defaultSocketUrl()), [socketFactory]);
   useEffect(() => () => socket.close(), [socket]);
   return (
     <LiveProvider socket={socket}>
-      <Shell>
-        <Routes>
-          <Route path="/" element={<Overview />} />
-          <Route path="/apps" element={<Apps />} />
-          <Route path="/minecraft" element={<Minecraft />} />
-          <Route path="/settings" element={<Settings onLoggedOut={onLoggedOut} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Shell>
+      <PrefsProvider>
+        <StartPage />
+        <Shell>
+          <Routes>
+            <Route path="/" element={<Overview />} />
+            <Route path="/apps" element={<Apps />} />
+            <Route path="/settings/*" element={<Settings onLoggedOut={onLoggedOut} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Shell>
+      </PrefsProvider>
     </LiveProvider>
   );
 }

@@ -15,7 +15,6 @@ type Entry = { id: string; label: string; group: 'Navigation' | 'Apps'; run: () 
 const pages = [
   { path: '/', name: 'Übersicht' },
   { path: '/apps', name: 'Apps' },
-  { path: '/minecraft', name: 'Minecraft' },
   { path: '/settings', name: 'Einstellungen' },
 ];
 
