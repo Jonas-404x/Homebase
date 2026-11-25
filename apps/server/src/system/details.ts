@@ -58,16 +58,24 @@ export function createSystemSource(lib: typeof si = si): SystemSource {
   };
 }
 
-/** Hält ein Ergebnis `ms` lang, damit mehrere Zuschauer die teure Abfrage nicht vervielfachen. */
+/**
+ * Hält ein Ergebnis `ms` lang, damit mehrere Zuschauer die teure Abfrage nicht vervielfachen.
+ * Eine laufende Abfrage wird geteilt; die Haltezeit zählt erst ab ihrem Ergebnis.
+ */
 export function cached<T>(fn: () => Promise<T>, ms: number, now: () => number = Date.now): () => Promise<T> {
-  let value: { at: number; p: Promise<T> } | null = null;
+  let value: { at: number | null; p: Promise<T> } | null = null;
   return () => {
-    if (value && now() - value.at < ms) return value.p;
-    const p = fn();
-    value = { at: now(), p };
-    p.catch(() => {
-      value = null;
-    });
-    return p;
+    if (value && (value.at === null || now() - value.at < ms)) return value.p;
+    const entry: { at: number | null; p: Promise<T> } = { at: null, p: fn() };
+    value = entry;
+    entry.p.then(
+      () => {
+        entry.at = now();
+      },
+      () => {
+        if (value === entry) value = null;
+      },
+    );
+    return entry.p;
   };
 }

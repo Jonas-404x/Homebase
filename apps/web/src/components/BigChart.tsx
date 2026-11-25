@@ -53,20 +53,24 @@ export function BigChart({
   const x = (at: number) => ((at - from) / span) * W;
   const y = (v: number) => H - (Math.max(0, Math.min(v, top)) / top) * H;
   const long = span > 26 * 3600_000;
+  // Nach dem Antippen kann die nächste Abfrage weniger Punkte bringen.
+  const hi = hover !== null && hover < times.length ? hover : null;
+  /** Längere Pause ohne Werte (PC aus, Neustart): dort keine Linie ziehen. */
+  const maxGap = 3 * Math.max(10_000, span / 240);
+  const joined = (values: (number | null)[], i: number) =>
+    i > 0 && i < values.length && values[i] != null && values[i - 1] != null && times[i]! - times[i - 1]! <= maxGap;
 
   const path = (values: (number | null)[]) => {
     let d = '';
-    let pen = false;
     values.forEach((v, i) => {
-      if (v === null) return void (pen = false);
-      d += `${pen ? 'L' : 'M'}${x(times[i]!).toFixed(1)},${y(v).toFixed(1)} `;
-      pen = true;
+      if (v == null) return;
+      d += `${joined(values, i) ? 'L' : 'M'}${x(times[i]!).toFixed(1)},${y(v).toFixed(1)} `;
     });
     return d.trim();
   };
   /** Punkte ohne Nachbarn (z. B. der erste Messwert) wären als Linie unsichtbar. */
   const isolated = (values: (number | null)[]) =>
-    values.flatMap((v, i) => (v !== null && values[i - 1] == null && values[i + 1] == null ? [i] : []));
+    values.flatMap((v, i) => (v != null && !joined(values, i) && !joined(values, i + 1) ? [i] : []));
 
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
     const box = ref.current?.getBoundingClientRect();
@@ -82,13 +86,13 @@ export function BigChart({
   return (
     <figure className="big-chart">
       <div className="big-chart-readout" aria-live="off">
-        {hover !== null ? (
+        {hi !== null ? (
           <>
-            <span className="hint">{timeLabel(times[hover]!, long, timeZone)}</span>
+            <span className="hint">{timeLabel(times[hi]!, long, timeZone)}</span>
             {series.map((s) => (
               <span key={s.name} className={`big-chart-key chart-${s.tone}`}>
                 {series.length > 1 && `${s.name} `}
-                <strong>{s.values[hover] === null ? '–' : format(s.values[hover]!)}</strong>
+                <strong>{s.values[hi] == null ? '–' : format(s.values[hi]!)}</strong>
               </span>
             ))}
           </>
@@ -124,7 +128,7 @@ export function BigChart({
               }),
             )}
           </svg>
-          {hover !== null && <div className="big-chart-cursor" style={{ left: `${(x(times[hover]!) / W) * 100}%` }} aria-hidden="true" />}
+          {hi !== null && <div className="big-chart-cursor" style={{ left: `${(x(times[hi]!) / W) * 100}%` }} aria-hidden="true" />}
         </div>
       </div>
       <div className="big-chart-x" aria-hidden="true">
