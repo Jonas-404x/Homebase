@@ -48,10 +48,17 @@ export async function speedtest(opts: { fetchFn?: typeof fetch; clock?: () => nu
   const up = opts.upBytes ?? 5_000_000;
   const mbps = (bytes: number, ms: number) => Math.round(((bytes * 8) / Math.max(1, ms) / 1000) * 10) / 10;
   try {
+    // Die erste Anfrage baut die Verbindung auf (DNS, TLS) und zählt nicht; danach der schnellste von vier.
+    const tiny = async () => {
+      const start = clock();
+      await (await f(`${SPEED}/__down?bytes=0`, { signal: AbortSignal.timeout(10_000) })).arrayBuffer();
+      return clock() - start;
+    };
+    await tiny();
+    let best = Infinity;
+    for (let i = 0; i < 4; i++) best = Math.min(best, await tiny());
+    const pingMs = Math.round(best);
     let t = clock();
-    await (await f(`${SPEED}/__down?bytes=0`, { signal: AbortSignal.timeout(10_000) })).arrayBuffer();
-    const pingMs = Math.round(clock() - t);
-    t = clock();
     const got = (await (await f(`${SPEED}/__down?bytes=${down}`, { signal: AbortSignal.timeout(120_000) })).arrayBuffer()).byteLength;
     const downMs = clock() - t;
     t = clock();

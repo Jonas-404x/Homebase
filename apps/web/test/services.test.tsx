@@ -155,4 +155,9 @@ describe('Internet', () => {
     expect(await screen.findByText('router.local', {}, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Jetzt scannen' })).toBeEnabled();
   });
+
+  it('nennt den Hersteller nur einmal, wenn er schon der Titel ist', async () => {
+    renderAt('/dienste/geraete', { 'GET /api/devices': () => ({ json: { devices: [dev({ hostname: null })], scanning: false } }) });
+    expect(await screen.findAllByText('AVM GmbH')).toHaveLength(1);
+  });
 });

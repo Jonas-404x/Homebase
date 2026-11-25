@@ -46,6 +46,18 @@ describe('speedtest', () => {
     expect(f.urls.some((u) => u.endsWith('speed.cloudflare.com/__up POST'))).toBe(true);
   });
 
+  it('misst den Ping nach dem Verbindungsaufbau und nimmt den schnellsten von mehreren', async () => {
+    let t = 0;
+    const pings = [3000, 20, 15, 30, 18];
+    const fn = (async (url: string | URL) => {
+      const bytes = Number(new URL(String(url)).searchParams.get('bytes') ?? 0);
+      t += bytes === 0 ? (pings.shift() ?? 99) : 1000;
+      return new Response(new Uint8Array(bytes));
+    }) as typeof fetch;
+    const r = await speedtest({ fetchFn: fn, clock: () => t, downBytes: 1_000_000, upBytes: 500_000 });
+    expect(r.pingMs).toBe(15);
+  });
+
   it('sagt klar, wenn kein Internet da ist', async () => {
     await expect(speedtest({ fetchFn: fakeFetch({ offline: true }).fn })).rejects.toMatchObject({ code: 'offline', message: 'Kein Internet, Test nicht möglich.' } satisfies Partial<MainframeError>);
   });

@@ -134,7 +134,11 @@ export function DevicesPane() {
                   <strong>{title(d)}</strong>
                   {!d.known && <span className="badge badge-warn">Neu</span>}
                 </div>
-                <span className="hint">{d.randomMac ? 'Zufällige Adresse (Handy/Tablet)' : (d.vendor ?? 'Hersteller unbekannt')}</span>
+                {d.randomMac ? (
+                  <span className="hint">Zufällige Adresse (Handy/Tablet)</span>
+                ) : (
+                  title(d) !== d.vendor && <span className="hint">{d.vendor ?? 'Hersteller unbekannt'}</span>
+                )}
                 {d.note && <span className="hint">{d.note}</span>}
               </div>
               <div className="device-addr">
