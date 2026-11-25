@@ -129,6 +129,21 @@ describe('/api/services', () => {
     await app.close();
   });
 
+  it('prüft nach einer neuen Adresse sofort und vergisst den Verlauf der alten', async () => {
+    const dead = await serve(() => {});
+    servers.pop()!.close();
+    const live = await serve((_req, res) => res.end('ok'));
+    const app = await buildApp(testDeps({ checkIntervalMs: 0 }));
+    const cookie = await setupAndLogin(app);
+    const get = async () => ((await app.inject({ method: 'GET', url: '/api/services', headers: { cookie } })).json() as ServiceStatus[])[0]!;
+    const link = (await app.inject({ method: 'POST', url: '/api/services/links', headers: { cookie }, payload: { name: 'NAS', url: `http://127.0.0.1:${dead}` } })).json();
+    await expect.poll(async () => (await get()).up).toBe(false);
+    await app.inject({ method: 'PATCH', url: `/api/services/links/${link.id}`, headers: { cookie }, payload: { url: `http://127.0.0.1:${live}` } });
+    await expect.poll(async () => (await get()).up).toBe(true);
+    expect((await get()).uptime24h).toBe(100);
+    await app.close();
+  });
+
   it('listet installierte Apps mit Verfügbarkeit, gestoppte ohne Prüfung', async () => {
     const apps: InstalledApp[] = [
       { id: 'adguard', name: 'AdGuard Home', state: 'running', error: null, webUiUrl: ':3000/', installedAt: '' },

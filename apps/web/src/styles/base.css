@@ -1414,6 +1414,12 @@ select.input {
     transform: scale(0.98);
   }
 }
+.notice-info {
+  background: var(--surface-sunken);
+}
+.notice-info svg {
+  color: var(--text-secondary);
+}
 .notice-warn {
   border-color: var(--warn);
   background: var(--warn-soft);

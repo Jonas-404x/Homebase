@@ -80,12 +80,18 @@ export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; pref
       ...(req.body?.name !== undefined ? { name: checkName(req.body.name) } : {}),
       ...(req.body?.url !== undefined ? { url: checkLinkUrl(req.body.url) } : {}),
     };
+    const before = store.listLinks().find((l) => l.id === req.params.id);
     if (!store.updateLink(req.params.id, patch)) throw new MainframeError('not_found', 'Diesen Link gibt es nicht.', 404);
+    if (patch.url !== undefined && patch.url !== before?.url) {
+      store.clearChecks(`link:${req.params.id}`);
+      void checker.runOnce();
+    }
     return reply.code(204).send();
   });
 
   app.delete<{ Params: { id: string } }>('/api/services/links/:id', async (req, reply) => {
     if (!store.deleteLink(req.params.id)) throw new MainframeError('not_found', 'Diesen Link gibt es nicht.', 404);
+    store.clearChecks(`link:${req.params.id}`);
     return reply.code(204).send();
   });
 

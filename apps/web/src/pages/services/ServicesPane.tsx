@@ -121,9 +121,13 @@ export function ServicesPane() {
   );
   useEffect(() => {
     void load();
-    const t = setInterval(load, 15_000);
-    return () => clearInterval(t);
   }, [load]);
+  // Solange ein Dienst noch auf seine erste Prüfung wartet, öfter nachfragen.
+  const pending = Boolean(list?.some((s) => s.up === null && !s.stopped));
+  useEffect(() => {
+    const t = setInterval(load, pending ? 2_000 : 15_000);
+    return () => clearInterval(t);
+  }, [load, pending]);
 
   return (
     <div className="stack-l">
@@ -145,7 +149,7 @@ export function ServicesPane() {
           <div className="card skeleton service-skeleton" aria-hidden="true" />
         </div>
       ) : list.length === 0 ? (
-        <div className="card notice">
+        <div className="card notice notice-info">
           <Globe aria-hidden="true" size={20} />
           <p>Noch keine Dienste. Installierte Apps erscheinen hier von selbst; eigene Adressen wie die Router-Oberfläche fügst du mit „Link hinzufügen“ hinzu.</p>
         </div>

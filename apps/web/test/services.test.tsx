@@ -131,4 +131,18 @@ describe('Internet', () => {
     await user.click(screen.getByRole('radio', { name: '7 Tage' }));
     await waitFor(() => expect(calls.some((c) => c.path === '/api/internet?minutes=10080')).toBe(true));
   });
+  it('fragt schnell nach, solange ein neuer Link noch geprüft wird', async () => {
+    let n = 0;
+    renderAt('/dienste', {
+      'GET /api/services': () => ({ json: [svc({ id: 'link:r1', name: 'NAS', url: 'http://192.168.1.5', kind: 'link', up: n++ === 0 ? null : true, uptime24h: null, uptime7d: null })] }),
+    });
+    expect(await screen.findByText('Wird geprüft')).toBeInTheDocument();
+    expect(await screen.findByText('Erreichbar', {}, { timeout: 4000 })).toBeInTheDocument();
+  });
+
+  it('zeigt einen leeren Bereich als neutralen Hinweis, nicht als Fehler', async () => {
+    renderAt('/dienste', { 'GET /api/services': () => ({ json: [] }) });
+    const note = (await screen.findByText(/Noch keine Dienste/)).closest('.notice');
+    expect(note).toHaveClass('notice-info');
+  });
 });

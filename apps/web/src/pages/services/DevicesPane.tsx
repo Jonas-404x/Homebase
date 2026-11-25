@@ -111,7 +111,7 @@ export function DevicesPane() {
         </p>
       )}
       {devices !== null && devices.length === 0 && !scanning && (
-        <div className="card notice">
+        <div className="card notice notice-info">
           <Wifi aria-hidden="true" size={20} />
           <p>Noch kein Scan. „Jetzt scannen“ sucht alle Geräte in deinem WLAN.</p>
         </div>

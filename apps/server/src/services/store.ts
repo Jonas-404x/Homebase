@@ -22,6 +22,7 @@ export function createServiceStore(db: Db) {
       SELECT MIN(CAST((at - :from) * :n / :span AS INTEGER), :n - 1) AS b, AVG(ok) AS v
       FROM service_checks WHERE target = :target AND at >= :from AND at <= :to GROUP BY b`),
     prune: db.sql.prepare('DELETE FROM service_checks WHERE at < ?'),
+    clear: db.sql.prepare('DELETE FROM service_checks WHERE target = ?'),
   };
   type LinkRow = { id: string; name: string; url: string; created_at: number };
   const toLink = (r: LinkRow): ServiceLink => ({ id: r.id, name: r.name, url: r.url, createdAt: Number(r.created_at) });
@@ -53,6 +54,8 @@ export function createServiceStore(db: Db) {
       return out;
     },
     prune: (before: number) => void q.prune.run(before),
+    /** Verlauf eines Ziels löschen, z. B. nach einer neuen Adresse. */
+    clearChecks: (target: string) => void q.clear.run(target),
   };
 }
 export type ServiceStore = ReturnType<typeof createServiceStore>;
