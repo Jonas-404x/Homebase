@@ -167,6 +167,8 @@ export interface ServiceStatus {
   /** null = noch nicht geprüft */
   up: boolean | null;
   ms: number | null;
+  /** App ist gestoppt, wird dann nicht geprüft */
+  stopped: boolean;
   /** Verfügbarkeit in Prozent, null = keine Prüfungen im Zeitraum */
   uptime24h: number | null;
   uptime7d: number | null;
