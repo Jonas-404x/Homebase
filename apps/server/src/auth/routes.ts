@@ -2,7 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import type { Db } from '../db.ts';
 import { MainframeError } from '../errors.ts';
 import { hashPassword, verifyPassword } from './passwords.ts';
-import { SESSION_COOKIE, startSession } from './sessions.ts';
+import { describeDevice } from './device.ts';
+import { SESSION_COOKIE, publicSessionId, startSession } from './sessions.ts';
 
 const PASSWORD_KEY = 'admin_password';
 const USER_KEY = 'admin_user';
@@ -36,6 +37,13 @@ type LoginBody = { Body: { username?: unknown; password?: unknown; remember?: un
 export function registerAuthRoutes(app: FastifyInstance, db: Db, onSessionsChanged: () => void = () => {}): void {
   // Eingerichtet heißt: Benutzername UND Passwort sind gesetzt. Ältere Installationen ohne
   // Benutzernamen (nur aus der Entwicklung) landen so noch einmal in der Einrichtung.
+  const days = () => app.prefs?.get().sessionDays ?? 30;
+  const requirePassword = async (pw: unknown) => {
+    const stored = db.getSetting(PASSWORD_KEY);
+    if (!stored || typeof pw !== 'string' || !(await verifyPassword(pw, stored))) {
+      throw new MainframeError('wrong_password', 'Das Passwort stimmt nicht.', 401);
+    }
+  };
   const setupDone = () => db.getSetting(PASSWORD_KEY) !== null && db.getSetting(USER_KEY) !== null;
 
   app.get('/api/auth/state', async (req) => ({
@@ -50,7 +58,8 @@ export function registerAuthRoutes(app: FastifyInstance, db: Db, onSessionsChang
     const pw = checkLength(req.body?.password);
     db.setSetting(PASSWORD_KEY, await hashPassword(pw));
     db.setSetting(USER_KEY, username);
-    startSession(db, reply, req.body?.remember !== false);
+    db.addLoginLog({ at: Date.now(), ok: true, username, ip: req.ip, userAgent: String(req.headers['user-agent'] ?? '') });
+    startSession(db, reply, { remember: req.body?.remember !== false, days: days(), req });
     return reply.code(204).send();
   });
 
@@ -61,8 +70,15 @@ export function registerAuthRoutes(app: FastifyInstance, db: Db, onSessionsChang
     // Passwort immer prüfen, auch bei falschem Namen, damit die Antwortzeit nichts verrät.
     const pwOk = stored !== null && typeof password === 'string' && (await verifyPassword(password, stored));
     const userOk = storedUser !== null && typeof username === 'string' && username.trim().toLowerCase() === storedUser.toLowerCase();
+    db.addLoginLog({
+      at: Date.now(),
+      ok: pwOk && userOk,
+      username: typeof username === 'string' ? username.trim().slice(0, 64) : '',
+      ip: req.ip,
+      userAgent: String(req.headers['user-agent'] ?? ''),
+    });
     if (!pwOk || !userOk) throw new MainframeError('wrong_login', 'Benutzername oder Passwort stimmt nicht.', 401);
-    startSession(db, reply, req.body?.remember !== false);
+    startSession(db, reply, { remember: req.body?.remember !== false, days: days(), req });
     return reply.code(204).send();
   });
 
@@ -83,6 +99,42 @@ export function registerAuthRoutes(app: FastifyInstance, db: Db, onSessionsChang
     db.setSetting(PASSWORD_KEY, await hashPassword(checkLength(req.body?.next)));
     db.deleteAllSessionsExcept(req.sessionId);
     onSessionsChanged();
+    return reply.code(204).send();
+  });
+
+  app.get('/api/auth/sessions', async (req) =>
+    db.listSessions().map((r) => ({
+      id: publicSessionId(r.id),
+      device: describeDevice(r.userAgent),
+      ip: r.ip,
+      createdAt: r.createdAt,
+      lastSeen: r.lastSeen,
+      current: r.id === req.sessionId,
+    })),
+  );
+
+  app.delete<{ Params: { id: string } }>('/api/auth/sessions/:id', async (req, reply) => {
+    const target = db.listSessions().find((r) => publicSessionId(r.id) === req.params.id);
+    if (!target) throw new MainframeError('not_found', 'Dieses Gerät ist nicht mehr angemeldet.', 404);
+    db.deleteSession(target.id);
+    if (target.id === req.sessionId) reply.clearCookie(SESSION_COOKIE, { path: '/' });
+    onSessionsChanged();
+    return reply.code(204).send();
+  });
+
+  app.post('/api/auth/sessions/others/logout', async (req, reply) => {
+    db.deleteAllSessionsExcept(req.sessionId);
+    onSessionsChanged();
+    return reply.code(204).send();
+  });
+
+  app.get('/api/auth/login-log', async () =>
+    db.listLoginLog().map((e) => ({ at: e.at, ok: e.ok, username: e.username, ip: e.ip, device: describeDevice(e.userAgent) })),
+  );
+
+  app.post<{ Body: { password?: unknown; username?: unknown } }>('/api/auth/username', { config: limited }, async (req, reply) => {
+    await requirePassword(req.body?.password);
+    db.setSetting(USER_KEY, checkUsername(req.body?.username));
     return reply.code(204).send();
   });
 }
