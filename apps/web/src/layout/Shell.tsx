@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { CommandPalette, openCommandPalette } from '../components/CommandPalette.tsx';
 import { ConnectionBanner } from '../components/ConnectionBanner.tsx';
 import { Navigation } from './Navigation.tsx';
+import { useRipple } from './ripple.ts';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -13,6 +14,7 @@ const section = (path: string) => '/' + (path.split('/')[1] ?? '');
 export function Shell({ children, header }: { children: ReactNode; header?: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
+  useRipple();
 
   // Strg/⌘ + , öffnet die Einstellungen (wie bei Apps auf dem Mac).
   useEffect(() => {

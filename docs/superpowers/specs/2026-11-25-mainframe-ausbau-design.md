@@ -163,7 +163,16 @@ Jonas fand die Einstellungen und die Ladeanimation „deutlich hochwertiger“. 
 - **Handy: Tab-Effekt wie bei Android.** Beim Wechsel zwischen Übersicht, Apps und Einstellungen leuchtet hinter dem Symbol des aktiven Tabs eine helle, abgerundete Fläche („Pille“) auf, die beim Wechsel kurz einblendet (Material-Navigation-Bar-Stil, wie in der App „ScooterHacking Utility“). Bei „Bewegung reduzieren“ ohne Animation.
 - **Minecraft-Tab wieder in die Navigation:** Er führt zu einer Seite „Kommt bald“ mit kurzer Vorschau, was kommt (Live-Konsole, Spieler, Welten, Backups). Das ist eine bewusste Ausnahme von „keine Platzhalter“: Jonas will den Tab sehen.
 - **Mehr Apps im Katalog:** schon jetzt einige aus Teil 8 vorziehen (zum Beispiel Uptime Kuma, Jellyfin, Navidrome, Vaultwarden, Immich, Home Assistant, ntfy), jede mit sinnvollen Standardwerten.
-- **Eigene Ideen von Claude** zum Mitbauen, wenn Jonas zustimmt (siehe Chat vom 2026-11-25): Prozess-Liste („was frisst gerade CPU?“), Speicherplatz-Warnung pro Laufwerk, „Seit wann läuft Mainframe“ in der Übersicht.
+- **Entscheidungen von Jonas (2026-11-25, zweite Runde):**
+  - Der Zeitraum der kleinen Kurven bleibt in den Einstellungen umstellbar (neu: 1 Minute als Standard, dazu 15 Min., 1 Std., 6 Std.).
+  - Die Detailansicht hat einen eigenen Umschalter, „ruhig richtig lang“: 15 Min., 1 Std., 6 Std., 24 Std., 3 Tage, 7 Tage. Der Server speichert den Verlauf dafür dauerhaft (SQLite, 7 Tage, übersteht Neustarts).
+  - **Temperatur** bekommt Verlauf und Detailansicht wie Prozessor und Arbeitsspeicher. Am Windows-PC liefert Windows meist keine Temperatur, auf dem Linux-Server schon.
+  - **Prozess-Liste:** in der Detailansicht von Prozessor (nach CPU sortiert) und Arbeitsspeicher (nach RAM sortiert).
+  - **Warnung, wenn ein Laufwerk voll wird:** Hinweis oben in der Übersicht und Eintrag im Ereignis-Protokoll (Push-Nachrichten kommen mit Teil 6). Dasselbe für zu hohe Temperatur.
+  - **Mehr Android-Effekte am Handy:** Pille hinter dem aktiven Tab, Ripple-Welle beim Tippen auf Knöpfe, Listen und Karten, Übergänge beim Seitenwechsel (Einblenden mit leichtem Zoom, Einstellungs-Bereich gleitet von rechts herein). Alles aus bei „Bewegung reduzieren“.
+  - **Minecraft** kommt erst mit Teil 5. Deshalb zeigt der Tab bis dahin „Kommt bald“.
+  - **Tailscale** wird jetzt schon am PC eingerichtet. Die Anmeldung bei Tailscale und die App am iPhone macht Jonas selbst. In Einstellungen → Netzwerk zeigt Mainframe dann die Tailscale-Adresse mit eigenem QR-Code.
+  - Immich (Fotos) braucht mehrere Container und viel RAM und kommt deshalb erst mit Teil 8 auf den Server.
 
 ## Teil 3: Dienste-Startseite und Netzwerk-Scanner
 
@@ -179,6 +188,14 @@ Jonas fand die Einstellungen und die Ladeanimation „deutlich hochwertiger“. 
   - Neue, unbekannte Geräte werden markiert.
   - Scan per Knopf und automatisch alle X Minuten.
   - Am Windows-PC funktioniert der Scan eingeschränkt, auf dem Server vollständig (ARP).
+
+- **Neu (Jonas, 2026-11-25): Zwei-Faktor-Anmeldung.**
+  - Mainframe ist über Tailscale von überall erreichbar, deshalb ein zweiter Schutz: ein 6-stelliger Code aus einer Authenticator-App (TOTP).
+  - Einrichten in Einstellungen › Konto & Sicherheit per QR-Code, dazu Wiederherstellungs-Codes zum Ausdrucken.
+  - Abschalten nur mit Passwort und aktuellem Code.
+- **Neu (Jonas, 2026-11-25): Internet-Wächter.**
+  - Regelmäßiger Speedtest (Intervall einstellbar, standardmäßig selten, damit er das Netz nicht belastet) und ein Verlauf von Ausfällen der Internetverbindung.
+  - Anzeige als Kurve mit Zeitraum wie in der Detailansicht, dazu „Ausfälle diese Woche“.
 
 ## Teil 4: Umzug auf den Server
 
@@ -203,6 +220,13 @@ Wie im alten Design (Setup-Skript für Ubuntu, Docker, Tailscale, `ufw`, AdGuard
   - Plan B: AdGuard übernimmt DHCP (Router-DHCP aus), oder man trägt den DNS pro Gerät ein.
   - Router-Einstellungen macht Jonas selbst, Claude gibt die Klick-Anleitung. Claude bekommt kein Router-Passwort.
 
+- **Neu (Jonas, 2026-11-25): Dateien im Browser.**
+  - Dateien auf der Netzwerkfreigabe ansehen, hoch- und herunterladen, umbenennen und löschen (Papierkorb), auch am Handy.
+  - Nur innerhalb des Freigabe-Ordners, nie im restlichen System.
+- **Neu (Jonas, 2026-11-25): Stromverbrauch und Kosten.**
+  - Schätzung aus Laufzeit und Auslastung (Leerlauf- und Volllast-Watt des OptiPlex einstellbar) und dem eigenen Strompreis pro kWh.
+  - Anzeige pro Tag und Monat. Ehrlich als Schätzung beschriftet.
+
 ## Teil 6: Benachrichtigungen und Sicherungen
 
 - **Benachrichtigungen,** alles kostenlos:
@@ -214,6 +238,15 @@ Wie im alten Design (Setup-Skript für Ubuntu, Docker, Tailscale, `ufw`, AdGuard
   - Täglich automatisch: Mainframe-Daten und die Daten jeder App (zum Beispiel AdGuard-Einstellungen), auf die Server-SSD oder auf die Netzwerkfreigabe.
   - Die letzten N bleiben erhalten, N ist einstellbar.
   - Wiederherstellen per Knopf.
+
+- **Neu (Jonas, 2026-11-25): App-Updates.**
+  - Mainframe prüft regelmäßig, ob es für installierte Apps neuere Images gibt, und zeigt „Update verfügbar“.
+  - Aktualisieren per Klick: vorher automatisch eine Sicherung der App, bei Fehler zurück zur alten Version.
+- **Neu (Jonas, 2026-11-25): Geplante Aufgaben.**
+  - Wiederkehrende Aktionen mit Uhrzeit und Wochentagen: App oder Minecraft-Server neu starten, Sicherung, Server herunterfahren, Aufräumen.
+  - Liste in den Einstellungen, jede Aufgabe einzeln ein/aus, mit letztem Ergebnis.
+- **Neu (Jonas, 2026-11-25): Wochenbericht.**
+  - Jeden Sonntag eine kurze Nachricht über ntfy/Discord: Verfügbarkeit der Dienste, Speicherplatz, Internet-Ausfälle, Auffälligkeiten.
 
 ## Teil 7 und 8 (kurz)
 

@@ -1,0 +1,20 @@
+{
+  "id": "uptime-kuma",
+  "name": "Uptime Kuma",
+  "description": "Prüft rund um die Uhr, ob deine Dienste und Webseiten erreichbar sind, mit Statusseite und Verlauf.",
+  "icon": "activity",
+  "fields": [],
+  "ports": [
+    {
+      "key": "web",
+      "label": "Weboberfläche",
+      "container": 3001,
+      "protocol": "tcp",
+      "default": 3001
+    }
+  ],
+  "webUi": {
+    "portKey": "web",
+    "path": "/"
+  }
+}

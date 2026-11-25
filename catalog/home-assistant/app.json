@@ -1,0 +1,20 @@
+{
+  "id": "home-assistant",
+  "name": "Home Assistant",
+  "description": "Smart Home an einem Ort: Steckdosen, Lampen und Sensoren steuern und automatisieren.",
+  "icon": "house",
+  "fields": [],
+  "ports": [
+    {
+      "key": "web",
+      "label": "Weboberfläche",
+      "container": 8123,
+      "protocol": "tcp",
+      "default": 8123
+    }
+  ],
+  "webUi": {
+    "portKey": "web",
+    "path": "/"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "jellyfin",
+  "name": "Jellyfin",
+  "description": "Dein eigenes Netflix: Filme, Serien und Musik vom Server auf Handy, PC und Fernseher streamen.",
+  "icon": "film",
+  "fields": [],
+  "ports": [
+    {
+      "key": "web",
+      "label": "Weboberfläche",
+      "container": 8096,
+      "protocol": "tcp",
+      "default": 8096
+    }
+  ],
+  "webUi": {
+    "portKey": "web",
+    "path": "/"
+  }
+}

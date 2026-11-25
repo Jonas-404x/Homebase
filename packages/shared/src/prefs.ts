@@ -40,7 +40,10 @@ export const prefsShape = {
       temperature: z.number().int().min(50).max(100),
     })
     .strict(),
-  historyMinutes: z.union([z.literal(60), z.literal(15), z.literal(360)]),
+  /** Zeitraum der kleinen Kurven auf den Karten. */
+  historyMinutes: z.union([z.literal(1), z.literal(15), z.literal(60), z.literal(360)]),
+  /** Standard-Zeitraum der großen Kurve in der Detailansicht. */
+  detailMinutes: z.union([z.literal(1440), z.literal(15), z.literal(60), z.literal(360), z.literal(4320), z.literal(10080)]),
 };
 
 export const prefsSchema = z.object(prefsShape).strict();
@@ -60,8 +63,24 @@ export const defaultPrefs: Prefs = {
   netUnits: 'bytes',
   cards: CARD_IDS.map((id) => ({ id, visible: true })),
   thresholds: { memory: 90, disk: 90, temperature: 80 },
-  historyMinutes: 60,
+  historyMinutes: 1,
+  detailMinutes: 1440,
 };
+
+/** Karten aus einer älteren oder neueren Version: bekannte in ihrer Reihenfolge behalten, fehlende sichtbar anhängen. */
+function repairCards(raw: unknown): Prefs['cards'] {
+  const known = new Set<string>(CARD_IDS);
+  const out: Prefs['cards'] = [];
+  if (Array.isArray(raw)) {
+    for (const c of raw) {
+      if (c && typeof c === 'object' && known.has((c as { id: string }).id) && !out.some((x) => x.id === (c as { id: string }).id)) {
+        out.push({ id: (c as { id: CardId }).id, visible: (c as { visible?: unknown }).visible !== false });
+      }
+    }
+  }
+  for (const id of CARD_IDS) if (!out.some((c) => c.id === id)) out.push({ id, visible: true });
+  return out;
+}
 
 /** Liest gespeicherte oder importierte Einstellungen. Fehlende oder ungültige Felder bekommen den Standardwert. */
 export function parsePrefs(raw: unknown): Prefs {
@@ -70,6 +89,7 @@ export function parsePrefs(raw: unknown): Prefs {
   for (const key of Object.keys(prefsShape) as (keyof typeof prefsShape)[]) {
     const r = prefsShape[key].safeParse(src[key]);
     if (r.success) out[key] = r.data;
+    else if (key === 'cards') out.cards = repairCards(src.cards);
   }
   return out as Prefs;
 }

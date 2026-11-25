@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Part 2.1: Details, more apps and remote access
+
+- **Detail view**: click a card (CPU, RAM, temperature, network) for a large chart with its own range switch (15 min up to 7 days), min/average/max, a readout under your finger or mouse, per-core load, CPU info, RAM breakdown and network adapters
+- **Process list**: see which programs use the most CPU or RAM right now (grouped by name, e.g. "brave ×20")
+- **Temperature history** like CPU and RAM (on Windows the CPU usually does not report a temperature; the Linux server will)
+- History is now stored for **7 days** in the database and survives restarts; the small card charts default to the last minute (still adjustable)
+- **Warnings**: a disk that is almost full shows a notice on the overview, and crossing a threshold (disk, temperature, RAM) is written to the event log once
+- Overview cleaned up: cards no longer stretch, AdGuard moved to its own "Services" section
+- **Six new apps** in the catalog: Uptime Kuma, Jellyfin, Navidrome, Vaultwarden, ntfy, Home Assistant
+- **Minecraft tab** is back with "Coming soon" and what is planned
+- **Phone feels more like an Android app**: a pill behind the active tab, a ripple when you tap, smoother page and settings transitions (all off with "Reduce motion")
+- **Remote access with Tailscale**: Settings › Network shows a second QR code for the Tailscale address, so Mainframe works from anywhere without opening router ports
+- Settings › Overview: new "Detail view" default range and a "1 min" option for the card charts
+
 ### Part 2: Settings, design and phone
 
 - **Settings** in nine panes with search (`Ctrl+,` opens them): device name, start page, time zone; username, password, signed-in devices (sign out one or all others), how long you stay signed in, login history; accent color (six colors), density, live update rate, GB/GiB and MB/s vs. Mbit/s; overview cards (show/hide, reorder), warning thresholds, chart range; network addresses with a QR code for your phone; Docker version, disk usage and clean-up; system info and live event log; settings export/import and full reset (password required)

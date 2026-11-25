@@ -68,6 +68,7 @@ export const PANES: Pane[] = [
       { label: 'Karten', keywords: ['reihenfolge', 'ausblenden', 'anzeigen'] },
       { label: 'Warnschwellen', keywords: ['warnung', 'grenze', 'prozent', 'temperatur'] },
       { label: 'Verlauf', keywords: ['kurve', 'minuten', 'stunden'] },
+      { label: 'Detailansicht', keywords: ['graph', 'tage', 'woche', 'lang'] },
     ],
   },
   {

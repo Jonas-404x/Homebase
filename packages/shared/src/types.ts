@@ -17,6 +17,24 @@ export interface HistoryPoint {
   memory: number;
   rx: number;
   tx: number;
+  /** °C, null wenn das Gerät keine Temperatur liefert. */
+  temp: number | null;
+}
+
+/** Mehr Infos für die Detailansicht (Klick auf eine Karte). */
+export interface SystemDetails {
+  cpu: { model: string; cores: number; physicalCores: number; speedGHz: number; perCore: number[] };
+  memory: { totalBytes: number; usedBytes: number; freeBytes: number; cacheBytes: number; swapTotalBytes: number; swapUsedBytes: number };
+  network: { iface: string; ip: string; speedMbit: number | null }[];
+  temperature: { mainC: number | null; maxC: number | null; coresC: number[] };
+}
+
+/** Ein Programm in der Prozess-Liste (gleichnamige Prozesse zusammengefasst). */
+export interface ProcessInfo {
+  name: string;
+  count: number;
+  cpuPercent: number;
+  memBytes: number;
 }
 
 export interface SystemInfo {
@@ -71,12 +89,16 @@ export const catalogPortSchema = z.object({
   devDefault: z.number().int().min(1).max(65535).optional(),
 });
 
+/** Symbole, die Katalog-Apps benutzen dürfen (die Weboberfläche kennt genau diese). */
+export const APP_ICONS = ['shield', 'box', 'pickaxe', 'music', 'bot', 'activity', 'film', 'key', 'bell', 'house'] as const;
+export type AppIconName = (typeof APP_ICONS)[number];
+
 export const catalogAppSchema = z
   .object({
     id: z.string().regex(/^[a-z0-9-]+$/),
     name: z.string().min(1),
     description: z.string(),
-    icon: z.string(),
+    icon: z.enum(APP_ICONS),
     fields: z.array(catalogFieldSchema),
     ports: z.array(catalogPortSchema),
     webUi: z.object({ portKey: z.string(), path: z.string() }).optional(),

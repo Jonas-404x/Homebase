@@ -1,0 +1,12 @@
+services:
+  navidrome:
+    image: deluan/navidrome:latest
+    restart: unless-stopped
+    volumes:
+      - "data:/data"
+      # Hier die Musik ablegen.
+      - "${app.dataDir}/music:/music:ro"
+    ports:
+      - "${port.web}:4533/tcp"
+volumes:
+  data: {}

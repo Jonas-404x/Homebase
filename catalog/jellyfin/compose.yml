@@ -1,0 +1,14 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    restart: unless-stopped
+    volumes:
+      - "config:/config"
+      - "cache:/cache"
+      # Hier Filme und Serien ablegen (später auf der Netzwerkfreigabe).
+      - "${app.dataDir}/media:/media"
+    ports:
+      - "${port.web}:8096/tcp"
+volumes:
+  config: {}
+  cache: {}
