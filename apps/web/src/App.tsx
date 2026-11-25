@@ -29,6 +29,10 @@ function StartPage() {
 function Inside({ socketFactory, onLoggedOut }: { socketFactory: (url: string) => LiveSocket; onLoggedOut: () => void }) {
   const socket = useMemo(() => socketFactory(defaultSocketUrl()), [socketFactory]);
   useEffect(() => () => socket.close(), [socket]);
+  // Woanders abgemeldet (Geräteliste, Passwort geändert, zurückgesetzt): zur Anmeldung.
+  useEffect(() => socket.onStatus((s) => {
+        if (s === 'loggedOut') void onLoggedOut();
+      }), [socket, onLoggedOut]);
   return (
     <LiveProvider socket={socket}>
       <PrefsProvider>

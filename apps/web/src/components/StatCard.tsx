@@ -1,6 +1,6 @@
 import { AlertTriangle, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Sparkline } from './Sparkline.tsx';
+import { Sparkline, type ChartPoint } from './Sparkline.tsx';
 
 export type StatStatus = 'ok' | 'warn' | 'danger';
 
@@ -18,6 +18,7 @@ export function StatCard({
   chart,
   chartLabel,
   chartMax,
+  chartWindowMs = 3_600_000,
   status = 'ok',
   loading = false,
   error,
@@ -31,7 +32,8 @@ export function StatCard({
   /** Ob die Karte einen Balken hat (auch beim Laden, wenn `load` noch fehlt). */
   meter?: boolean;
   /** Verlauf; `undefined` = Karte ohne Kurve. */
-  chart?: number[];
+  chart?: ChartPoint[];
+  chartWindowMs?: number;
   chartLabel?: string;
   chartMax?: number;
   status?: StatStatus;
@@ -62,7 +64,7 @@ export function StatCard({
           {busy || error ? <div className={busy ? 'meter-indeterminate' : ''} /> : <div className={`meter-fill meter-${status}`} style={{ width: `${Math.min(100, load ?? 0)}%` }} />}
         </div>
       )}
-      {chart !== undefined && (busy ? <div className="sparkline skeleton" aria-hidden="true" /> : <Sparkline values={chart} max={chartMax} label={chartLabel ?? `${label}-Verlauf`} />)}
+      {chart !== undefined && (busy ? <div className="sparkline skeleton" aria-hidden="true" /> : <Sparkline points={chart} windowMs={chartWindowMs} max={chartMax} label={chartLabel ?? `${label}-Verlauf`} />)}
       <div className="stat-detail secondary">{busy ? <span className="skeleton skeleton-line" /> : (detail ?? ' ')}</div>
     </div>
   );

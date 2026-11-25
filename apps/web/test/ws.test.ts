@@ -7,7 +7,7 @@ class FakeWs {
   readyState = 0;
   sent: string[] = [];
   onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
+  onclose: ((e: { code: number }) => void) | null = null;
   onmessage: ((e: { data: string }) => void) | null = null;
   url: string;
   constructor(url: string) {
@@ -15,9 +15,9 @@ class FakeWs {
     FakeWs.instances.push(this);
   }
   send(d: string) { this.sent.push(d); }
-  close() { this.readyState = 3; this.onclose?.(); }
+  close() { this.readyState = 3; this.onclose?.({ code: 1000 }); }
   open() { this.readyState = 1; this.onopen?.(); }
-  drop() { this.readyState = 3; this.onclose?.(); }
+  drop(code = 1006) { this.readyState = 3; this.onclose?.({ code }); }
 }
 
 beforeEach(() => {
@@ -79,6 +79,18 @@ describe('createLiveSocket (Review Focus 4)', () => {
     FakeWs.instances[0]!.open();
     s.close();
     vi.advanceTimersByTime(20000);
+    expect(FakeWs.instances).toHaveLength(1);
+  });
+
+  it('meldet „abgemeldet“ statt endlos neu zu verbinden, wenn der Server die Sitzung beendet (4401)', () => {
+    const s = createLiveSocket('ws://x/api/ws', { WebSocketImpl: FakeWs as unknown as typeof WebSocket });
+    const seen: string[] = [];
+    s.onStatus((st) => seen.push(st));
+    FakeWs.instances[0]!.open();
+    FakeWs.instances[0]!.drop(4401);
+    expect(s.status()).toBe('loggedOut');
+    expect(seen.at(-1)).toBe('loggedOut');
+    vi.advanceTimersByTime(30000);
     expect(FakeWs.instances).toHaveLength(1);
   });
 });

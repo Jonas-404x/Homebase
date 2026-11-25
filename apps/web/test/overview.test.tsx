@@ -118,6 +118,27 @@ describe('Übersicht', () => {
     }
   });
 
+  it('zeigt die Kurve als Ladefläche, solange es erst einen Messpunkt gibt', async () => {
+    const { socket } = renderOverview([]);
+    act(() => socket.emit({ type: 'stats', data: stats() }));
+    await screen.findByText('12,5 %');
+    const cpu = screen.getAllByTestId('stat-card').find((c) => c.textContent?.includes('Prozessor'))!;
+    expect(cpu.querySelector('.sparkline.skeleton')).not.toBeNull();
+    expect(screen.queryByRole('img', { name: /Prozessor-Verlauf/ })).not.toBeInTheDocument();
+  });
+
+  it('holt den Verlauf regelmäßig neu, damit die Kurve den eingestellten Zeitraum zeigt', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { calls } = renderOverview([], undefined, { ...defaultPrefs, historyMinutes: 15 });
+      await screen.findAllByTestId('stat-card');
+      await act(() => vi.advanceTimersByTimeAsync(8000));
+      expect(calls.filter((c) => c.path === '/api/system/history?minutes=15').length).toBeGreaterThanOrEqual(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('zeichnet Verlaufskurven mit verständlicher Beschriftung', async () => {
     const { socket } = renderOverview([]);
     act(() => socket.emit({ type: 'stats', data: stats() }));

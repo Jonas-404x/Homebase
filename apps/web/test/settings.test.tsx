@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultPrefs, type DockerUsage, type SystemInfo } from '@mainframe/shared';
@@ -99,6 +99,51 @@ describe('Einstellungen', () => {
     const row = (await screen.findByText('Chrome auf Windows')).closest('li')!;
     await user.click(within(row).getByRole('button', { name: /Abmelden/ }));
     expect(await screen.findByRole('button', { name: 'Anmelden' })).toBeInTheDocument();
+  });
+
+  it('zeigt die Anmeldung, wenn dieses Gerät woanders abgemeldet wurde', async () => {
+    window.history.replaceState(null, '', '/settings/general');
+    loggedIn = true;
+    let push: ((s: 'loggedOut') => void) | null = null;
+    const socket = () => ({ status: () => 'open' as const, on: () => () => {}, onStatus: (cb: (s: 'loggedOut') => void) => ((push = cb), () => {}), send: () => {}, close: () => {} });
+    mockApi({
+      'GET /api/auth/state': () => ({ json: { setupDone: true, loggedIn, username: 'jonas' } }),
+      'GET /api/prefs': () => ({ json: defaultPrefs }),
+      'GET /api/apps': () => ({ json: [] }),
+      'GET /api/system/info': () => ({ json: info }),
+    });
+    render(<App socketFactory={socket as never} />);
+    await screen.findByRole('heading', { name: 'Allgemein', level: 2 });
+    loggedIn = false;
+    await act(async () => push!('loggedOut'));
+    expect(await screen.findByRole('button', { name: 'Anmelden' })).toBeInTheDocument();
+  });
+
+  it('lässt das Feld für den Benutzernamen leeren und neu befüllen', async () => {
+    const user = userEvent.setup();
+    renderAt('/settings/account');
+    const field = await screen.findByLabelText('Benutzername');
+    await waitFor(() => expect(field).toHaveValue('jonas'));
+    await user.clear(field);
+    expect(field).toHaveValue('');
+    await user.type(field, 'keller');
+    expect(field).toHaveValue('keller');
+  });
+
+  it('prüft Docker von selbst erneut, solange es noch startet', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let up = false;
+      renderAt('/settings/docker', {
+        'GET /api/system/docker/usage': () => (up ? { json: { version: '29.0.1', usage } } : { status: 503, json: { code: 'docker_down', message: 'Docker läuft gerade nicht.' } }),
+      });
+      expect(await screen.findByText('Docker läuft gerade nicht.')).toBeInTheDocument();
+      up = true;
+      await act(() => vi.advanceTimersByTimeAsync(5500));
+      expect(await screen.findByText('29.0.1')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('räumt Docker erst nach Bestätigung auf und nennt vorher den Platz', async () => {

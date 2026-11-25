@@ -12,7 +12,9 @@ import { percent, rate, uptime, usedOfTotal } from '../format.ts';
 const DOCKER_RETRY_MS = 5000;
 const NO_DATA_MS = 10_000;
 const NO_DATA = 'Keine Werte vom Server.';
-const MAX_POINTS = 180;
+const MAX_LIVE = 900;
+/** Der Server liefert höchstens 120 Punkte pro Zeitraum; so oft kommt ein neuer. */
+const bucketMs = (minutes: number) => (minutes * 60_000) / 120;
 const SHAPE_KEY = 'mf.overviewShape';
 
 /** Was beim letzten Mal zu sehen war, damit die Ladekarten schon die richtige Anzahl haben. */
@@ -51,6 +53,7 @@ export function Overview() {
   const prefs = usePrefs().prefs ?? defaultPrefs;
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const [live, setLive] = useState<HistoryPoint[]>([]);
   const [timedOut, setTimedOut] = useState(false);
   const [dockerMessage, setDockerMessage] = useState<string | null>(null);
   const [shape, setShape] = useState<Shape>(readShape);
@@ -62,23 +65,34 @@ export function Overview() {
       const s = m.data;
       setStats(s);
       setTimedOut(false);
-      setHistory((h) =>
+      setLive((h) =>
         [
           ...h,
           { at: Date.now(), cpu: s.cpu.loadPercent, memory: s.memory.totalBytes ? (s.memory.usedBytes / s.memory.totalBytes) * 100 : 0, rx: s.network.rxBytesPerSec, tx: s.network.txBytesPerSec },
-        ].slice(-MAX_POINTS),
+        ].slice(-MAX_LIVE),
       );
     }, []),
   );
 
-  // Verlauf der letzten Minuten vom Server holen, damit die Kurven sofort da sind.
+  // Verlauf vom Server holen, damit die Kurven sofort da sind, und regelmäßig neu holen, damit
+  // die Kurve immer den eingestellten Zeitraum zeigt. Live-Punkte füllen nur die Zeit seit dem
+  // letzten Server-Punkt.
   useEffect(() => {
     let stop = false;
-    api<HistoryPoint[]>(`/api/system/history?minutes=${prefs.historyMinutes}`)
-      .then((h) => !stop && setHistory((live) => [...h, ...live.filter((p) => p.at > (h.at(-1)?.at ?? 0))].slice(-MAX_POINTS)))
-      .catch(() => {});
+    const load = () =>
+      api<HistoryPoint[]>(`/api/system/history?minutes=${prefs.historyMinutes}`)
+        .then((h) => {
+          if (stop) return;
+          setHistory(h);
+          const last = h.at(-1)?.at ?? 0;
+          setLive((l) => l.filter((p) => p.at > last));
+        })
+        .catch(() => {});
+    void load();
+    const t = setInterval(load, bucketMs(prefs.historyMinutes));
     return () => {
       stop = true;
+      clearInterval(t);
     };
   }, [prefs.historyMinutes]);
 
@@ -138,20 +152,24 @@ export function Overview() {
   const adguard = apps?.find((a) => a.id === 'adguard');
   const mem = stats ? (stats.memory.usedBytes / stats.memory.totalBytes) * 100 : 0;
   const common = { loading, error };
+  const windowMs = prefs.historyMinutes * 60_000;
+  const last = history.at(-1)?.at ?? 0;
+  const points = [...history, ...live.filter((p) => p.at > last)];
+  const series = (k: 'cpu' | 'memory' | 'rx') => points.map((p) => ({ at: p.at, v: p[k] }));
 
   const render = (id: CardId) => {
     switch (id) {
       case 'cpu':
         return (
           <StatCard key={id} icon={Cpu} label="Prozessor" {...common} value={stats && percent(stats.cpu.loadPercent)} load={stats?.cpu.loadPercent} meter
-            chart={history.map((p) => p.cpu)} chartMax={100} chartLabel={`Prozessor-Verlauf der letzten ${since}`}
+            chart={series('cpu')} chartWindowMs={windowMs} chartMax={100} chartLabel={`Prozessor-Verlauf der letzten ${since}`}
             detail={stats && `${stats.cpu.model}, ${stats.cpu.cores} Kerne`} />
         );
       case 'memory':
         return (
           <StatCard key={id} icon={MemoryStick} label="Arbeitsspeicher" {...common} status={statusFor(mem, t.memory)}
             value={stats && usedOfTotal(stats.memory.usedBytes, stats.memory.totalBytes, prefs.sizeUnits)} load={mem} meter
-            chart={history.map((p) => p.memory)} chartMax={100} chartLabel={`Arbeitsspeicher-Verlauf der letzten ${since}`}
+            chart={series('memory')} chartWindowMs={windowMs} chartMax={100} chartLabel={`Arbeitsspeicher-Verlauf der letzten ${since}`}
             detail={stats && percent(mem) + ' belegt'} />
         );
       case 'disk':
@@ -174,7 +192,7 @@ export function Overview() {
       case 'network':
         return (
           <StatCard key={id} icon={Network} label="Netzwerk" {...common} value={stats && `↓ ${rate(stats.network.rxBytesPerSec, prefs.netUnits)}`}
-            chart={history.map((p) => p.rx)} chartLabel={`Download-Verlauf der letzten ${since}`}
+            chart={series('rx')} chartWindowMs={windowMs} chartLabel={`Download-Verlauf der letzten ${since}`}
             detail={stats && <span>↑ {rate(stats.network.txBytesPerSec, prefs.netUnits)}</span>} />
         );
       case 'adguard':

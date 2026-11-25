@@ -66,7 +66,7 @@ export function Account() {
   const save = useSave();
   const { flash, onLoggedOut } = useSettings();
   const [username, setUsername] = useState<string | null>(null);
-  const [draftName, setDraftName] = useState('');
+  const [draftName, setDraftName] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [devices, setDevices] = useState<Device[] | null>(null);
   const [log, setLog] = useState<LogEntry[] | null>(null);
@@ -120,11 +120,11 @@ export function Account() {
             className="inline-form"
             onSubmit={(e) => {
               e.preventDefault();
-              if (draftName.trim() && draftName.trim() !== username) setRenaming(true);
+              if (draftName?.trim() && draftName.trim() !== username) setRenaming(true);
             }}
           >
-            <input id="set-username" className="input" value={draftName || username || ''} autoComplete="username" onChange={(e) => setDraftName(e.target.value)} />
-            <button type="submit" className="button" disabled={!draftName.trim() || draftName.trim() === username}>
+            <input id="set-username" className="input" value={draftName ?? username ?? ''} autoComplete="username" onChange={(e) => setDraftName(e.target.value)} />
+            <button type="submit" className="button" disabled={!draftName?.trim() || draftName.trim() === username}>
               Ändern …
             </button>
           </form>
@@ -219,13 +219,14 @@ export function Account() {
           confirmLabel="Ändern"
           onClose={() => setRenaming(false)}
           onConfirm={async (password) => {
-            await post('/api/auth/username', { password, username: draftName.trim() });
-            setUsername(draftName.trim());
-            setDraftName('');
+            const name = (draftName ?? '').trim();
+            await post('/api/auth/username', { password, username: name });
+            setUsername(name);
+            setDraftName(null);
             flash('Gespeichert');
           }}
         >
-          Neuer Benutzername: „{draftName.trim()}“. Melde dich künftig damit an.
+          Neuer Benutzername: „{(draftName ?? '').trim()}“. Melde dich künftig damit an.
         </ConfirmWithPassword>
       )}
     </div>

@@ -1360,5 +1360,12 @@ select.input {
   .usage-table th:nth-child(2),
   .usage-table td:nth-child(2) {
     display: none;
+  }  .segment,
+  .input,
+  .card-order-controls .icon-button {
+    min-height: var(--tap);
+  }
+  .card-order-controls .icon-button {
+    min-width: var(--tap);
   }
 }

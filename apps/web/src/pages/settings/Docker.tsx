@@ -31,6 +31,12 @@ export function Docker() {
       .catch((err) => setError(errorText(err)));
   }, []);
   useEffect(load, [load]);
+  // Docker startet nach dem PC-Start noch: alle paar Sekunden erneut nachsehen.
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(load, 5000);
+    return () => clearTimeout(t);
+  }, [error, load]);
 
   // Aufräumen entfernt nicht benutzte Images und den Build-Cache, nicht Container oder Volumes.
   const reclaimable = data ? data.usage.images.reclaimableBytes + data.usage.buildCache.reclaimableBytes : 0;
