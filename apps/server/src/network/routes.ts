@@ -15,10 +15,12 @@ export function registerDeviceRoutes(app: FastifyInstance, opts: { db: Db; prefs
   const scanner = createScanner({ store, events: opts.events, deps: opts.deps });
 
   const list = (): DeviceInfo[] => {
-    const online = scanner.online();
-    return store
-      .list()
-      .map((d) => ({ ...d, randomMac: isRandomMac(d.mac), online: online.has(d.mac) }))
+    // Alle Geräte eines Scans bekommen denselben Zeitstempel: online ist, wer beim letzten Scan da war.
+    // Das steht in der Datenbank und gilt deshalb auch nach einem Neustart.
+    const all = store.list();
+    const last = Math.max(0, ...all.map((d) => d.lastSeen));
+    return all
+      .map((d) => ({ ...d, randomMac: isRandomMac(d.mac), online: last > 0 && d.lastSeen === last }))
       .sort((a, b) => ipKey(a.ip) - ipKey(b.ip));
   };
 

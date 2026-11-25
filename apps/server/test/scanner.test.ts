@@ -142,4 +142,16 @@ describe('/api/devices', () => {
     expect(list.find((d) => d.mac === phone.mac)).toMatchObject({ name: 'iPhone', note: 'Jonas', known: true });
     await app.close();
   });
+
+  it('zeigt auch nach einem Neustart, wer beim letzten Scan da war', async () => {
+    const db = openDb(':memory:');
+    const first = await buildApp(testDeps({ db, network: fakeDeps() }));
+    const cookie = await setupAndLogin(first);
+    await first.inject({ method: 'POST', url: '/api/devices/scan', headers: { cookie } });
+    const restarted = await buildApp(testDeps({ db, network: fakeDeps() }));
+    const list = (await restarted.inject({ method: 'GET', url: '/api/devices', headers: { cookie } })).json().devices as DeviceInfo[];
+    expect(list.map((d) => d.online)).toEqual([true, true, true]);
+    await first.close();
+    await restarted.close();
+  });
 });

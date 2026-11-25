@@ -145,4 +145,14 @@ describe('Internet', () => {
     const note = (await screen.findByText(/Noch keine Dienste/)).closest('.notice');
     expect(note).toHaveClass('notice-info');
   });
+
+  it('wartet auf einen laufenden automatischen Scan und zeigt danach die Geräte', async () => {
+    let n = 0;
+    renderAt('/dienste/geraete', {
+      'GET /api/devices': () => (n++ === 0 ? { json: { devices: [], scanning: true } } : { json: { devices: [dev({})], scanning: false } }),
+    });
+    expect(await screen.findByRole('button', { name: 'Scannt …' })).toBeDisabled();
+    expect(await screen.findByText('router.local', {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Jetzt scannen' })).toBeEnabled();
+  });
 });

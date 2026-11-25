@@ -62,6 +62,7 @@ function EditDevice({ device, onClose, onSaved }: { device: DeviceInfo; onClose:
 export function DevicesPane() {
   const [devices, setDevices] = useState<DeviceInfo[] | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [own, setOwn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<DeviceInfo | null>(null);
 
@@ -78,8 +79,15 @@ export function DevicesPane() {
   useEffect(() => {
     void load();
   }, [load]);
+  // Läuft ein automatischer Scan, nachfragen, bis er fertig ist.
+  useEffect(() => {
+    if (!scanning || own) return;
+    const t = setInterval(load, 2_000);
+    return () => clearInterval(t);
+  }, [scanning, own, load]);
 
   const scan = async () => {
+    setOwn(true);
     setScanning(true);
     setError(null);
     try {
@@ -88,6 +96,7 @@ export function DevicesPane() {
       setError(errorText(err));
     } finally {
       setScanning(false);
+      setOwn(false);
     }
   };
 

@@ -114,6 +114,7 @@ describe('Einstellungen', () => {
     });
     render(<App socketFactory={socket as never} />);
     await screen.findByRole('heading', { name: 'Allgemein', level: 2 });
+    await waitFor(() => expect(push).not.toBeNull());
     loggedIn = false;
     await act(async () => push!('loggedOut'));
     expect(await screen.findByRole('button', { name: 'Anmelden' })).toBeInTheDocument();
