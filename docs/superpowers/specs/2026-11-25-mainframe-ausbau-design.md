@@ -126,6 +126,24 @@ Benachrichtigungen (Teil 6) und Netzwerk-Scanner (Teil 3) bekommen eigene Bereic
 - **Ohne Internet-Verbindung zum Server** zeigt die App eine verständliche Seite statt eines weißen Bildschirms.
 - **Einschränkung:** Echte Offline-Funktion und Push-Nachrichten brauchen HTTPS. Das kommt mit Tailscale in Teil 4. Im WLAN über `http://` klappt der Home-Bildschirm trotzdem.
 
+### Ergänzungen von Jonas (2026-11-25)
+
+- **Logo auf dem Home-Bildschirm.** Das Mainframe-Logo (Eisblau) muss auf dem iPhone-Home-Bildschirm erscheinen: `apple-touch-icon` 180 × 180 ohne Transparenz, App-Name „Mainframe“. Das ist ihm wichtig.
+- **Handy wie eine echte App.**
+  - Mainframe ist durchgehend fürs Handy optimiert: Tab-Leiste unten, keine abgeschnittenen Inhalte, keine waagerechte Scrollleiste.
+  - Dezente Animationen: kurzer Übergang beim Wechsel der Bereiche, sanftes Einblenden von Inhalten, eine Rückmeldung beim Antippen der Tabs.
+  - Nicht überladen, kurz (≤ 250 ms). Bei „Bewegung reduzieren“ aus.
+- **Kein Aufploppen beim Laden.**
+  - Daten, die sicher kommen (Leistungswerte der Übersicht), bekommen ihre Karten **sofort in fester Größe**.
+  - Statt Wert und Balken zeigt die Karte bis dahin einen animierten Ladebalken bzw. Platzhalter-Schimmer.
+  - Dann wird nur der Inhalt ausgetauscht, ohne dass sich das Layout verschiebt.
+  - Das deckt sich mit Apple (`loading.md`: „consider showing placeholder text, graphics, or animations as content loads“).
+  - Kommt nach ein paar Sekunden nichts, steht in der Karte ein verständlicher Fehler.
+- **Keine Platzhalter für Dinge, die es noch nicht gibt.**
+  - Der Minecraft-Tab („Kommt bald“) fliegt raus, bis Teil 5 ihn mit echtem Inhalt füllt.
+  - Ladeplatzhalter gibt es nur für Daten, die wirklich unterwegs sind.
+- **Minecraft (Teil 5):** Eine **Live-Konsole** mit Befehlseingabe ist Pflicht (steht schon im alten Design: Live-Log, Befehle senden, Verlauf mit Pfeiltasten).
+
 ## Teil 3: Dienste-Startseite und Netzwerk-Scanner
 
 - **Seite „Dienste“:** Kacheln aller Dienste auf dem Server.
