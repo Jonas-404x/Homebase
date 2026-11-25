@@ -37,7 +37,7 @@ On first start Mainframe asks you to choose a username and password.
 
 On Windows you can also just double-click `start-mainframe.cmd`.
 
-To run it in the background on Windows instead (no window, starts automatically when you sign in to Windows), double-click `scripts/windows/autostart-an.cmd`. `scripts/windows/stoppen.cmd` stops it, `scripts/windows/autostart-aus.cmd` turns autostart off. Output goes to `.data/mainframe.log`.
+To run it in the background on Windows instead (no window, starts automatically when you sign in to Windows), double-click `scripts/windows/autostart-an.cmd`. `scripts/windows/stoppen.cmd` stops it, `scripts/windows/autostart-aus.cmd` turns autostart off. It also starts Docker Desktop quietly in the background. Output goes to `.data/mainframe.log`.
 
 | Command | What it does |
 | --- | --- |

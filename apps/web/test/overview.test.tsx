@@ -65,8 +65,8 @@ describe('Übersicht', () => {
   });
 
   it('zeigt den Docker-Hinweis', async () => {
-    renderOverview([], { ok: false, message: 'Docker läuft gerade nicht. Starte Docker Desktop und lad die Seite neu.' });
-    expect(await screen.findByText('Docker läuft gerade nicht. Starte Docker Desktop und lad die Seite neu.')).toBeInTheDocument();
+    renderOverview([], { ok: false, message: 'Docker läuft gerade nicht oder startet noch. Mainframe prüft das alle paar Sekunden von selbst.' });
+    expect(await screen.findByText('Docker läuft gerade nicht oder startet noch. Mainframe prüft das alle paar Sekunden von selbst.')).toBeInTheDocument();
   });
 
   it('zeigt das AdGuard-Widget nur, wenn AdGuard installiert ist', async () => {
@@ -80,5 +80,22 @@ describe('Übersicht', () => {
     expect(await screen.findByText('200 Anfragen heute, 50 blockiert (25 %)')).toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole('switch', { name: 'Schutz aktiv' }));
     expect(calls.find((c) => c.path === '/api/adguard/protection')?.body).toEqual({ enabled: false });
+  });
+  it('merkt von selbst, wenn Docker fertig gestartet ist, und lädt die Apps neu', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const docker = { ok: false, message: 'Docker startet gerade.' as string | null };
+      const { calls } = renderOverview([], docker);
+      expect(await screen.findByText('Docker startet gerade.')).toBeInTheDocument();
+      const appLoads = () => calls.filter((c) => c.path === '/api/apps').length;
+      const before = appLoads();
+      docker.ok = true;
+      docker.message = null;
+      await act(() => vi.advanceTimersByTimeAsync(5000));
+      expect(screen.queryByText('Docker startet gerade.')).not.toBeInTheDocument();
+      expect(appLoads()).toBeGreaterThan(before);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

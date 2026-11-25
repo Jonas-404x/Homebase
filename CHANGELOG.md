@@ -5,6 +5,8 @@
 - Login now asks for a **username and password**; "Stay signed in" (on by default) keeps you logged in for 30 days, browsers can save the login
 - `start-mainframe.cmd`: double-click to start Mainframe on Windows and open it in the browser
 - Windows background mode: `scripts/windows/autostart-an.cmd` runs Mainframe without a window and starts it automatically at sign-in; `stoppen.cmd` and `autostart-aus.cmd` stop it or turn it off
+- Windows background mode also starts Docker Desktop quietly (no window) and first moves aside leftover socket files that made Docker crash after a restart
+- The overview checks every few seconds whether Docker is up and refreshes on its own, no page reload needed
 
 ## Part 1: Foundation
 

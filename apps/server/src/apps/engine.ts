@@ -27,7 +27,7 @@ export interface AppEngine {
   hooks: Map<string, AppHook>;
 }
 
-export const DOCKER_DOWN_MESSAGE = 'Docker läuft gerade nicht. Starte Docker Desktop und lad die Seite neu.';
+export const DOCKER_DOWN_MESSAGE = 'Docker läuft gerade nicht oder startet noch. Mainframe prüft das alle paar Sekunden von selbst.';
 
 /** Übersetzt typische docker-compose-Fehler in verständliche Sätze. */
 export function explainComposeError(raw: string): string {
