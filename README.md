@@ -4,10 +4,12 @@
 
 **The control center for your home server.** Mainframe turns a cheap second-hand PC into your own little data center, and lets you run it from any browser, on your desktop or on your phone.
 
-- **Live dashboard**: CPU, RAM, disks, temperature, network, all updating in real time
+- **Live dashboard**: CPU, RAM, disks, temperature, network, all updating in real time, with history charts and warning thresholds; cards appear instantly with a loading bar instead of popping in
+- **Settings like a real app**: nine panes (general, account & security, appearance, overview, network, Docker, system, backup, about) with search, accent colors, signed-in devices, login history, a QR code to open Mainframe on your phone, export/import and reset
+- **Feels like an app on the iPhone**: add it to the home screen for the Mainframe icon, full-screen view and a bottom tab bar
 - **One-click apps**: install, start, stop and watch services like AdGuard Home, a Minecraft server or your own music streaming, no terminal needed
 - **Network-wide ad blocking** with AdGuard Home, preconfigured out of the box
-- **Minecraft panel like a paid host** *(coming next)*: players with skins, stats, live console, troll buttons, world uploads, plugins, backups, plus a public address your friends can join via playit.gg
+- **Minecraft panel like a paid host** *(planned)*: players with skins, stats, live console with commands, troll buttons, world uploads, plugins, backups, plus a public address your friends can join via playit.gg
 - **Command palette**: hit `Ctrl+K` and do anything in a second
 - **Built for a small box**: the whole thing is tuned to run next to a Minecraft server on an 8 GB machine
 
@@ -19,10 +21,13 @@ Node 24 + TypeScript, Fastify, React, Docker Compose. Every service runs in its 
 
 ## Roadmap
 
-1. **Foundation**: login, live dashboard, app catalog, AdGuard Home, command palette ← *in progress*
-2. **Minecraft**: server, playit.gg, players, stats, troll buttons, worlds, plugins, backups
-3. **More apps**: Navidrome music server, custom containers (e.g. your own Discord bot), read-only API
-4. **Deployment**: one setup script for Ubuntu Server (Docker, Tailscale, firewall), HTTPS and phone app (PWA)
+1. **Foundation**: login, live dashboard, app catalog, AdGuard Home, command palette ✓
+2. **Settings, design and phone**: settings panes, accent colors, history charts, home-screen app ✓
+3. **Services and network**: start page with uptime checks, network scanner and device inventory
+4. **Server move**: Ubuntu setup script, network share visible in Windows Explorer, Wake-on-LAN, AdGuard for the whole network, HTTPS
+5. **Minecraft**: server with live console, playit.gg, players, stats, worlds, plugins, backups
+6. **Notifications and backups**: push via ntfy and Discord, automatic backups
+7. **Discord bot**, 8. **more apps**, 9. **Claude on the server** (assistant inside Mainframe)
 
 ## Development
 

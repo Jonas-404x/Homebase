@@ -1,40 +1,71 @@
 import { AlertTriangle, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Sparkline, type ChartPoint } from './Sparkline.tsx';
 
+export type StatStatus = 'ok' | 'warn' | 'danger';
+
+/**
+ * Eine Kennzahl. Die Karte hat beim Laden schon ihre endgültige Form (Ladebalken, Platzhalter),
+ * damit beim Eintreffen der Werte nichts springt.
+ */
 export function StatCard({
   icon: Icon,
   label,
   value,
   detail,
   load,
+  meter = load !== undefined,
+  chart,
+  chartLabel,
+  chartMax,
+  chartWindowMs = 3_600_000,
+  status = 'ok',
+  loading = false,
+  error,
 }: {
   icon: LucideIcon;
   label: string;
-  value: string;
+  value?: string | null;
   detail?: ReactNode;
-  /** 0–100, zeichnet einen Balken. Ab 90 % gibt es den Hinweis „Fast voll“. */
+  /** 0–100, füllt den Balken. */
   load?: number;
+  /** Ob die Karte einen Balken hat (auch beim Laden, wenn `load` noch fehlt). */
+  meter?: boolean;
+  /** Verlauf; `undefined` = Karte ohne Kurve. */
+  chart?: ChartPoint[];
+  chartWindowMs?: number;
+  chartLabel?: string;
+  chartMax?: number;
+  status?: StatStatus;
+  loading?: boolean;
+  /** Text statt Wert, wenn keine Daten kommen. */
+  error?: string | null;
 }) {
-  const high = load !== undefined && load > 90;
+  const busy = loading && !error;
   return (
-    <div className="card stat">
-      <div className="stat-label">
-        <Icon aria-hidden="true" size={18} />
-        <span>{label}</span>
+    <div className={`card stat stat-${status}`} data-testid="stat-card" aria-busy={busy ? 'true' : 'false'}>
+      <div className="stat-head">
+        <div className="stat-label">
+          <Icon aria-hidden="true" size={18} />
+          <span>{label}</span>
+        </div>
+        {!busy && status !== 'ok' && (
+          <span className={`stat-flag stat-flag-${status}`}>
+            <AlertTriangle aria-hidden="true" size={14} />
+            {status === 'warn' ? 'Hoch' : 'Kritisch'}
+          </span>
+        )}
       </div>
-      <div className="stat-value mono">{value}</div>
-      {load !== undefined && (
+      <div className="stat-value">
+        {error ? <span className="stat-error">{error}</span> : busy ? <span className="skeleton skeleton-value" /> : <span className="fade-in">{value}</span>}
+      </div>
+      {meter && (
         <div className="meter" aria-hidden="true">
-          <div className={high ? 'meter-fill meter-warn' : 'meter-fill'} style={{ width: `${Math.min(100, load)}%` }} />
+          {busy || error ? <div className={busy ? 'meter-indeterminate' : ''} /> : <div className={`meter-fill meter-${status}`} style={{ width: `${Math.min(100, load ?? 0)}%` }} />}
         </div>
       )}
-      {high && (
-        <div className="stat-warn">
-          <AlertTriangle aria-hidden="true" size={16} />
-          <span>Fast voll</span>
-        </div>
-      )}
-      {detail && <div className="stat-detail secondary">{detail}</div>}
+      {chart !== undefined && (busy ? <div className="sparkline skeleton" aria-hidden="true" /> : <Sparkline points={chart} windowMs={chartWindowMs} max={chartMax} label={chartLabel ?? `${label}-Verlauf`} />)}
+      <div className="stat-detail secondary">{busy ? <span className="skeleton skeleton-line" /> : (detail ?? ' ')}</div>
     </div>
   );
 }

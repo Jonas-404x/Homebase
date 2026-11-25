@@ -26,6 +26,7 @@ Jonas: „Mir ist egal, womit du anfängst, du sollst eh alles machen.“ Die Re
 | Teil | Inhalt | Braucht den Server? |
 |---|---|---|
 | **2** | Einstellungen (viele, in Bereichen), Design-Überarbeitung, Handy-App (PWA) | nein |
+| **2.1** | Rückmeldungen nach Teil 2: Übersicht aufräumen, Detailansicht mit großem Graphen, Tab-Effekt am Handy, Minecraft-Tab („Kommt bald“), erste neue Apps | nein |
 | **3** | Startseite „Dienste“ mit Erreichbarkeits-Prüfung, Netzwerk-Scanner | nein |
 | **4** | Umzug auf den Server: Setup-Skript, Tailscale, AdGuard fürs ganze WLAN, Netzwerkfreigabe im Explorer, Wake-on-LAN, Neustart/Herunterfahren | ja |
 | **5** | Minecraft (wie im alten Design) | besser ja |
@@ -35,7 +36,7 @@ Jonas: „Mir ist egal, womit du anfängst, du sollst eh alles machen.“ Die Re
 
 Teil 4 wird vorgezogen, sobald der OptiPlex da ist.
 
-## Teil 2: Einstellungen, Design, Handy-App
+## Teil 2: Einstellungen, Design, Handy-App (erledigt)
 
 ### Einstellungen
 
@@ -126,6 +127,44 @@ Benachrichtigungen (Teil 6) und Netzwerk-Scanner (Teil 3) bekommen eigene Bereic
 - **Ohne Internet-Verbindung zum Server** zeigt die App eine verständliche Seite statt eines weißen Bildschirms.
 - **Einschränkung:** Echte Offline-Funktion und Push-Nachrichten brauchen HTTPS. Das kommt mit Tailscale in Teil 4. Im WLAN über `http://` klappt der Home-Bildschirm trotzdem.
 
+### Ergänzungen von Jonas (2026-11-25)
+
+- **Logo auf dem Home-Bildschirm.** Das Mainframe-Logo (Eisblau) muss auf dem iPhone-Home-Bildschirm erscheinen: `apple-touch-icon` 180 × 180 ohne Transparenz, App-Name „Mainframe“. Das ist ihm wichtig.
+- **Handy wie eine echte App.**
+  - Mainframe ist durchgehend fürs Handy optimiert: Tab-Leiste unten, keine abgeschnittenen Inhalte, keine waagerechte Scrollleiste.
+  - Dezente Animationen: kurzer Übergang beim Wechsel der Bereiche, sanftes Einblenden von Inhalten, eine Rückmeldung beim Antippen der Tabs.
+  - Nicht überladen, kurz (≤ 250 ms). Bei „Bewegung reduzieren“ aus.
+- **Kein Aufploppen beim Laden.**
+  - Daten, die sicher kommen (Leistungswerte der Übersicht), bekommen ihre Karten **sofort in fester Größe**.
+  - Statt Wert und Balken zeigt die Karte bis dahin einen animierten Ladebalken bzw. Platzhalter-Schimmer.
+  - Dann wird nur der Inhalt ausgetauscht, ohne dass sich das Layout verschiebt.
+  - Das deckt sich mit Apple (`loading.md`: „consider showing placeholder text, graphics, or animations as content loads“).
+  - Kommt nach ein paar Sekunden nichts, steht in der Karte ein verständlicher Fehler.
+- **Keine Platzhalter für Dinge, die es noch nicht gibt.**
+  - Der Minecraft-Tab („Kommt bald“) fliegt raus, bis Teil 5 ihn mit echtem Inhalt füllt.
+  - Ladeplatzhalter gibt es nur für Daten, die wirklich unterwegs sind.
+- **Minecraft (Teil 5):** Eine **Live-Konsole** mit Befehlseingabe ist Pflicht (steht schon im alten Design: Live-Log, Befehle senden, Verlauf mit Pfeiltasten).
+
+## Teil 2.1: Rückmeldungen von Jonas nach Teil 2 (2026-11-25)
+
+Jonas fand die Einstellungen und die Ladeanimation „deutlich hochwertiger“. Das soll so bleiben. Geändert werden soll:
+
+- **Übersicht nur für Systemwerte:**
+  - Der Werbeblocker (AdGuard-Karte) gehört nicht zwischen die PC-Werte. Er zieht in eine eigene Zeile darunter (Überschrift „Dienste“) bzw. später auf die Dienste-Seite aus Teil 3.
+  - Karten in einer Reihe sind gleich hoch, aber nicht künstlich gestreckt: „Netzwerk“ und „Läuft seit“ waren viel zu groß, weil die Reihe sich nach der AdGuard-Karte richtete.
+- **Kleine Kurven auf den Karten:**
+  - Zeigen nur die **letzte Minute**, laufend von rechts nach links. Kein gequetschter Strich am rechten Rand mehr. Das war der „Grafikfehler“ auf Jonas' Screenshot: Der Zeitraum war 60 Minuten, es gab aber erst wenige Minuten Daten.
+  - Solange weniger als eine Minute Daten da ist, füllt die Kurve nur den vorhandenen Teil, sauber am rechten Rand ausgerichtet.
+- **Detailansicht per Klick:**
+  - Klick (Linksklick, am Handy Tippen) auf Prozessor, Arbeitsspeicher oder Netzwerk öffnet eine Detailansicht: großer Graph mit Achsen und Zeitangaben, Min/Max/Durchschnitt, weitere Infos.
+  - Beispiele: Prozessor mit Kernen, Takt und Last pro Kern; Arbeitsspeicher mit belegt/frei/Cache und Swap; Netzwerk mit Down- und Upload getrennt und Adapter.
+  - Zeitraum der großen Kurve wählbar (15 Min., 1 Std., 6 Std., 24 Std.). Der Standard ist in Einstellungen → Übersicht einstellbar. Dafür speichert der Server den Verlauf 24 Stunden.
+  - Am Computer als großes Fenster, am Handy als eigene Seite mit „Zurück“.
+- **Handy: Tab-Effekt wie bei Android.** Beim Wechsel zwischen Übersicht, Apps und Einstellungen leuchtet hinter dem Symbol des aktiven Tabs eine helle, abgerundete Fläche („Pille“) auf, die beim Wechsel kurz einblendet (Material-Navigation-Bar-Stil, wie in der App „ScooterHacking Utility“). Bei „Bewegung reduzieren“ ohne Animation.
+- **Minecraft-Tab wieder in die Navigation:** Er führt zu einer Seite „Kommt bald“ mit kurzer Vorschau, was kommt (Live-Konsole, Spieler, Welten, Backups). Das ist eine bewusste Ausnahme von „keine Platzhalter“: Jonas will den Tab sehen.
+- **Mehr Apps im Katalog:** schon jetzt einige aus Teil 8 vorziehen (zum Beispiel Uptime Kuma, Jellyfin, Navidrome, Vaultwarden, Immich, Home Assistant, ntfy), jede mit sinnvollen Standardwerten.
+- **Eigene Ideen von Claude** zum Mitbauen, wenn Jonas zustimmt (siehe Chat vom 2026-11-25): Prozess-Liste („was frisst gerade CPU?“), Speicherplatz-Warnung pro Laufwerk, „Seit wann läuft Mainframe“ in der Übersicht.
+
 ## Teil 3: Dienste-Startseite und Netzwerk-Scanner
 
 - **Seite „Dienste“:** Kacheln aller Dienste auf dem Server.
@@ -185,6 +224,20 @@ Wie im alten Design (Setup-Skript für Ubuntu, Docker, Tailscale, `ufw`, AdGuard
 - **Mehr Apps (8):**
   - Jellyfin (Mediencenter), Immich (Fotos), Navidrome (Musik), Vaultwarden (Passwörter), Home Assistant, ntfy.
   - Jede App mit Katalog-Eintrag, Zugangsdaten-Anzeige und sinnvollen Standardwerten.
+
+## Teil 9 (Idee von Jonas, 2026-11-25): Claude auf dem Server
+
+- Claude Code wird auf dem Server installiert (Teil 4), damit Jonas Dinge erledigen kann, für die es keinen fertigen Knopf gibt.
+- **Erster Schritt (Teil 4, kein eigener Bau):** Die eingebaute Fernsteuerung von Claude Code nutzen. Damit kann er eine Claude-Sitzung auf dem Server vom Main-PC oder aus der Claude-App am Handy steuern.
+- **Später (Teil 9):** ein Bereich „Assistent“ in Mainframe:
+  - Er schickt eine Frage an Claude Code auf dem Server (Kopf-loser Modus) und zeigt die Antwort live an.
+  - Jede Aktion, die etwas verändert, braucht eine Bestätigung in Mainframe.
+  - Läuft über Jonas' eigenes Claude-Abo, kein extra API-Schlüssel.
+- **Was Claude dürfen soll (Jonas, 2026-11-25):** echte Server-Arbeit: Systemdaten auslesen, Programme installieren, Dienste einrichten und reparieren.
+  - **Nur für Server-Sachen,** nicht für Aufsätze, Hausaufgaben oder Webseiten bauen.
+  - Umsetzung: eine feste Rollen-Anweisung („Du bist der Admin dieses Servers, lehne alles ohne Server-Bezug ab“), eine Werkzeug-Liste nur mit Shell und Dateien im Server-Bereich, kein Web-Zugriff außer Paketquellen, Arbeitsordner auf den Server beschränkt.
+  - Ehrlich gesagt: Eine Anweisung kann ein Sprachmodell nicht zu 100 % festnageln. Die harte Grenze sind die Werkzeuge und Ordner, nicht der Text.
+- **RAM:** Claude Code braucht nur, während es arbeitet, grob einige hundert MB. Auf 8 GB passt das, nur nicht gleichzeitig mit einem voll ausgelasteten Minecraft-Server.
 
 ## Nicht-Ziele
 

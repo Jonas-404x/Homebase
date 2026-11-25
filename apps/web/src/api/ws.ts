@@ -1,6 +1,7 @@
 import type { WsMessage } from '@mainframe/shared';
 
-export type SocketStatus = 'connecting' | 'open' | 'reconnecting';
+/** `loggedOut`: der Server hat die Sitzung beendet (Code 4401), neu verbinden bringt nichts. */
+export type SocketStatus = 'connecting' | 'open' | 'reconnecting' | 'loggedOut';
 
 export interface LiveSocket {
   status(): SocketStatus;
@@ -49,8 +50,9 @@ export function createLiveSocket(
       }
       listeners.get(msg.type)?.forEach((cb) => cb(msg));
     };
-    sock.onclose = () => {
+    sock.onclose = (e: CloseEvent) => {
       if (closed || ws !== sock) return;
+      if (e?.code === 4401) return setStatus('loggedOut');
       setStatus('reconnecting');
       const delay = delays[Math.min(attempt, delays.length - 1)]!;
       attempt++;

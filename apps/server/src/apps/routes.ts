@@ -28,9 +28,21 @@ export function registerAppRoutes(app: FastifyInstance, engine: AppEngine, hub: 
       .map((f) => ({ key: f.key, label: f.label, value: String(values[f.key]), secret: f.type === 'secret' }));
   });
 
+  const LABEL = { install: 'installiert', start: 'gestartet', stop: 'gestoppt', restart: 'neu gestartet', remove: 'entfernt' } as const;
+  const logged = async <T>(id: string, action: keyof typeof LABEL, fn: () => Promise<T>): Promise<T> => {
+    try {
+      const r = await fn();
+      app.events?.add('info', 'App ' + id + ' ' + LABEL[action]);
+      return r;
+    } catch (err) {
+      app.events?.add('error', 'App ' + id + ': ' + action + ' fehlgeschlagen – ' + (err instanceof Error ? err.message : String(err)));
+      throw err;
+    }
+  };
+
   app.post<IdParams & { Body: { values?: Record<string, unknown> } }>('/api/apps/:id/install', async (req) => {
     try {
-      return await engine.install(req.params.id, req.body?.values ?? {});
+      return await logged(req.params.id, 'install', () => engine.install(req.params.id, req.body?.values ?? {}));
     } finally {
       await announce(req);
     }
@@ -39,7 +51,7 @@ export function registerAppRoutes(app: FastifyInstance, engine: AppEngine, hub: 
   for (const action of ['start', 'stop', 'restart'] as const) {
     app.post<IdParams>(`/api/apps/:id/${action}`, async (req, reply) => {
       try {
-        await engine[action](req.params.id);
+        await logged(req.params.id, action, () => engine[action](req.params.id));
       } finally {
         await announce(req);
       }
@@ -49,7 +61,7 @@ export function registerAppRoutes(app: FastifyInstance, engine: AppEngine, hub: 
 
   app.delete<IdParams & { Querystring: { deleteData?: string } }>('/api/apps/:id', async (req, reply) => {
     try {
-      await engine.remove(req.params.id, { deleteData: req.query.deleteData === 'true' });
+      await logged(req.params.id, 'remove', () => engine.remove(req.params.id, { deleteData: req.query.deleteData === 'true' }));
     } finally {
       await announce(req);
     }

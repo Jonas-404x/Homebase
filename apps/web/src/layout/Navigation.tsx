@@ -1,26 +1,27 @@
-import { Boxes, LayoutDashboard, Pickaxe, Settings, type LucideIcon } from 'lucide-react';
+import { Boxes, LayoutDashboard, Settings, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router';
+import { usePrefs } from '../api/prefs.tsx';
 
-const items: { to: string; label: string; icon: LucideIcon }[] = [
-  { to: '/', label: 'Übersicht', icon: LayoutDashboard },
+const items: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
+  { to: '/', label: 'Übersicht', icon: LayoutDashboard, end: true },
   { to: '/apps', label: 'Apps', icon: Boxes },
-  { to: '/minecraft', label: 'Minecraft', icon: Pickaxe },
   { to: '/settings', label: 'Einstellungen', icon: Settings },
 ];
 
 /** Seitenleiste ab 768 px, darunter Tab-Leiste unten (nur CSS, ein DOM). */
 export function Navigation() {
+  const { prefs } = usePrefs();
   return (
     <nav className="nav" aria-label="Hauptnavigation">
-      <div className="nav-brand" aria-hidden="true">
+      <div className="nav-brand">
         <img src="/icon-192.png" alt="" width={28} height={28} />
-        Mainframe
+        <span>{prefs?.deviceName ?? 'Mainframe'}</span>
       </div>
       <ul>
-        {items.map(({ to, label, icon: Icon }) => (
+        {items.map(({ to, label, icon: Icon, end }) => (
           <li key={to}>
-            <NavLink to={to} end={to === '/'} className="nav-link">
-              <Icon aria-hidden="true" size={20} strokeWidth={2} />
+            <NavLink to={to} end={end} className="nav-link">
+              <Icon aria-hidden="true" size={22} strokeWidth={2} />
               <span>{label}</span>
             </NavLink>
           </li>

@@ -21,6 +21,21 @@ const pairs = [
   ['text', 'surface-sunken', 4.5], ['warn', 'warn-soft', 4.5], ['text-secondary', 'surface-sunken', 4.5], 
 ];
 let fail = 0;
+// Akzentfarben: jede Variante über die Grundfarben legen und dieselben Akzent-Paare prüfen.
+const accentCss = fs.readFileSync(new URL('../apps/web/src/styles/accents.css', import.meta.url), 'utf8');
+const [accDark, accLight] = accentCss.split('@media (prefers-color-scheme: light)');
+const accentPairs = pairs.filter(([fg, bg]) => fg.startsWith('accent') || bg.startsWith('accent'));
+for (const [name, base, block] of [['dunkel', tokens(dark), accDark], ['hell', tokens(light), accLight]]) {
+  for (const m of block.matchAll(/\[data-accent='([a-z]+)'\]\s*\{([^}]*)\}/g)) {
+    const t = { ...base, ...tokens(m[2]) };
+    for (const [fg, bg, min] of accentPairs) {
+      const r = ratio(t[fg], t[bg]);
+      const ok = r >= min;
+      if (!ok) fail++;
+      console.log(`${ok ? 'ok  ' : 'FAIL'} ${name.padEnd(6)} ${m[1].padEnd(6)} ${fg} auf ${bg}: ${r.toFixed(2)}:1 (min ${min})`);
+    }
+  }
+}
 for (const [name, t] of [['dunkel', tokens(dark)], ['hell', tokens(light)]]) {
   for (const [fg, bg, min] of pairs) {
     const r = ratio(t[fg], t[bg]);
