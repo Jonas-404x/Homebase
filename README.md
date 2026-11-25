@@ -4,6 +4,10 @@
 
 **The control center for your home server.** Mainframe turns a cheap second-hand PC into your own little data center, and lets you run it from any browser, on your desktop or on your phone.
 
+- **Services at a glance**: every app and your own links (router page, NAS, anything with an address) checked every minute, with response time, 24 h / 7 day uptime and a bar for each half hour
+- **Who is on your Wi-Fi**: a network scanner lists every device with name, maker, IP and MAC, lets you name them, and reports new ones in the event log
+- **Internet watcher**: logs every outage with start and length, and runs a speedtest (download, upload, ping) on demand or on a schedule
+- **Two-factor login** with any authenticator app, plus ten one-time recovery codes
 - **Live dashboard**: CPU, RAM, disks, temperature, network, all updating in real time, with warning thresholds; click a card for a detail view with up to 7 days of history and the programs using the most CPU or RAM
 - **Settings like a real app**: nine panes (general, account & security, appearance, overview, network, Docker, system, backup, about) with search, accent colors, signed-in devices, login history, a QR code to open Mainframe on your phone, export/import and reset
 - **Feels like an app on the iPhone**: add it to the home screen for the Mainframe icon, full-screen view and a bottom tab bar
@@ -25,7 +29,7 @@ Node 24 + TypeScript, Fastify, React, Docker Compose. Every service runs in its 
 1. **Foundation**: login, live dashboard, app catalog, AdGuard Home, command palette ✓
 2. **Settings, design and phone**: settings panes, accent colors, history charts, home-screen app ✓
    - 2.1: detail views, process list, 7-day history, six new apps, Tailscale access, Android-style phone effects ✓
-3. **Services and network**: start page with uptime checks, network scanner and device inventory
+3. **Services and network**: uptime checks, network scanner and device inventory, internet watcher with speedtest, two-factor login ✓
 4. **Server move**: Ubuntu setup script, network share visible in Windows Explorer, Wake-on-LAN, AdGuard for the whole network, HTTPS
 5. **Minecraft**: server with live console, playit.gg, players, stats, worlds, plugins, backups
 6. **Notifications and backups**: push via ntfy and Discord, automatic backups
