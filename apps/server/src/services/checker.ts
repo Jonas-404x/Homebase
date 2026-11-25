@@ -1,3 +1,5 @@
+import http from 'node:http';
+import https from 'node:https';
 import net from 'node:net';
 import type { EventLog } from '../system/events.ts';
 import type { ServiceStore } from './store.ts';
@@ -48,15 +50,31 @@ export async function checkUrl(url: string, timeoutMs = 5000): Promise<CheckResu
     return checkTcp(u.hostname, port, timeoutMs);
   }
   if (u.protocol !== 'http:' && u.protocol !== 'https:') return DOWN;
-  const start = performance.now();
-  try {
-    const res = await fetch(u, { redirect: 'manual', signal: AbortSignal.timeout(timeoutMs) });
-    const ms = Math.round(performance.now() - start);
-    await res.body?.cancel().catch(() => {});
-    return res.status < 500 ? { ok: true, ms } : DOWN;
-  } catch {
-    return DOWN;
-  }
+  return checkHttp(u, timeoutMs);
+}
+
+/** Eine Anfrage ohne Weiterleitung. Bei https zählt das Zertifikat nicht: Router und NAS stellen sich oft selbst eins aus. */
+function checkHttp(u: URL, timeoutMs: number): Promise<CheckResult> {
+  return new Promise((resolve) => {
+    const start = performance.now();
+    let settled = false;
+    const done = (r: CheckResult) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      req.destroy();
+      resolve(r);
+    };
+    const lib = u.protocol === 'https:' ? https : http;
+    const req = lib.request(u, { method: 'GET', rejectUnauthorized: false, agent: false }, (res) => {
+      const ms = Math.round(performance.now() - start);
+      res.resume();
+      done((res.statusCode ?? 500) < 500 ? { ok: true, ms } : DOWN);
+    });
+    const timer = setTimeout(() => done(DOWN), timeoutMs);
+    req.once('error', () => done(DOWN));
+    req.end();
+  });
 }
 
 /** Prüft alle Ziele; ein Ziel, dessen letzte Prüfung noch läuft, wird übersprungen. */

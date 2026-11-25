@@ -68,10 +68,13 @@ export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; pref
     });
   });
 
+  // Prüfen im Hintergrund; ein Fehler (z. B. Datenbank beim Beenden schon zu) darf den Server nicht beenden.
+  const recheck = () => void checker.runOnce().catch(() => {});
+
   app.post<{ Body: { name?: unknown; url?: unknown } }>('/api/services/links', async (req, reply) => {
     const link = { id: randomBytes(6).toString('hex'), name: checkName(req.body?.name), url: checkLinkUrl(req.body?.url), createdAt: Date.now() };
     store.addLink(link);
-    void checker.runOnce();
+    recheck();
     return reply.code(201).send(link);
   });
 
@@ -84,7 +87,7 @@ export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; pref
     if (!store.updateLink(req.params.id, patch)) throw new MainframeError('not_found', 'Diesen Link gibt es nicht.', 404);
     if (patch.url !== undefined && patch.url !== before?.url) {
       store.clearChecks(`link:${req.params.id}`);
-      void checker.runOnce();
+      recheck();
     }
     return reply.code(204).send();
   });
@@ -103,8 +106,12 @@ export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; pref
     timer = null;
     if (interval() <= 0) return;
     timer = setInterval(() => {
-      void checker.runOnce();
-      store.prune(Date.now() - KEEP);
+      recheck();
+      try {
+        store.prune(Date.now() - KEEP);
+      } catch {
+        // nächste Runde
+      }
     }, interval());
     timer.unref();
   };

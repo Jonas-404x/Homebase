@@ -49,9 +49,15 @@ export async function speedtest(opts: { fetchFn?: typeof fetch; clock?: () => nu
   const mbps = (bytes: number, ms: number) => Math.round(((bytes * 8) / Math.max(1, ms) / 1000) * 10) / 10;
   try {
     // Die erste Anfrage baut die Verbindung auf (DNS, TLS) und zählt nicht; danach der schnellste von vier.
+    // Eine Fehlerantwort (z. B. 429 vom Messdienst) ist kein Messwert.
+    const get = async (url: string, init: RequestInit) => {
+      const res = await f(url, init);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.arrayBuffer();
+    };
     const tiny = async () => {
       const start = clock();
-      await (await f(`${SPEED}/__down?bytes=0`, { signal: AbortSignal.timeout(10_000) })).arrayBuffer();
+      await get(`${SPEED}/__down?bytes=0`, { signal: AbortSignal.timeout(10_000) });
       return clock() - start;
     };
     await tiny();
@@ -59,15 +65,28 @@ export async function speedtest(opts: { fetchFn?: typeof fetch; clock?: () => nu
     for (let i = 0; i < 4; i++) best = Math.min(best, await tiny());
     const pingMs = Math.round(best);
     let t = clock();
-    const got = (await (await f(`${SPEED}/__down?bytes=${down}`, { signal: AbortSignal.timeout(120_000) })).arrayBuffer()).byteLength;
+    const got = (await get(`${SPEED}/__down?bytes=${down}`, { signal: AbortSignal.timeout(120_000) })).byteLength;
+    if (got < down) throw new Error('Download unvollständig');
     const downMs = clock() - t;
     t = clock();
-    await (await f(`${SPEED}/__up`, { method: 'POST', body: new Uint8Array(up), signal: AbortSignal.timeout(120_000) })).arrayBuffer();
+    await get(`${SPEED}/__up`, { method: 'POST', body: new Uint8Array(up), signal: AbortSignal.timeout(120_000) });
     const upMs = clock() - t;
     return { at: (opts.now ?? Date.now)(), downMbps: mbps(got, downMs), upMbps: mbps(up, upMs), pingMs };
   } catch {
     throw new MainframeError('offline', 'Kein Internet, Test nicht möglich.', 503);
   }
+}
+
+const HOUR = 3600_000;
+
+/**
+ * Ist ein automatischer Speedtest fällig? Nach dem letzten Erfolg erst wieder nach `hours`;
+ * nach einem Fehlschlag frühestens nach einer Stunde, damit ein verweigernder Messdienst nicht jede Minute 25 MB kostet.
+ */
+export function speedtestDue(o: { hours: number; lastSuccess: number | null; lastAttempt: number | null; now: number }): boolean {
+  if (o.hours <= 0) return false;
+  if (o.lastSuccess !== null && o.now - o.lastSuccess < o.hours * HOUR) return false;
+  return o.lastAttempt === null || o.now - o.lastAttempt >= Math.min(HOUR, o.hours * HOUR);
 }
 
 /** Probt regelmäßig das Internet, meldet Ausfälle und führt Speedtests aus (einen gleichzeitig). */

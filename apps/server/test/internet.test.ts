@@ -4,7 +4,7 @@ import { buildApp } from '../src/app.ts';
 import { openDb } from '../src/db.ts';
 import { MainframeError } from '../src/errors.ts';
 import { createNetStore } from '../src/internet/store.ts';
-import { createWatcher, outages, speedtest } from '../src/internet/watcher.ts';
+import { createWatcher, outages, speedtest, speedtestDue } from '../src/internet/watcher.ts';
 import { createEventLog } from '../src/system/events.ts';
 import { setupAndLogin, testDeps } from './helpers.ts';
 
@@ -56,6 +56,24 @@ describe('speedtest', () => {
     }) as typeof fetch;
     const r = await speedtest({ fetchFn: fn, clock: () => t, downBytes: 1_000_000, upBytes: 500_000 });
     expect(r.pingMs).toBe(15);
+  });
+
+  it('nimmt eine Fehlerantwort oder zu wenige Bytes nicht als Messwert', async () => {
+    const refused = (async () => new Response('<html>nope</html>', { status: 429 })) as typeof fetch;
+    await expect(speedtest({ fetchFn: refused, downBytes: 1000, upBytes: 100 })).rejects.toMatchObject({ code: 'offline' });
+    const short = (async () => new Response(new Uint8Array(10))) as typeof fetch;
+    await expect(speedtest({ fetchFn: short, downBytes: 1000, upBytes: 100 })).rejects.toMatchObject({ code: 'offline' });
+  });
+
+  it('plant den automatischen Speedtest nach Erfolg und Versuch, nicht jede Minute neu', () => {
+    const H = 3600_000;
+    expect(speedtestDue({ hours: 0, lastSuccess: null, lastAttempt: null, now: 10 * H })).toBe(false);
+    expect(speedtestDue({ hours: 24, lastSuccess: null, lastAttempt: null, now: 10 * H })).toBe(true);
+    expect(speedtestDue({ hours: 24, lastSuccess: 0, lastAttempt: 0, now: 23 * H })).toBe(false);
+    expect(speedtestDue({ hours: 24, lastSuccess: 0, lastAttempt: 0, now: 24 * H })).toBe(true);
+    // Fehlgeschlagen vor 5 Minuten: nicht gleich wieder, erst nach einer Stunde.
+    expect(speedtestDue({ hours: 24, lastSuccess: null, lastAttempt: 10 * H - 5 * 60_000, now: 10 * H })).toBe(false);
+    expect(speedtestDue({ hours: 24, lastSuccess: null, lastAttempt: 9 * H, now: 10 * H })).toBe(true);
   });
 
   it('sagt klar, wenn kein Internet da ist', async () => {

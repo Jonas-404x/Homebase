@@ -6,7 +6,7 @@ import type { CheckResult } from '../services/checker.ts';
 import type { PrefsStore } from '../prefs/store.ts';
 import type { EventLog } from '../system/events.ts';
 import { createNetStore } from './store.ts';
-import { createWatcher, outages, probe, speedtest } from './watcher.ts';
+import { createWatcher, outages, probe, speedtest, speedtestDue } from './watcher.ts';
 
 const RANGES = new Set([1440, 10080]);
 const KEEP = 7 * 24 * 3600_000;
@@ -41,15 +41,22 @@ export function registerInternetRoutes(app: FastifyInstance, opts: { db: Db; pre
 
   // Probe jede Minute; Speedtest nach Einstellung (0 = nur per Knopf).
   const interval = opts.intervalMs ?? 60_000;
+  let lastAttempt: number | null = null;
   const timer =
     interval > 0
       ? setInterval(async () => {
-          await watcher.tick();
-          store.prune(Date.now() - KEEP);
-          const hours = opts.prefs.get().speedtestHours;
-          const lastTest = store.speedtests(Date.now() - KEEP).at(-1);
-          if (hours > 0 && !watcher.running() && (!lastTest || Date.now() - lastTest.at >= hours * 3600_000)) {
-            void watcher.speedtest().catch(() => {});
+          // Ein Fehler hier (z. B. Datenbank beschäftigt) darf den Server nicht beenden.
+          try {
+            await watcher.tick();
+            store.prune(Date.now() - KEEP);
+            const now = Date.now();
+            const lastSuccess = store.speedtests(now - KEEP).at(-1)?.at ?? null;
+            if (!watcher.running() && speedtestDue({ hours: opts.prefs.get().speedtestHours, lastSuccess, lastAttempt, now })) {
+              lastAttempt = now;
+              void watcher.speedtest().catch(() => {});
+            }
+          } catch {
+            // nächste Runde versucht es wieder
           }
         }, interval)
       : null;

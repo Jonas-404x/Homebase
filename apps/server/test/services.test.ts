@@ -1,4 +1,9 @@
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import http from 'node:http';
+import https from 'node:https';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { InstalledApp, ServiceStatus } from '@mainframe/shared';
@@ -33,6 +38,25 @@ describe('checkUrl', () => {
     expect(a.ok).toBe(true);
     expect(a.ms).toBeGreaterThanOrEqual(0);
     expect((await checkUrl(`http://127.0.0.1:${bad}/`)).ok).toBe(false);
+  });
+
+  // Router, NAS und Co. nutzen oft ein selbst ausgestelltes Zertifikat. Für die Erreichbarkeit zählt das nicht.
+  const hasOpenssl = (() => {
+    try {
+      execFileSync('openssl', ['version'], { stdio: 'ignore' });
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  it.skipIf(!hasOpenssl)('meldet eine https-Seite mit selbst ausgestelltem Zertifikat als erreichbar', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mf-cert-'));
+    execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', join(dir, 'k.pem'), '-out', join(dir, 'c.pem'), '-days', '1', '-subj', '/CN=localhost'], { stdio: 'ignore' });
+    const s = https.createServer({ key: readFileSync(join(dir, 'k.pem')), cert: readFileSync(join(dir, 'c.pem')) }, (_q, r) => r.end('ok'));
+    servers.push(s as unknown as http.Server);
+    await new Promise<void>((r) => s.listen(0, '127.0.0.1', () => r()));
+    const port = (s.address() as AddressInfo).port;
+    expect((await checkUrl(`https://127.0.0.1:${port}/`)).ok).toBe(true);
   });
 
   it('wertet einen Dienst, der nicht antwortet, nach der Zeitgrenze als nicht erreichbar', async () => {
