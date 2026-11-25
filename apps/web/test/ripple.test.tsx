@@ -31,4 +31,14 @@ describe('Ripple beim Tippen', () => {
     fireEvent.pointerDown(btn);
     expect(btn.querySelector('.ripple')).toBeNull();
   });
+
+  it('bleibt in einer eigenen Klammer, auch wenn React die Klasse neu setzt', () => {
+    const { container } = render(<Demo />);
+    const btn = container.querySelector('button')!;
+    fireEvent.pointerDown(btn, { clientX: 5, clientY: 5 });
+    btn.className = 'button active'; // wie beim Klick auf einen Einstellungs-Eintrag
+    const dot = btn.querySelector('.ripple')!;
+    expect(dot.parentElement).toHaveClass('ripple-clip');
+    expect(dot.parentElement!.parentElement).toBe(btn);
+  });
 });

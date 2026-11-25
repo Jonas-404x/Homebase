@@ -23,7 +23,7 @@ export function Navigation() {
       </div>
       <ul>
         {items.map(({ to, label, icon: Icon, also }) => (
-          <li key={to}>
+          <li key={to} className={to === '/settings' ? 'nav-item-end' : undefined}>
             <Link to={to} className="nav-link" aria-current={active(to, also) ? 'page' : undefined}>
               <span className="nav-icon">
                 <Icon aria-hidden="true" size={22} strokeWidth={2} />

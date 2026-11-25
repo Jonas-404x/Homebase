@@ -27,9 +27,14 @@ export function useRipple(): void {
       dot.style.width = dot.style.height = `${d}px`;
       dot.style.left = `${x - d / 2}px`;
       dot.style.top = `${y - d / 2}px`;
-      host.classList.add('ripple-host');
-      host.appendChild(dot);
-      const done = () => dot.remove();
+      // Eigene Klammer: React setzt className beim Klick oft neu (z. B. „active“) und
+      // würde eine Klasse am Element selbst wieder entfernen, dann wäre die Welle riesig.
+      const clip = document.createElement('span');
+      clip.className = 'ripple-clip';
+      clip.setAttribute('aria-hidden', 'true');
+      clip.appendChild(dot);
+      host.appendChild(clip);
+      const done = () => clip.remove();
       dot.addEventListener('animationend', done);
       setTimeout(done, 700);
     };
