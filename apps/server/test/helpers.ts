@@ -8,7 +8,8 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
 }
 
 export function testDeps(overrides: Partial<AppDeps> = {}): AppDeps {
-  return { config: testConfig(), db: openDb(':memory:'), ...overrides };
+  // Hintergrund-Prüfungen aus, damit kein Test das echte Netzwerk anfasst.
+  return { config: testConfig(), db: openDb(':memory:'), checkIntervalMs: 0, scanIntervalMs: 0, internetIntervalMs: 0, ...overrides };
 }
 
 /** Holt "mf_session=…" aus einer Antwort. */

@@ -20,6 +20,8 @@ import { createDockerAdmin, type DockerAdmin } from './system/docker-admin.ts';
 import { createEventLog, type EventLog } from './system/events.ts';
 import { registerPrefsRoutes } from './prefs/routes.ts';
 import { registerServiceRoutes } from './services/routes.ts';
+import { registerDeviceRoutes } from './network/routes.ts';
+import { realScanDeps, type ScanDeps } from './network/scanner.ts';
 import { createPrefsStore, type PrefsStore } from './prefs/store.ts';
 
 declare module 'fastify' {
@@ -44,6 +46,12 @@ export interface AppDeps {
   dockerAdmin?: DockerAdmin;
   /** Takt der Dienste-Prüfung, 0 = aus (Tests). Ohne Angabe gilt checkIntervalSec. */
   checkIntervalMs?: number;
+  /** Takt des Netzwerk-Scans, 0 = aus (Tests). Ohne Angabe gilt scanMinutes. */
+  scanIntervalMs?: number;
+  /** Werkzeuge des Scanners (Tests). */
+  network?: ScanDeps;
+  /** Takt des Internet-Wächters, 0 = aus (Tests). */
+  internetIntervalMs?: number;
   /** Quelle für Detailansicht und Prozess-Liste (Tests). */
   system?: SystemSource;
   /** Weitere Routen (z. B. AdGuard), die Zugriff auf Engine und Hub brauchen. */
@@ -106,6 +114,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   if (deps.engine) registerAppRoutes(app, deps.engine, hub);
   registerServiceRoutes(app, { db: deps.db, prefs, events, engine: deps.engine, intervalMs: deps.checkIntervalMs });
+  registerDeviceRoutes(app, { db: deps.db, prefs, events, deps: deps.network ?? realScanDeps(deps.config.dataRoot), intervalMs: deps.scanIntervalMs });
   for (const p of deps.plugins ?? []) await p(app);
 
   if (deps.config.webDistDir) {
