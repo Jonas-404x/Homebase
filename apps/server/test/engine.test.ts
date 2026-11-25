@@ -146,7 +146,7 @@ describe('AppEngine', () => {
     await expect(engine.start('demo')).rejects.toMatchObject({ code: 'docker_down', status: 503 });
     const [listed] = await engine.list();
     expect(listed!.state).toBe('error');
-    expect(listed!.error).toBe('Docker läuft gerade nicht. Starte Docker Desktop und lad die Seite neu.');
+    expect(listed!.error).toBe('Docker läuft gerade nicht oder startet noch. Mainframe prüft das alle paar Sekunden von selbst.');
   });
 
   it('stellt den Zustand nach einem Neustart wieder her, ohne etwas anzufassen (Review Focus 3)', async () => {
@@ -204,7 +204,7 @@ describe('AppEngine.dockerStatus', () => {
     const { engine, docker } = await make();
     expect(await engine.dockerStatus()).toEqual({ ok: true, message: null });
     docker.up = false;
-    expect(await engine.dockerStatus()).toEqual({ ok: false, message: 'Docker läuft gerade nicht. Starte Docker Desktop und lad die Seite neu.' });
+    expect(await engine.dockerStatus()).toEqual({ ok: false, message: 'Docker läuft gerade nicht oder startet noch. Mainframe prüft das alle paar Sekunden von selbst.' });
   });
 });
 

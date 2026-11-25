@@ -8,18 +8,38 @@ import { AdGuardWidget } from '../components/AdGuardWidget.tsx';
 import { StatCard } from '../components/StatCard.tsx';
 import { percent, rate, uptime, usedOfTotal } from '../format.ts';
 
+const DOCKER_RETRY_MS = 5000;
+
 export function Overview() {
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [dockerMessage, setDockerMessage] = useState<string | null>(null);
-  const { apps } = useApps();
+  const { apps, reload } = useApps();
 
   useLive('stats', useCallback((m) => setStats(m.data), []));
 
+  // Docker braucht nach dem PC-Start eine Weile. Solange es nicht läuft, alle paar Sekunden
+  // nachsehen; sobald es da ist, Hinweis weg und Apps neu laden, ohne dass man die Seite neu lädt.
   useEffect(() => {
-    api<{ ok: boolean; message: string | null }>('/api/system/docker')
-      .then((d) => setDockerMessage(d.ok ? null : d.message))
-      .catch(() => {});
-  }, [apps]);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
+    let wasDown = false;
+    const check = () => {
+      api<{ ok: boolean; message: string | null }>('/api/system/docker')
+        .then((d) => {
+          if (stopped) return;
+          setDockerMessage(d.ok ? null : d.message);
+          if (d.ok && wasDown) void reload();
+          wasDown = !d.ok;
+          if (!d.ok) timer = setTimeout(check, DOCKER_RETRY_MS);
+        })
+        .catch(() => {});
+    };
+    check();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [reload]);
 
   const adguard = apps?.find((a) => a.id === 'adguard');
   const mem = stats ? (stats.memory.usedBytes / stats.memory.totalBytes) * 100 : 0;
