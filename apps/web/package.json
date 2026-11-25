@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "@mainframe/shared": "*",
+    "@types/qrcode": "^1.5.6",
     "cmdk": "^1.1.1",
     "lucide-react": "^1.79.0",
+    "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router": "^7.18.6"

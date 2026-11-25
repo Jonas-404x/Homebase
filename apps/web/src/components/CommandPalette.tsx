@@ -5,6 +5,7 @@ import { api, errorText, post } from '../api/client.ts';
 import { useApps } from '../api/useApps.ts';
 import { Dialog } from './Dialog.tsx';
 import { webUiHref } from '../api/webUi.ts';
+import { PANES } from '../pages/settings/panes.ts';
 
 /** Event, mit dem z. B. der Suchknopf auf dem Handy die Palette öffnet. */
 export const OPEN_PALETTE_EVENT = 'mainframe:open-palette';
@@ -73,6 +74,17 @@ export function CommandPalette() {
       return null;
     },
   }));
+  for (const p of PANES) {
+    entries.push({
+      id: `settings:${p.id}`,
+      label: `Einstellungen: ${p.title}`,
+      group: 'Navigation',
+      run: () => {
+        navigate(`/settings/${p.id}`);
+        return null;
+      },
+    });
+  }
 
   for (const app of apps ?? []) {
     const action = (verb: 'start' | 'stop' | 'restart', label: string, done: string) =>

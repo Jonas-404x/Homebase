@@ -8,7 +8,7 @@ import { Shell } from './layout/Shell.tsx';
 import { Apps } from './pages/Apps.tsx';
 import { AuthScreen } from './pages/AuthScreen.tsx';
 import { Overview } from './pages/Overview.tsx';
-import { Settings } from './pages/Settings.tsx';
+import { SettingsLayout } from './pages/settings/SettingsLayout.tsx';
 
 type AuthState = { setupDone: boolean; loggedIn: boolean } | null;
 
@@ -37,7 +37,7 @@ function Inside({ socketFactory, onLoggedOut }: { socketFactory: (url: string) =
           <Routes>
             <Route path="/" element={<Overview />} />
             <Route path="/apps" element={<Apps />} />
-            <Route path="/settings/*" element={<Settings onLoggedOut={onLoggedOut} />} />
+            <Route path="/settings/*" element={<SettingsLayout onLoggedOut={onLoggedOut} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Shell>
