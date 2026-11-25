@@ -1,0 +1,12 @@
+services:
+  home-assistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Berlin
+    volumes:
+      - "config:/config"
+    ports:
+      - "${port.web}:8123/tcp"
+volumes:
+  config: {}

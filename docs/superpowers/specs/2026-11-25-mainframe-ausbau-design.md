@@ -163,7 +163,16 @@ Jonas fand die Einstellungen und die Ladeanimation „deutlich hochwertiger“. 
 - **Handy: Tab-Effekt wie bei Android.** Beim Wechsel zwischen Übersicht, Apps und Einstellungen leuchtet hinter dem Symbol des aktiven Tabs eine helle, abgerundete Fläche („Pille“) auf, die beim Wechsel kurz einblendet (Material-Navigation-Bar-Stil, wie in der App „ScooterHacking Utility“). Bei „Bewegung reduzieren“ ohne Animation.
 - **Minecraft-Tab wieder in die Navigation:** Er führt zu einer Seite „Kommt bald“ mit kurzer Vorschau, was kommt (Live-Konsole, Spieler, Welten, Backups). Das ist eine bewusste Ausnahme von „keine Platzhalter“: Jonas will den Tab sehen.
 - **Mehr Apps im Katalog:** schon jetzt einige aus Teil 8 vorziehen (zum Beispiel Uptime Kuma, Jellyfin, Navidrome, Vaultwarden, Immich, Home Assistant, ntfy), jede mit sinnvollen Standardwerten.
-- **Eigene Ideen von Claude** zum Mitbauen, wenn Jonas zustimmt (siehe Chat vom 2026-11-25): Prozess-Liste („was frisst gerade CPU?“), Speicherplatz-Warnung pro Laufwerk, „Seit wann läuft Mainframe“ in der Übersicht.
+- **Entscheidungen von Jonas (2026-11-25, zweite Runde):**
+  - Der Zeitraum der kleinen Kurven bleibt in den Einstellungen umstellbar (neu: 1 Minute als Standard, dazu 15 Min., 1 Std., 6 Std.).
+  - Die Detailansicht hat einen eigenen Umschalter, „ruhig richtig lang“: 15 Min., 1 Std., 6 Std., 24 Std., 3 Tage, 7 Tage. Der Server speichert den Verlauf dafür dauerhaft (SQLite, 7 Tage, übersteht Neustarts).
+  - **Temperatur** bekommt Verlauf und Detailansicht wie Prozessor und Arbeitsspeicher. Am Windows-PC liefert Windows meist keine Temperatur, auf dem Linux-Server schon.
+  - **Prozess-Liste:** in der Detailansicht von Prozessor (nach CPU sortiert) und Arbeitsspeicher (nach RAM sortiert).
+  - **Warnung, wenn ein Laufwerk voll wird:** Hinweis oben in der Übersicht und Eintrag im Ereignis-Protokoll (Push-Nachrichten kommen mit Teil 6). Dasselbe für zu hohe Temperatur.
+  - **Mehr Android-Effekte am Handy:** Pille hinter dem aktiven Tab, Ripple-Welle beim Tippen auf Knöpfe, Listen und Karten, Übergänge beim Seitenwechsel (Einblenden mit leichtem Zoom, Einstellungs-Bereich gleitet von rechts herein). Alles aus bei „Bewegung reduzieren“.
+  - **Minecraft** kommt erst mit Teil 5. Deshalb zeigt der Tab bis dahin „Kommt bald“.
+  - **Tailscale** wird jetzt schon am PC eingerichtet. Die Anmeldung bei Tailscale und die App am iPhone macht Jonas selbst. In Einstellungen → Netzwerk zeigt Mainframe dann die Tailscale-Adresse mit eigenem QR-Code.
+  - Immich (Fotos) braucht mehrere Container und viel RAM und kommt deshalb erst mit Teil 8 auf den Server.
 
 ## Teil 3: Dienste-Startseite und Netzwerk-Scanner
 

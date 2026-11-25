@@ -1,4 +1,5 @@
-import { AlertTriangle, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, ChevronRight, type LucideIcon } from 'lucide-react';
+import { Link } from 'react-router';
 import type { ReactNode } from 'react';
 import { Sparkline, type ChartPoint } from './Sparkline.tsx';
 
@@ -22,6 +23,7 @@ export function StatCard({
   status = 'ok',
   loading = false,
   error,
+  href,
 }: {
   icon: LucideIcon;
   label: string;
@@ -40,15 +42,22 @@ export function StatCard({
   loading?: boolean;
   /** Text statt Wert, wenn keine Daten kommen. */
   error?: string | null;
+  /** Detailansicht; die ganze Karte wird klickbar. */
+  href?: string;
 }) {
   const busy = loading && !error;
   return (
-    <div className={`card stat stat-${status}`} data-testid="stat-card" aria-busy={busy ? 'true' : 'false'}>
+    <div className={`card stat stat-${status}${href ? ' stat-clickable' : ''}`} data-testid="stat-card" aria-busy={busy ? 'true' : 'false'}>
       <div className="stat-head">
         <div className="stat-label">
           <Icon aria-hidden="true" size={18} />
           <span>{label}</span>
         </div>
+        {href && (
+          <Link to={href} className="stat-link" aria-label={`${label}: Details`}>
+            <ChevronRight aria-hidden="true" size={18} />
+          </Link>
+        )}
         {!busy && status !== 'ok' && (
           <span className={`stat-flag stat-flag-${status}`}>
             <AlertTriangle aria-hidden="true" size={14} />

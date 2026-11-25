@@ -22,6 +22,20 @@ describe('parsePrefs', () => {
     expect(p.accent).toBe('blue');
   });
 
+  it('kleine Kurven zeigen standardmäßig 1 Minute, die Detailansicht 24 Stunden', () => {
+    expect(defaultPrefs.historyMinutes).toBe(1);
+    expect(defaultPrefs.detailMinutes).toBe(1440);
+    expect(parsePrefs({ historyMinutes: 60, detailMinutes: 10080 })).toMatchObject({ historyMinutes: 60, detailMinutes: 10080 });
+    expect(parsePrefs({ detailMinutes: 7 }).detailMinutes).toBe(1440);
+  });
+
+  it('behält bei einer älteren Sicherung die Kartenreihenfolge und hängt fehlende Karten an', () => {
+    const p = parsePrefs({ cards: [{ id: 'uptime', visible: false }, { id: 'cpu', visible: true }, { id: 'gibtsnicht', visible: true }] });
+    expect(p.cards.slice(0, 2)).toEqual([{ id: 'uptime', visible: false }, { id: 'cpu', visible: true }]);
+    expect(p.cards.map((c) => c.id).sort()).toEqual([...defaultPrefs.cards.map((c) => c.id)].sort());
+    expect(p.cards.find((c) => c.id === 'memory')?.visible).toBe(true);
+  });
+
   it('übersteht Müll', () => {
     expect(parsePrefs('kaputt')).toEqual(defaultPrefs);
     expect(parsePrefs(null)).toEqual(defaultPrefs);

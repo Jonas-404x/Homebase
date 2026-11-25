@@ -1,0 +1,11 @@
+services:
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    restart: unless-stopped
+    command: serve
+    volumes:
+      - "cache:/var/cache/ntfy"
+    ports:
+      - "${port.web}:80/tcp"
+volumes:
+  cache: {}

@@ -12,6 +12,7 @@ import websocket from '@fastify/websocket';
 import type { AppEngine } from './apps/engine.ts';
 import { registerAppRoutes } from './apps/routes.ts';
 import { registerSystemRoutes } from './system/routes.ts';
+import type { SystemSource } from './system/details.ts';
 import { createStatsProvider, type StatsProvider } from './system/stats.ts';
 import { createWsHub, type WsHub } from './ws/hub.ts';
 import { registerAdminRoutes } from './system/admin-routes.ts';
@@ -40,6 +41,8 @@ export interface AppDeps {
   prefs?: PrefsStore;
   events?: EventLog;
   dockerAdmin?: DockerAdmin;
+  /** Quelle für Detailansicht und Prozess-Liste (Tests). */
+  system?: SystemSource;
   /** Weitere Routen (z. B. AdGuard), die Zugriff auf Engine und Hub brauchen. */
   plugins?: ((app: FastifyInstance) => void | Promise<void>)[];
 }
@@ -94,6 +97,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerSystemRoutes(app, hub, deps.statsProvider ?? createStatsProvider(), prefs, {
     intervalMs: deps.statsIntervalMs,
     historySampleMs: deps.historySampleMs,
+    db: deps.db,
+    events,
+    system: deps.system,
   });
   if (deps.engine) registerAppRoutes(app, deps.engine, hub);
   for (const p of deps.plugins ?? []) await p(app);

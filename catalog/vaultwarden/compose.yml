@@ -1,0 +1,10 @@
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    restart: unless-stopped
+    volumes:
+      - "data:/data"
+    ports:
+      - "${port.web}:80/tcp"
+volumes:
+  data: {}

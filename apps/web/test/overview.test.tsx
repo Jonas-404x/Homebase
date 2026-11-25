@@ -139,8 +139,39 @@ describe('Übersicht', () => {
     }
   });
 
-  it('zeichnet Verlaufskurven mit verständlicher Beschriftung', async () => {
+  it('zeigt standardmäßig nur die letzte Minute, ohne den Server-Verlauf zu holen', async () => {
+    const { socket, calls } = renderOverview([]);
+    act(() => socket.emit({ type: 'stats', data: stats() }));
+    act(() => socket.emit({ type: 'stats', data: stats() }));
+    expect(await screen.findByRole('img', { name: 'Prozessor-Verlauf der letzten Minute' })).toBeInTheDocument();
+    expect(calls.some((c) => c.path.startsWith('/api/system/history'))).toBe(false);
+  });
+
+  it('warnt oben, wenn ein Laufwerk fast voll ist', async () => {
     const { socket } = renderOverview([]);
+    act(() => socket.emit({ type: 'stats', data: stats({ disks: [{ mount: 'C:', totalBytes: 100 * GB, usedBytes: 95 * GB }] }) }));
+    expect(await screen.findByText('Laufwerk C: ist fast voll (95 % belegt).')).toBeInTheDocument();
+  });
+
+  it('öffnet per Klick auf eine Karte die Detailansicht', async () => {
+    const { socket } = renderOverview([]);
+    act(() => socket.emit({ type: 'stats', data: stats() }));
+    expect(await screen.findByRole('link', { name: 'Prozessor: Details' })).toHaveAttribute('href', '/details/cpu');
+    expect(screen.getByRole('link', { name: 'Arbeitsspeicher: Details' })).toHaveAttribute('href', '/details/memory');
+    expect(screen.getByRole('link', { name: 'Netzwerk: Details' })).toHaveAttribute('href', '/details/network');
+    expect(screen.getByRole('link', { name: 'Temperatur: Details' })).toHaveAttribute('href', '/details/temperature');
+  });
+
+  it('zeigt AdGuard in einem eigenen Bereich „Dienste“ unter den Systemwerten', async () => {
+    renderOverview([adguard]);
+    const heading = await screen.findByRole('heading', { name: 'Dienste', level: 2 });
+    const section = heading.closest('section')!;
+    expect(section.textContent).toContain('Werbeblocker');
+    expect(section.querySelector('[data-testid="stat-card"]')).toBeNull();
+  });
+
+  it('zeichnet Verlaufskurven mit verständlicher Beschriftung', async () => {
+    const { socket } = renderOverview([], undefined, { ...defaultPrefs, historyMinutes: 60 });
     act(() => socket.emit({ type: 'stats', data: stats() }));
     act(() => socket.emit({ type: 'stats', data: stats() }));
     expect(await screen.findByRole('img', { name: 'Prozessor-Verlauf der letzten 60 Minuten' })).toBeInTheDocument();

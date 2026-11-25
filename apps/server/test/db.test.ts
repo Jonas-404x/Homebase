@@ -11,7 +11,7 @@ describe('openDb', () => {
     db.setSetting('a', '1');
     db.setSetting('a', '2');
     expect(db.getSetting('a')).toBe('2');
-    expect(db.getSetting('schema_version')).toBe('2');
+    expect(db.getSetting('schema_version')).toBe('3');
     db.close();
   });
 

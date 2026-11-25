@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 import { defaultPrefs, type CardId, type Prefs } from '@mainframe/shared';
 import { usePrefs } from '../../api/prefs.tsx';
+import { RANGES } from '../Details.tsx';
 import { Choice, Group, Row, Switch, useSave, useSettings } from './Row.tsx';
 
 const CARD_NAMES: Record<CardId, string> = {
@@ -91,13 +92,16 @@ export function OverviewPane() {
         ))}
       </Group>
       <Group>
-        <Row label="Verlauf" hint="Zeitraum der Kurven auf den Karten.">
+        <Row label="Verlauf" hint="Zeitraum der kleinen Kurven auf den Karten.">
           <Choice
             label="Verlauf"
             value={prefs.historyMinutes}
-            options={[{ value: 15, label: '15 Min.' }, { value: 60, label: '1 Std.' }, { value: 360, label: '6 Std.' }]}
+            options={[{ value: 1, label: '1 Min.' }, { value: 15, label: '15 Min.' }, { value: 60, label: '1 Std.' }, { value: 360, label: '6 Std.' }]}
             onChange={(v) => void save({ historyMinutes: v })}
           />
+        </Row>
+        <Row label="Detailansicht" hint="Zeitraum der großen Kurve, wenn man auf eine Karte klickt. Dort lässt er sich auch direkt umstellen." stacked>
+          <Choice label="Detailansicht" value={prefs.detailMinutes} options={RANGES} onChange={(v) => void save({ detailMinutes: v })} />
         </Row>
       </Group>
     </div>

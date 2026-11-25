@@ -7,6 +7,8 @@ import { createLiveSocket, defaultSocketUrl, type LiveSocket } from './api/ws.ts
 import { Shell } from './layout/Shell.tsx';
 import { Apps } from './pages/Apps.tsx';
 import { AuthScreen } from './pages/AuthScreen.tsx';
+import { Details } from './pages/Details.tsx';
+import { Minecraft } from './pages/Minecraft.tsx';
 import { Overview } from './pages/Overview.tsx';
 import { SettingsLayout } from './pages/settings/SettingsLayout.tsx';
 
@@ -41,6 +43,8 @@ function Inside({ socketFactory, onLoggedOut }: { socketFactory: (url: string) =
           <Routes>
             <Route path="/" element={<Overview />} />
             <Route path="/apps" element={<Apps />} />
+            <Route path="/details/:metric" element={<Details />} />
+            <Route path="/minecraft" element={<Minecraft />} />
             <Route path="/settings/*" element={<SettingsLayout onLoggedOut={onLoggedOut} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

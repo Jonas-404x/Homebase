@@ -2,12 +2,14 @@ import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
 import { Group, Row, SERVER_ONLY, useSettings } from './Row.tsx';
 
-export function NetworkPane() {
-  const { info } = useSettings();
-  const first = info?.addresses[0]?.ip;
-  const url = info && first ? `http://${first}:${info.port}` : null;
-  const [qr, setQr] = useState<string | null>(null);
+/** Tailscale vergibt Adressen aus 100.64.0.0/10. */
+export const isTailscale = (ip: string) => {
+  const [a, b] = ip.split('.').map(Number);
+  return a === 100 && b! >= 64 && b! <= 127;
+};
 
+function Qr({ url }: { url: string | null }) {
+  const [qr, setQr] = useState<string | null>(null);
   useEffect(() => {
     if (!url) return;
     let alive = true;
@@ -18,7 +20,24 @@ export function NetworkPane() {
       alive = false;
     };
   }, [url]);
+  return (
+    <div className="qr-row">
+      {qr ? <img className="qr" src={qr} alt={`QR-Code für ${url}`} width={148} height={148} /> : <div className="qr skeleton" aria-hidden="true" />}
+      {url && (
+        <a className="mono" href={url}>
+          {url}
+        </a>
+      )}
+    </div>
+  );
+}
 
+export function NetworkPane() {
+  const { info } = useSettings();
+  const lan = info?.addresses.find((a) => !isTailscale(a.ip))?.ip;
+  const ts = info?.addresses.find((a) => isTailscale(a.ip))?.ip;
+  const url = info && lan ? `http://${lan}:${info.port}` : null;
+  const tsUrl = info && ts ? `http://${ts}:${info.port}` : null;
   const later = info?.isServer ? 'Kommt mit dem Server-Umzug' : SERVER_ONLY;
 
   return (
@@ -31,17 +50,26 @@ export function NetworkPane() {
         <Row label="Port" hint={<span className="mono">{info?.port ?? '…'}</span>} />
       </Group>
       <Group title="Am Handy öffnen" footer="Mit der Kamera scannen. Handy und Mainframe müssen im selben WLAN sein. In Safari dann „Teilen › Zum Home-Bildschirm“ für das Mainframe-Logo.">
-        <div className="qr-row">
-          {qr ? <img className="qr" src={qr} alt={`QR-Code für ${url}`} width={148} height={148} /> : <div className="qr skeleton" aria-hidden="true" />}
-          {url && (
-            <a className="mono" href={url}>
-              {url}
-            </a>
-          )}
-        </div>
+        <Qr url={url} />
+      </Group>
+      <Group
+        title="Von unterwegs"
+        footer={
+          tsUrl
+            ? 'Funktioniert überall (Schule, mobile Daten), solange am Handy die Tailscale-App verbunden ist. Nur deine eigenen Geräte kommen rein.'
+            : 'Mit der kostenlosen App Tailscale auf PC und Handy erreichst du Mainframe von überall, ohne etwas am Router freizugeben.'
+        }
+      >
+        {tsUrl ? (
+          <>
+            <Row label="Fernzugriff" hint="Aktiv über Tailscale" />
+            <Qr url={tsUrl} />
+          </>
+        ) : (
+          <Row label="Fernzugriff" hint="Von unterwegs über Tailscale, ohne Ports am Router zu öffnen." disabledReason="Tailscale ist noch nicht eingerichtet" />
+        )}
       </Group>
       <Group title="Später">
-        <Row label="Fernzugriff" hint="Von unterwegs über Tailscale, ohne Ports am Router zu öffnen." disabledReason={later} />
         <Row label="Netzwerkfreigabe" hint="Den Speicher des Servers im Windows-Explorer als Laufwerk sehen." disabledReason={later} />
       </Group>
     </div>
