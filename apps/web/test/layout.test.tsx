@@ -16,4 +16,13 @@ describe('Navigation', () => {
     expect(within(nav).getByRole('link', { name: 'Apps' })).toHaveAttribute('aria-current', 'page');
     expect(within(nav).getByRole('link', { name: 'Übersicht' })).not.toHaveAttribute('aria-current');
   });
+
+  it('lässt „Übersicht“ in der Detailansicht markiert', () => {
+    render(
+      <MemoryRouter initialEntries={['/details/cpu']}>
+        <Navigation />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('link', { name: 'Übersicht' })).toHaveAttribute('aria-current', 'page');
+  });
 });

@@ -1706,3 +1706,7 @@ select.input {
 .planned-item strong {
   font-weight: 600;
 }
+.big-chart-dot {
+  stroke-width: 6;
+  stroke-linecap: round;
+}

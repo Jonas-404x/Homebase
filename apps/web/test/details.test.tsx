@@ -84,4 +84,10 @@ describe('Detailansicht', () => {
     renderAt('/details/quatsch');
     expect(await screen.findByRole('heading', { name: 'Übersicht' })).toBeInTheDocument();
   });
+
+  it('zeigt einen einzelnen Messpunkt als Punkt statt einer leeren Kurve', async () => {
+    renderAt('/details/cpu', [{ at: now, cpu: 42, memory: 50, rx: 0, tx: 0, temp: null }]);
+    const chart = await screen.findByRole('img', { name: 'Prozessor-Verlauf der letzten 24 Stunden' });
+    expect(chart.querySelectorAll('.big-chart-dot')).toHaveLength(1);
+  });
 });

@@ -64,6 +64,9 @@ export function BigChart({
     });
     return d.trim();
   };
+  /** Punkte ohne Nachbarn (z. B. der erste Messwert) wären als Linie unsichtbar. */
+  const isolated = (values: (number | null)[]) =>
+    values.flatMap((v, i) => (v !== null && values[i - 1] == null && values[i + 1] == null ? [i] : []));
 
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
     const box = ref.current?.getBoundingClientRect();
@@ -113,6 +116,13 @@ export function BigChart({
             {series.map((s) => (
               <path key={s.name} className={`big-chart-line chart-${s.tone}`} d={path(s.values)} vectorEffect="non-scaling-stroke" />
             ))}
+            {series.flatMap((s) =>
+              isolated(s.values).map((i) => {
+                const px = x(times[i]!);
+                const py = y(s.values[i]!);
+                return <line key={`${s.name}-${i}`} className={`big-chart-dot chart-${s.tone}`} x1={px} x2={px} y1={py} y2={py} vectorEffect="non-scaling-stroke" />;
+              }),
+            )}
           </svg>
           {hover !== null && <div className="big-chart-cursor" style={{ left: `${(x(times[hover]!) / W) * 100}%` }} aria-hidden="true" />}
         </div>
