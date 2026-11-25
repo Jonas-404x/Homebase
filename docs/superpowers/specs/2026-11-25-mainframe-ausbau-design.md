@@ -189,6 +189,14 @@ Jonas fand die Einstellungen und die Ladeanimation „deutlich hochwertiger“. 
   - Scan per Knopf und automatisch alle X Minuten.
   - Am Windows-PC funktioniert der Scan eingeschränkt, auf dem Server vollständig (ARP).
 
+- **Neu (Jonas, 2026-11-25): Zwei-Faktor-Anmeldung.**
+  - Mainframe ist über Tailscale von überall erreichbar, deshalb ein zweiter Schutz: ein 6-stelliger Code aus einer Authenticator-App (TOTP).
+  - Einrichten in Einstellungen › Konto & Sicherheit per QR-Code, dazu Wiederherstellungs-Codes zum Ausdrucken.
+  - Abschalten nur mit Passwort und aktuellem Code.
+- **Neu (Jonas, 2026-11-25): Internet-Wächter.**
+  - Regelmäßiger Speedtest (Intervall einstellbar, standardmäßig selten, damit er das Netz nicht belastet) und ein Verlauf von Ausfällen der Internetverbindung.
+  - Anzeige als Kurve mit Zeitraum wie in der Detailansicht, dazu „Ausfälle diese Woche“.
+
 ## Teil 4: Umzug auf den Server
 
 Wie im alten Design (Setup-Skript für Ubuntu, Docker, Tailscale, `ufw`, AdGuard auf Port 53), dazu:
@@ -212,6 +220,13 @@ Wie im alten Design (Setup-Skript für Ubuntu, Docker, Tailscale, `ufw`, AdGuard
   - Plan B: AdGuard übernimmt DHCP (Router-DHCP aus), oder man trägt den DNS pro Gerät ein.
   - Router-Einstellungen macht Jonas selbst, Claude gibt die Klick-Anleitung. Claude bekommt kein Router-Passwort.
 
+- **Neu (Jonas, 2026-11-25): Dateien im Browser.**
+  - Dateien auf der Netzwerkfreigabe ansehen, hoch- und herunterladen, umbenennen und löschen (Papierkorb), auch am Handy.
+  - Nur innerhalb des Freigabe-Ordners, nie im restlichen System.
+- **Neu (Jonas, 2026-11-25): Stromverbrauch und Kosten.**
+  - Schätzung aus Laufzeit und Auslastung (Leerlauf- und Volllast-Watt des OptiPlex einstellbar) und dem eigenen Strompreis pro kWh.
+  - Anzeige pro Tag und Monat. Ehrlich als Schätzung beschriftet.
+
 ## Teil 6: Benachrichtigungen und Sicherungen
 
 - **Benachrichtigungen,** alles kostenlos:
@@ -223,6 +238,15 @@ Wie im alten Design (Setup-Skript für Ubuntu, Docker, Tailscale, `ufw`, AdGuard
   - Täglich automatisch: Mainframe-Daten und die Daten jeder App (zum Beispiel AdGuard-Einstellungen), auf die Server-SSD oder auf die Netzwerkfreigabe.
   - Die letzten N bleiben erhalten, N ist einstellbar.
   - Wiederherstellen per Knopf.
+
+- **Neu (Jonas, 2026-11-25): App-Updates.**
+  - Mainframe prüft regelmäßig, ob es für installierte Apps neuere Images gibt, und zeigt „Update verfügbar“.
+  - Aktualisieren per Klick: vorher automatisch eine Sicherung der App, bei Fehler zurück zur alten Version.
+- **Neu (Jonas, 2026-11-25): Geplante Aufgaben.**
+  - Wiederkehrende Aktionen mit Uhrzeit und Wochentagen: App oder Minecraft-Server neu starten, Sicherung, Server herunterfahren, Aufräumen.
+  - Liste in den Einstellungen, jede Aufgabe einzeln ein/aus, mit letztem Ergebnis.
+- **Neu (Jonas, 2026-11-25): Wochenbericht.**
+  - Jeden Sonntag eine kurze Nachricht über ntfy/Discord: Verfügbarkeit der Dienste, Speicherplatz, Internet-Ausfälle, Auffälligkeiten.
 
 ## Teil 7 und 8 (kurz)
 
