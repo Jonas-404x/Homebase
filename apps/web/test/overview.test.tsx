@@ -1,16 +1,20 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { InstalledApp, SystemStats } from '@mainframe/shared';
+import { defaultPrefs, type InstalledApp, type Prefs, type SystemStats } from '@mainframe/shared';
 import { LiveProvider } from '../src/api/live.tsx';
+import { PrefsProvider } from '../src/api/prefs.tsx';
 import { Overview } from '../src/pages/Overview.tsx';
 import { fakeSocket } from './fake-socket.ts';
 import { mockApi } from './mock-api.ts';
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  localStorage.clear();
+});
 
-const GB = 1024 ** 3;
+const GB = 1e9;
 const stats = (over: Partial<SystemStats> = {}): SystemStats => ({
   cpu: { model: 'Intel Core i5-7500', cores: 4, loadPercent: 12.5 },
   memory: { totalBytes: 7.8 * GB, usedBytes: 3.2 * GB },
@@ -23,18 +27,22 @@ const stats = (over: Partial<SystemStats> = {}): SystemStats => ({
 
 const adguard: InstalledApp = { id: 'adguard', name: 'AdGuard Home', state: 'running', error: null, webUiUrl: ':3000/', installedAt: '' };
 
-function renderOverview(apps: InstalledApp[], docker = { ok: true, message: null as string | null }) {
+function renderOverview(apps: InstalledApp[], docker = { ok: true, message: null as string | null }, prefs: Prefs = defaultPrefs) {
   const calls = mockApi({
     'GET /api/apps': () => ({ json: apps }),
     'GET /api/system/docker': () => ({ json: docker }),
     'GET /api/adguard/stats': () => ({ json: { queriesToday: 200, blockedToday: 50, blockedPercent: 25, protectionEnabled: true } }),
     'POST /api/adguard/protection': () => ({ status: 204 }),
+    'GET /api/prefs': () => ({ json: prefs }),
+    'GET /api/system/history': () => ({ json: [] }),
   });
   const socket = fakeSocket();
   render(
     <MemoryRouter>
       <LiveProvider socket={socket}>
-        <Overview />
+        <PrefsProvider>
+          <Overview />
+        </PrefsProvider>
       </LiveProvider>
     </MemoryRouter>,
   );
@@ -58,10 +66,63 @@ describe('Übersicht', () => {
     expect(screen.queryByText('Temperatur')).not.toBeInTheDocument();
   });
 
-  it('warnt bei fast vollem RAM mit Text', async () => {
+  it('warnt ab der eingestellten Schwelle mit Text, nicht nur mit Farbe', async () => {
     const { socket } = renderOverview([]);
-    act(() => socket.emit({ type: 'stats', data: stats({ memory: { totalBytes: 8 * GB, usedBytes: 7.6 * GB } }) }));
-    expect(await screen.findByText('Fast voll')).toBeInTheDocument();
+    act(() => socket.emit({ type: 'stats', data: stats({ memory: { totalBytes: 8 * GB, usedBytes: 7.36 * GB } }) }));
+    expect(await screen.findByText('Hoch')).toBeInTheDocument();
+    act(() => socket.emit({ type: 'stats', data: stats({ memory: { totalBytes: 8 * GB, usedBytes: 7.8 * GB } }) }));
+    expect(await screen.findByText('Kritisch')).toBeInTheDocument();
+  });
+
+  it('zeigt die Karten sofort in voller Größe mit Ladeanzeige, ohne aufzuploppen', async () => {
+    const { socket } = renderOverview([]);
+    const cards = await screen.findAllByTestId('stat-card');
+    expect(cards.length).toBeGreaterThanOrEqual(5);
+    for (const c of cards) expect(c).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByText('Prozessor')).toBeInTheDocument();
+    expect(screen.getByText('Arbeitsspeicher')).toBeInTheDocument();
+    act(() => socket.emit({ type: 'stats', data: stats() }));
+    expect(await screen.findByText('12,5 %')).toBeInTheDocument();
+    for (const c of screen.getAllByTestId('stat-card')) expect(c).toHaveAttribute('aria-busy', 'false');
+  });
+
+  it('merkt sich, wie viele Speicher-Karten es gibt, damit beim nächsten Laden nichts springt', async () => {
+    const first = renderOverview([]);
+    act(() => first.socket.emit({ type: 'stats', data: stats({ disks: [{ mount: 'C:', totalBytes: 1, usedBytes: 0 }, { mount: 'D:', totalBytes: 1, usedBytes: 0 }] }) }));
+    await screen.findByText('Speicher D:');
+    cleanup();
+    renderOverview([]);
+    const loading = await screen.findAllByTestId('stat-card');
+    expect(loading.filter((c) => c.textContent?.includes('Speicher'))).toHaveLength(2);
+  });
+
+  it('blendet ausgeschaltete Karten aus und hält die Reihenfolge ein', async () => {
+    const cards = [...defaultPrefs.cards].reverse().map((c) => ({ ...c, visible: c.id !== 'cpu' }));
+    const { socket } = renderOverview([], undefined, { ...defaultPrefs, cards });
+    act(() => socket.emit({ type: 'stats', data: stats() }));
+    await screen.findByText('Arbeitsspeicher');
+    expect(screen.queryByText('Prozessor')).not.toBeInTheDocument();
+    const labels = screen.getAllByTestId('stat-card').map((c) => c.querySelector('.stat-label')?.textContent);
+    expect(labels.indexOf('Läuft seit')).toBeLessThan(labels.indexOf('Arbeitsspeicher'));
+  });
+
+  it('meldet nach 10 Sekunden ohne Werte einen verständlichen Fehler', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderOverview([]);
+      await screen.findAllByTestId('stat-card');
+      await act(() => vi.advanceTimersByTimeAsync(10_500));
+      expect(screen.getAllByText('Keine Werte vom Server.').length).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('zeichnet Verlaufskurven mit verständlicher Beschriftung', async () => {
+    const { socket } = renderOverview([]);
+    act(() => socket.emit({ type: 'stats', data: stats() }));
+    act(() => socket.emit({ type: 'stats', data: stats() }));
+    expect(await screen.findByRole('img', { name: 'Prozessor-Verlauf der letzten 60 Minuten' })).toBeInTheDocument();
   });
 
   it('zeigt den Docker-Hinweis', async () => {

@@ -356,14 +356,6 @@ a {
 .stat-detail {
   font-size: var(--text-small);
 }
-.stat-warn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--warn);
-  font-size: var(--text-small);
-  font-weight: 600;
-}
 .meter {
   height: 6px;
   border-radius: 3px;
@@ -378,6 +370,107 @@ a {
 }
 .meter-warn {
   background: var(--warn);
+}
+.meter-danger {
+  background: var(--danger);
+}
+.stat-value {
+  font-variant-numeric: tabular-nums;
+  min-height: 1.2em;
+}
+.stat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.stat-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+.stat-flag-warn {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+.stat-flag-danger {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.stat-error {
+  display: block;
+  font-size: var(--text-body, 1rem);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Ladezustand: die Karte hat schon ihre endgültige Größe, nur der Inhalt schimmert. */
+.skeleton {
+  display: block;
+  border-radius: var(--radius-s);
+  background: var(--surface-sunken);
+}
+.skeleton-value {
+  height: 1.2em;
+  width: 60%;
+}
+.skeleton-line {
+  height: 0.9em;
+  width: 80%;
+}
+.meter-indeterminate {
+  height: 100%;
+  width: 35%;
+  border-radius: 3px;
+  background: var(--accent-text);
+  opacity: 0.55;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface-sunken) 0%, var(--surface-hover) 50%, var(--surface-sunken) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+  .meter-indeterminate {
+    animation: meter-slide 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+}
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+@keyframes meter-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(290%);
+  }
+}
+
+/* Verlaufskurven */
+.sparkline {
+  display: block;
+  width: 100%;
+  height: 36px;
+}
+.sparkline-line {
+  fill: none;
+  stroke: var(--accent-text);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.sparkline-area {
+  fill: var(--accent-text);
+  opacity: 0.12;
 }
 
 .with-icon {
