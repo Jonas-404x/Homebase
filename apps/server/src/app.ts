@@ -29,6 +29,8 @@ export interface AppDeps {
   db: Db;
   statsProvider?: StatsProvider;
   statsIntervalMs?: number;
+  /** Takt des Verlaufs, 0 = aus (Standard 5000). */
+  historySampleMs?: number;
   hub?: WsHub;
   engine?: AppEngine;
   prefs?: PrefsStore;
@@ -70,7 +72,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   app.addHook('preClose', async () => hub.closeAll());
   registerPrefsRoutes(app, prefs, hub);
-  registerSystemRoutes(app, hub, deps.statsProvider ?? createStatsProvider(), deps.statsIntervalMs ?? 2000);
+  registerSystemRoutes(app, hub, deps.statsProvider ?? createStatsProvider(), prefs, {
+    intervalMs: deps.statsIntervalMs,
+    historySampleMs: deps.historySampleMs,
+  });
   if (deps.engine) registerAppRoutes(app, deps.engine, hub);
   for (const p of deps.plugins ?? []) await p(app);
 

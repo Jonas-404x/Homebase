@@ -10,6 +10,15 @@ export interface SystemStats {
   network: { rxBytesPerSec: number; txBytesPerSec: number };
 }
 
+/** Ein Punkt im Verlauf der Live-Werte (memory in Prozent). */
+export interface HistoryPoint {
+  at: number;
+  cpu: number;
+  memory: number;
+  rx: number;
+  tx: number;
+}
+
 const keySchema = z.string().regex(/^[a-zA-Z][a-zA-Z0-9]*$/);
 
 export const catalogFieldSchema = z.object({
