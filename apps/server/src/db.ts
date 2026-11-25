@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
+import type { HistoryPoint } from '@mainframe/shared';
 
 export interface SessionMeta {
   userAgent: string;
@@ -37,6 +38,10 @@ export interface Db {
   addLoginLog(entry: LoginLogEntry): void;
   listLoginLog(limit?: number): LoginLogEntry[];
   clearLoginLog(): void;
+  addStatsPoint(p: HistoryPoint): void;
+  /** Mittelwerte in höchstens `points` gleich großen Zeitabschnitten zwischen from und to. */
+  queryStats(from: number, to: number, points: number): HistoryPoint[];
+  pruneStats(before: number): void;
   close(): void;
 }
 
@@ -52,8 +57,19 @@ export function openDb(filePath: string): Db {
 
   // Version 2: Geräte-Infos an Sessions, Anmelde-Protokoll.
   const version = Number((db.prepare("SELECT value FROM settings WHERE key = 'schema_version'").get() as { value: string }).value);
+  // Jede Migration in einer Transaktion: bricht sie ab, bleibt die Datenbank wie vorher.
+  const migrate = (sql: string) => {
+    db.exec('BEGIN');
+    try {
+      db.exec(sql);
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
+  };
   if (version < 2) {
-    db.exec(`
+    migrate(`
       ALTER TABLE sessions ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE sessions ADD COLUMN last_seen INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE sessions ADD COLUMN user_agent TEXT NOT NULL DEFAULT '';
@@ -65,6 +81,21 @@ export function openDb(filePath: string): Db {
       UPDATE settings SET value = '2' WHERE key = 'schema_version';
     `);
   }
+  // Version 3: Verlauf der Messwerte (7 Tage), übersteht Neustarts.
+  if (version < 3) {
+    migrate(`
+      CREATE TABLE IF NOT EXISTS stats_history (
+        at INTEGER PRIMARY KEY, cpu REAL NOT NULL, memory REAL NOT NULL, rx INTEGER NOT NULL, tx INTEGER NOT NULL, temp REAL
+      );
+      UPDATE settings SET value = '3' WHERE key = 'schema_version';
+    `);
+  }
+  const addStat = db.prepare('INSERT OR REPLACE INTO stats_history (at, cpu, memory, rx, tx, temp) VALUES (?, ?, ?, ?, ?, ?)');
+  const queryStat = db.prepare(`
+    SELECT CAST((at - :from) * :n / :span AS INTEGER) AS b, AVG(at) AS at, AVG(cpu) AS cpu, AVG(memory) AS memory,
+           AVG(rx) AS rx, AVG(tx) AS tx, AVG(temp) AS temp
+    FROM stats_history WHERE at >= :from AND at <= :to GROUP BY b ORDER BY b`);
+  const pruneStat = db.prepare('DELETE FROM stats_history WHERE at < ?');
 
   const getSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
   const setSetting = db.prepare(
@@ -122,6 +153,14 @@ export function openDb(filePath: string): Db {
         userAgent: r.user_agent,
       })),
     clearLoginLog: () => void clearLog.run(),
+    addStatsPoint: (p) => void addStat.run(p.at, p.cpu, p.memory, p.rx, p.tx, p.temp),
+    queryStats: (from, to, points) => {
+      const span = Math.max(1, to - from);
+      const rows = queryStat.all({ from, to, n: points, span }) as { at: number; cpu: number; memory: number; rx: number; tx: number; temp: number | null }[];
+      const r1 = (v: number) => Math.round(v * 10) / 10;
+      return rows.map((r) => ({ at: Math.round(r.at), cpu: r1(r.cpu), memory: r1(r.memory), rx: Math.round(r.rx), tx: Math.round(r.tx), temp: r.temp === null ? null : r1(r.temp) }));
+    },
+    pruneStats: (before) => void pruneStat.run(before),
     close: () => db.close(),
   };
 }

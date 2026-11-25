@@ -17,6 +17,24 @@ export interface HistoryPoint {
   memory: number;
   rx: number;
   tx: number;
+  /** °C, null wenn das Gerät keine Temperatur liefert. */
+  temp: number | null;
+}
+
+/** Mehr Infos für die Detailansicht (Klick auf eine Karte). */
+export interface SystemDetails {
+  cpu: { model: string; cores: number; physicalCores: number; speedGHz: number; perCore: number[] };
+  memory: { totalBytes: number; usedBytes: number; freeBytes: number; cacheBytes: number; swapTotalBytes: number; swapUsedBytes: number };
+  network: { iface: string; ip: string; speedMbit: number | null }[];
+  temperature: { mainC: number | null; maxC: number | null; coresC: number[] };
+}
+
+/** Ein Programm in der Prozess-Liste (gleichnamige Prozesse zusammengefasst). */
+export interface ProcessInfo {
+  name: string;
+  count: number;
+  cpuPercent: number;
+  memBytes: number;
 }
 
 export interface SystemInfo {
