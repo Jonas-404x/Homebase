@@ -47,7 +47,8 @@ function statusFor(value: number, threshold: number): StatStatus {
   return 'ok';
 }
 
-const windowText = (minutes: number) => (minutes >= 60 && minutes % 60 === 0 && minutes > 60 ? `${minutes / 60} Stunden` : `${minutes} Minuten`);
+const windowText = (minutes: number) =>
+  minutes === 1 ? 'Minute' : minutes > 60 && minutes % 60 === 0 ? `${minutes / 60} Stunden` : `${minutes} Minuten`;
 
 export function Overview() {
   const prefs = usePrefs().prefs ?? defaultPrefs;
@@ -78,6 +79,8 @@ export function Overview() {
   // die Kurve immer den eingestellten Zeitraum zeigt. Live-Punkte füllen nur die Zeit seit dem
   // letzten Server-Punkt.
   useEffect(() => {
+    // „1 Minute“ kommt komplett aus den Live-Werten, der Server-Verlauf wird nicht gebraucht.
+    if (prefs.historyMinutes === 1) return setHistory([]);
     let stop = false;
     const load = () =>
       api<HistoryPoint[]>(`/api/system/history?minutes=${prefs.historyMinutes}`)
@@ -152,22 +155,25 @@ export function Overview() {
   const adguard = apps?.find((a) => a.id === 'adguard');
   const mem = stats ? (stats.memory.usedBytes / stats.memory.totalBytes) * 100 : 0;
   const common = { loading, error };
+  const adguardVisible = prefs.cards.find((c) => c.id === 'adguard')?.visible !== false;
+  const showServices = adguardVisible && (adguard !== undefined || (!apps && shape.adguard));
   const windowMs = prefs.historyMinutes * 60_000;
   const last = history.at(-1)?.at ?? 0;
   const points = [...history, ...live.filter((p) => p.at > last)];
   const series = (k: 'cpu' | 'memory' | 'rx') => points.map((p) => ({ at: p.at, v: p[k] }));
+  const fullDisks = (stats?.disks ?? []).filter((d) => d.totalBytes > 0 && (d.usedBytes / d.totalBytes) * 100 >= t.disk);
 
   const render = (id: CardId) => {
     switch (id) {
       case 'cpu':
         return (
-          <StatCard key={id} icon={Cpu} label="Prozessor" {...common} value={stats && percent(stats.cpu.loadPercent)} load={stats?.cpu.loadPercent} meter
+          <StatCard key={id} icon={Cpu} label="Prozessor" href="/details/cpu" {...common} value={stats && percent(stats.cpu.loadPercent)} load={stats?.cpu.loadPercent} meter
             chart={series('cpu')} chartWindowMs={windowMs} chartMax={100} chartLabel={`Prozessor-Verlauf der letzten ${since}`}
             detail={stats && `${stats.cpu.model}, ${stats.cpu.cores} Kerne`} />
         );
       case 'memory':
         return (
-          <StatCard key={id} icon={MemoryStick} label="Arbeitsspeicher" {...common} status={statusFor(mem, t.memory)}
+          <StatCard key={id} icon={MemoryStick} label="Arbeitsspeicher" href="/details/memory" {...common} status={statusFor(mem, t.memory)}
             value={stats && usedOfTotal(stats.memory.usedBytes, stats.memory.totalBytes, prefs.sizeUnits)} load={mem} meter
             chart={series('memory')} chartWindowMs={windowMs} chartMax={100} chartLabel={`Arbeitsspeicher-Verlauf der letzten ${since}`}
             detail={stats && percent(mem) + ' belegt'} />
@@ -185,29 +191,18 @@ export function Overview() {
         const show = stats ? stats.temperatureC !== null : shape.temperature;
         if (!show) return null;
         const c = stats?.temperatureC ?? 0;
-        return <StatCard key={id} icon={Thermometer} label="Temperatur" {...common} status={statusFor(c, t.temperature)} value={stats && `${Math.round(c)} °C`} detail="am Prozessor gemessen" />;
+        return <StatCard key={id} icon={Thermometer} label="Temperatur" href="/details/temperature" {...common} status={statusFor(c, t.temperature)} value={stats && `${Math.round(c)} °C`} detail="am Prozessor gemessen" />;
       }
       case 'uptime':
         return <StatCard key={id} icon={Clock} label="Läuft seit" {...common} value={stats && uptime(stats.uptimeSeconds)} detail="seit dem letzten Neustart" />;
       case 'network':
         return (
-          <StatCard key={id} icon={Network} label="Netzwerk" {...common} value={stats && `↓ ${rate(stats.network.rxBytesPerSec, prefs.netUnits)}`}
+          <StatCard key={id} icon={Network} label="Netzwerk" href="/details/network" {...common} value={stats && `↓ ${rate(stats.network.rxBytesPerSec, prefs.netUnits)}`}
             chart={series('rx')} chartWindowMs={windowMs} chartLabel={`Download-Verlauf der letzten ${since}`}
             detail={stats && <span>↑ {rate(stats.network.txBytesPerSec, prefs.netUnits)}</span>} />
         );
       case 'adguard':
-        if (adguard) return <div key={id} className="grid-wide"><AdGuardWidget app={adguard} /></div>;
-        if (!apps && shape.adguard) {
-          return (
-            <div key={id} className="grid-wide">
-              <div className="card adguard-placeholder" aria-busy="true">
-                <div className="stat-label"><Shield aria-hidden="true" size={18} /><span>AdGuard Home</span></div>
-                <span className="skeleton skeleton-value" />
-                <span className="skeleton skeleton-line" />
-              </div>
-            </div>
-          );
-        }
+        // Steht nicht zwischen den Systemwerten, sondern unten unter „Dienste“.
         return null;
     }
   };
@@ -223,7 +218,31 @@ export function Overview() {
         </div>
       )}
 
+      {fullDisks.map((d) => (
+        <div key={d.mount} className="notice notice-warn" role="alert">
+          <HardDrive aria-hidden="true" size={20} />
+          <p>{`Laufwerk ${d.mount} ist fast voll (${Math.round((d.usedBytes / d.totalBytes) * 100)} % belegt).`}</p>
+        </div>
+      ))}
+
       <div className="grid">{prefs.cards.filter((c) => c.visible).map((c) => render(c.id))}</div>
+
+      {showServices && (
+        <section className="overview-section">
+          <h2>Dienste</h2>
+          <div className="grid">
+            {adguard ? (
+              <AdGuardWidget app={adguard} />
+            ) : (
+              <div className="card adguard-placeholder" aria-busy="true">
+                <div className="stat-label"><Shield aria-hidden="true" size={18} /><span>AdGuard Home</span></div>
+                <span className="skeleton skeleton-value" />
+                <span className="skeleton skeleton-line" />
+              </div>
+            )}
+          </div>
+        </section>
+      )}
     </section>
   );
 }
