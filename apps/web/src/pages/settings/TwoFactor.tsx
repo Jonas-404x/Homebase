@@ -109,7 +109,7 @@ function SetupDialog({ onClose, onEnabled }: { onClose: () => void; onEnabled: (
           <ErrorLine error={error} />
           <div className="dialog-actions">
             <button type="submit" className="button button-primary" disabled={busy || !password}>
-              Weiter
+              {busy ? 'Prüft …' : 'Weiter'}
             </button>
           </div>
         </form>
@@ -127,7 +127,7 @@ function SetupDialog({ onClose, onEnabled }: { onClose: () => void; onEnabled: (
           <ErrorLine error={error} />
           <div className="dialog-actions">
             <button type="submit" className="button button-primary" disabled={busy || code.trim().length < 6}>
-              Einschalten
+              {busy ? 'Schaltet ein …' : 'Einschalten'}
             </button>
           </div>
         </form>
@@ -172,7 +172,7 @@ function DisableDialog({ onClose, onDisabled }: { onClose: () => void; onDisable
         <ErrorLine error={error} />
         <div className="dialog-actions">
           <button type="submit" className="button button-danger" disabled={busy || !password || code.trim().length < 6}>
-            Ausschalten
+            {busy ? 'Schaltet aus …' : 'Ausschalten'}
           </button>
         </div>
       </form>
