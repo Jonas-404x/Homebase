@@ -4,10 +4,11 @@
 
 **The control center for your home server.** Mainframe turns a cheap second-hand PC into your own little data center, and lets you run it from any browser, on your desktop or on your phone.
 
-- **Live dashboard**: CPU, RAM, disks, temperature, network, all updating in real time, with history charts and warning thresholds; cards appear instantly with a loading bar instead of popping in
+- **Live dashboard**: CPU, RAM, disks, temperature, network, all updating in real time, with warning thresholds; click a card for a detail view with up to 7 days of history and the programs using the most CPU or RAM
 - **Settings like a real app**: nine panes (general, account & security, appearance, overview, network, Docker, system, backup, about) with search, accent colors, signed-in devices, login history, a QR code to open Mainframe on your phone, export/import and reset
 - **Feels like an app on the iPhone**: add it to the home screen for the Mainframe icon, full-screen view and a bottom tab bar
-- **One-click apps**: install, start, stop and watch services like AdGuard Home, a Minecraft server or your own music streaming, no terminal needed
+- **One-click apps**: install, start, stop and watch services like AdGuard Home, Uptime Kuma, Jellyfin, Navidrome, Vaultwarden, ntfy or Home Assistant, no terminal needed
+- **Reach it from anywhere** with Tailscale (free): no open router ports, only your own devices get in
 - **Network-wide ad blocking** with AdGuard Home, preconfigured out of the box
 - **Minecraft panel like a paid host** *(planned)*: players with skins, stats, live console with commands, troll buttons, world uploads, plugins, backups, plus a public address your friends can join via playit.gg
 - **Command palette**: hit `Ctrl+K` and do anything in a second
@@ -23,6 +24,7 @@ Node 24 + TypeScript, Fastify, React, Docker Compose. Every service runs in its 
 
 1. **Foundation**: login, live dashboard, app catalog, AdGuard Home, command palette ✓
 2. **Settings, design and phone**: settings panes, accent colors, history charts, home-screen app ✓
+   - 2.1: detail views, process list, 7-day history, six new apps, Tailscale access, Android-style phone effects ✓
 3. **Services and network**: start page with uptime checks, network scanner and device inventory
 4. **Server move**: Ubuntu setup script, network share visible in Windows Explorer, Wake-on-LAN, AdGuard for the whole network, HTTPS
 5. **Minecraft**: server with live console, playit.gg, players, stats, worlds, plugins, backups
@@ -39,6 +41,13 @@ npm run dev          # server on :8787 + web UI with hot reload on http://localh
 ```
 
 On first start Mainframe asks you to choose a username and password.
+
+### Remote access (Tailscale)
+
+1. Install [Tailscale](https://tailscale.com/download) on the Mainframe PC and on your phone and sign in with the same account (free for personal use).
+2. On Windows, allow port 8787 from Tailscale addresses only (once, as admin):
+   `New-NetFirewallRule -DisplayName "Mainframe (Tailscale)" -Direction Inbound -Protocol TCP -LocalPort 8787 -RemoteAddress 100.64.0.0/10 -Action Allow`
+3. Open Settings › Network: under "From anywhere" there is a QR code with the `100.x` address. It works wherever the Tailscale app on your phone is connected.
 
 On Windows you can also just double-click `start-mainframe.cmd`.
 
