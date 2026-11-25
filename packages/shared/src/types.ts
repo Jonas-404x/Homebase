@@ -19,6 +19,38 @@ export interface HistoryPoint {
   tx: number;
 }
 
+export interface SystemInfo {
+  hostname: string;
+  platform: string;
+  /** true nur auf dem Linux-Server (nicht im Dev-Modus am Windows-PC). */
+  isServer: boolean;
+  addresses: { iface: string; ip: string }[];
+  port: number;
+  version: string;
+  mainframeUptimeSec: number;
+  dataRoot: string;
+  node: string;
+}
+
+export interface DockerUsageItem {
+  count: number;
+  bytes: number;
+  reclaimableBytes: number;
+}
+
+export interface DockerUsage {
+  images: DockerUsageItem;
+  containers: DockerUsageItem;
+  volumes: DockerUsageItem;
+  buildCache: DockerUsageItem;
+}
+
+export interface MainframeEvent {
+  at: number;
+  level: 'info' | 'warn' | 'error';
+  text: string;
+}
+
 const keySchema = z.string().regex(/^[a-zA-Z][a-zA-Z0-9]*$/);
 
 export const catalogFieldSchema = z.object({
@@ -87,7 +119,8 @@ export type WsMessage =
   | { type: 'stats'; data: SystemStats }
   | { type: 'apps'; data: InstalledApp[] }
   | { type: 'log'; appId: string; line: string }
-  | { type: 'prefs'; data: Prefs };
+  | { type: 'prefs'; data: Prefs }
+  | { type: 'event'; data: MainframeEvent };
 
 export interface ApiError {
   code: string;

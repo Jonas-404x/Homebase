@@ -14,6 +14,9 @@ import { registerAppRoutes } from './apps/routes.ts';
 import { registerSystemRoutes } from './system/routes.ts';
 import { createStatsProvider, type StatsProvider } from './system/stats.ts';
 import { createWsHub, type WsHub } from './ws/hub.ts';
+import { registerAdminRoutes } from './system/admin-routes.ts';
+import { createDockerAdmin, type DockerAdmin } from './system/docker-admin.ts';
+import { createEventLog, type EventLog } from './system/events.ts';
 import { registerPrefsRoutes } from './prefs/routes.ts';
 import { createPrefsStore, type PrefsStore } from './prefs/store.ts';
 
@@ -21,6 +24,7 @@ declare module 'fastify' {
   interface FastifyInstance {
     hub: WsHub;
     prefs: PrefsStore;
+    events: EventLog;
   }
 }
 
@@ -34,6 +38,8 @@ export interface AppDeps {
   hub?: WsHub;
   engine?: AppEngine;
   prefs?: PrefsStore;
+  events?: EventLog;
+  dockerAdmin?: DockerAdmin;
   /** Weitere Routen (z. B. AdGuard), die Zugriff auf Engine und Hub brauchen. */
   plugins?: ((app: FastifyInstance) => void | Promise<void>)[];
 }
@@ -60,9 +66,13 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.decorate('hub', hub);
   const prefs = deps.prefs ?? createPrefsStore(deps.db);
   app.decorate('prefs', prefs);
+  const events = deps.events ?? createEventLog();
+  app.decorate('events', events);
+  events.onAdd((data) => hub.broadcast({ type: 'event', data }));
   registerAuthGuard(app, deps.db);
   // Nach Abmelden/Passwortwechsel offene Live-Verbindungen ohne gültige Session trennen.
-  registerAuthRoutes(app, deps.db, () => hub.closeInvalidSessions((sid) => deps.db.getSession(sid) !== null));
+  const onSessionsChanged = () => hub.closeInvalidSessions((sid) => deps.db.getSession(sid) !== null);
+  registerAuthRoutes(app, deps.db, onSessionsChanged);
   app.get('/api/ws', { websocket: true }, (socket, req) => {
     if (!req.sessionId) {
       socket.close(4401, 'not_logged_in');
@@ -72,6 +82,15 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   app.addHook('preClose', async () => hub.closeAll());
   registerPrefsRoutes(app, prefs, hub);
+  registerAdminRoutes(app, {
+    config: deps.config,
+    db: deps.db,
+    prefs,
+    events,
+    docker: deps.dockerAdmin ?? createDockerAdmin(),
+    startedAt: Date.now(),
+    onSessionsChanged,
+  });
   registerSystemRoutes(app, hub, deps.statsProvider ?? createStatsProvider(), prefs, {
     intervalMs: deps.statsIntervalMs,
     historySampleMs: deps.historySampleMs,

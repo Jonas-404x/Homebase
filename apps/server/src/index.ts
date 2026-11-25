@@ -28,4 +28,5 @@ const app = await buildApp({ config, db, engine, plugins: [(a) => registerAdguar
 setInterval(() => db.deleteExpiredSessions(Date.now()), 60 * 60 * 1000).unref();
 
 await app.listen({ port: config.port, host: '0.0.0.0' });
+app.events.add('info', 'Mainframe gestartet');
 console.log(`Mainframe läuft auf http://localhost:${config.port} (Daten: ${config.dataRoot})`);

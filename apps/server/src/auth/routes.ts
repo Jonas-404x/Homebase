@@ -77,6 +77,7 @@ export function registerAuthRoutes(app: FastifyInstance, db: Db, onSessionsChang
       ip: req.ip,
       userAgent: String(req.headers['user-agent'] ?? ''),
     });
+    app.events?.add(pwOk && userOk ? 'info' : 'warn', pwOk && userOk ? 'Angemeldet: ' + describeDevice(String(req.headers['user-agent'] ?? '')) + ' (' + req.ip + ')' : 'Anmeldung fehlgeschlagen (' + req.ip + ')');
     if (!pwOk || !userOk) throw new MainframeError('wrong_login', 'Benutzername oder Passwort stimmt nicht.', 401);
     startSession(db, reply, { remember: req.body?.remember !== false, days: days(), req });
     return reply.code(204).send();
