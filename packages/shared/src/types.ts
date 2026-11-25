@@ -1,3 +1,4 @@
+import type { Prefs } from './prefs.ts';
 import { z } from 'zod';
 
 export interface SystemStats {
@@ -76,7 +77,8 @@ export interface AppCredential {
 export type WsMessage =
   | { type: 'stats'; data: SystemStats }
   | { type: 'apps'; data: InstalledApp[] }
-  | { type: 'log'; appId: string; line: string };
+  | { type: 'log'; appId: string; line: string }
+  | { type: 'prefs'; data: Prefs };
 
 export interface ApiError {
   code: string;

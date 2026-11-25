@@ -14,10 +14,13 @@ import { registerAppRoutes } from './apps/routes.ts';
 import { registerSystemRoutes } from './system/routes.ts';
 import { createStatsProvider, type StatsProvider } from './system/stats.ts';
 import { createWsHub, type WsHub } from './ws/hub.ts';
+import { registerPrefsRoutes } from './prefs/routes.ts';
+import { createPrefsStore, type PrefsStore } from './prefs/store.ts';
 
 declare module 'fastify' {
   interface FastifyInstance {
     hub: WsHub;
+    prefs: PrefsStore;
   }
 }
 
@@ -28,6 +31,7 @@ export interface AppDeps {
   statsIntervalMs?: number;
   hub?: WsHub;
   engine?: AppEngine;
+  prefs?: PrefsStore;
   /** Weitere Routen (z. B. AdGuard), die Zugriff auf Engine und Hub brauchen. */
   plugins?: ((app: FastifyInstance) => void | Promise<void>)[];
 }
@@ -52,6 +56,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(websocket);
   const hub = deps.hub ?? createWsHub();
   app.decorate('hub', hub);
+  const prefs = deps.prefs ?? createPrefsStore(deps.db);
+  app.decorate('prefs', prefs);
   registerAuthGuard(app, deps.db);
   // Nach Abmelden/Passwortwechsel offene Live-Verbindungen ohne gültige Session trennen.
   registerAuthRoutes(app, deps.db, () => hub.closeInvalidSessions((sid) => deps.db.getSession(sid) !== null));
@@ -63,6 +69,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     hub.add(socket, req.sessionId);
   });
   app.addHook('preClose', async () => hub.closeAll());
+  registerPrefsRoutes(app, prefs, hub);
   registerSystemRoutes(app, hub, deps.statsProvider ?? createStatsProvider(), deps.statsIntervalMs ?? 2000);
   if (deps.engine) registerAppRoutes(app, deps.engine, hub);
   for (const p of deps.plugins ?? []) await p(app);

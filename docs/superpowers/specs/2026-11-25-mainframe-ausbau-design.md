@@ -204,6 +204,16 @@ Wie im alten Design (Setup-Skript für Ubuntu, Docker, Tailscale, `ufw`, AdGuard
   - Jellyfin (Mediencenter), Immich (Fotos), Navidrome (Musik), Vaultwarden (Passwörter), Home Assistant, ntfy.
   - Jede App mit Katalog-Eintrag, Zugangsdaten-Anzeige und sinnvollen Standardwerten.
 
+## Teil 9 (Idee von Jonas, 2026-11-25): Claude auf dem Server
+
+- Claude Code wird auf dem Server installiert (Teil 4), damit Jonas Dinge erledigen kann, für die es keinen fertigen Knopf gibt.
+- **Erster Schritt (Teil 4, kein eigener Bau):** Die eingebaute Fernsteuerung von Claude Code nutzen. Damit kann er eine Claude-Sitzung auf dem Server vom Main-PC oder aus der Claude-App am Handy steuern.
+- **Später (Teil 9):** ein Bereich „Assistent“ in Mainframe:
+  - Er schickt eine Frage an Claude Code auf dem Server (Kopf-loser Modus) und zeigt die Antwort live an.
+  - Jede Aktion, die etwas verändert, braucht eine Bestätigung in Mainframe.
+  - Läuft über Jonas' eigenes Claude-Abo, kein extra API-Schlüssel.
+- **RAM:** Claude Code braucht nur, während es arbeitet, grob einige hundert MB. Auf 8 GB passt das, nur nicht gleichzeitig mit einem voll ausgelasteten Minecraft-Server.
+
 ## Nicht-Ziele
 
 - Mehrere Benutzer, Registrierung, zentrale Website, öffentliches Release.
