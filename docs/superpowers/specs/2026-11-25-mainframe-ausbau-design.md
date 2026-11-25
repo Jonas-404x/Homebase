@@ -35,7 +35,7 @@ Jonas: „Mir ist egal, womit du anfängst, du sollst eh alles machen.“ Die Re
 
 Teil 4 wird vorgezogen, sobald der OptiPlex da ist.
 
-## Teil 2: Einstellungen, Design, Handy-App
+## Teil 2: Einstellungen, Design, Handy-App (erledigt)
 
 ### Einstellungen
 

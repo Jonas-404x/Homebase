@@ -11,7 +11,7 @@ export function Appearance() {
   return (
     <div className="stack-l">
       <Group footer="Färbt Knöpfe, Links, die aktive Navigation und die Verlaufskurven.">
-        <Row label="Akzentfarbe">
+        <Row label="Akzentfarbe" stacked>
           <div className="swatches" role="radiogroup" aria-label="Akzentfarbe">
             {ACCENTS.map((a) => (
               <label key={a} className="swatch-option" title={ACCENT_NAMES[a]}>

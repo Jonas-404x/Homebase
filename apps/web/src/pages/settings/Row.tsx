@@ -30,9 +30,10 @@ export function useSave() {
 export const SERVER_ONLY = 'Nur auf dem Server';
 
 /** Eine Zeile: Beschriftung (mit Hinweis) links, Bedienelement rechts. Auf dem Handy untereinander. */
-export function Row({ label, hint, children, id, disabledReason }: { label: string; hint?: ReactNode; children?: ReactNode; id?: string; disabledReason?: string }) {
+export function Row({ label, hint, children, id, disabledReason, stacked }: { label: string; hint?: ReactNode; children?: ReactNode; id?: string; disabledReason?: string; stacked?: boolean }) {
+  const cls = ['setting-row', disabledReason && 'setting-row-disabled', stacked && 'setting-row-stacked'].filter(Boolean).join(' ');
   return (
-    <div className={disabledReason ? 'setting-row setting-row-disabled' : 'setting-row'}>
+    <div className={cls}>
       <div className="setting-text">
         <label className="setting-label" htmlFor={id}>
           {label}

@@ -1112,6 +1112,13 @@ body {
 .setting-label {
   font-weight: 500;
 }
+.setting-row-stacked {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.setting-row-stacked .setting-control {
+  max-width: 100%;
+}
 .setting-row-disabled .setting-label {
   color: var(--text-secondary);
 }
