@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react';
-import { errorText, post } from '../api/client.ts';
+import { ApiErrorException, errorText, post } from '../api/client.ts';
 
 /** Gemeinsames Formular für die Einrichtung (Setup) und „Anmelden“ (Login). */
 export function AuthScreen({ mode, onDone }: { mode: 'setup' | 'login'; onDone: () => void }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
+  const [needCode, setNeedCode] = useState(false);
+  const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const setup = mode === 'setup';
@@ -15,10 +17,11 @@ export function AuthScreen({ mode, onDone }: { mode: 'setup' | 'login'; onDone: 
     setBusy(true);
     setError(null);
     try {
-      await post(setup ? '/api/auth/setup' : '/api/auth/login', { username, password, remember });
+      await post(setup ? '/api/auth/setup' : '/api/auth/login', needCode ? { username, password, remember, code: code.trim() } : { username, password, remember });
       onDone();
     } catch (err) {
-      setError(errorText(err));
+      if (err instanceof ApiErrorException && err.code === 'code_required') setNeedCode(true);
+      else setError(errorText(err));
     } finally {
       setBusy(false);
     }
@@ -58,6 +61,27 @@ export function AuthScreen({ mode, onDone }: { mode: 'setup' | 'login'; onDone: 
           />
         </label>
         {setup && <p className="hint">Passwort mit mindestens 8 Zeichen.</p>}
+        {needCode && (
+          <>
+            <label className="field">
+              <span>Code</span>
+              <input
+                type="text"
+                name="code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoCapitalize="none"
+                spellCheck={false}
+                maxLength={9}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                autoFocus
+                required
+              />
+            </label>
+            <p className="hint">Die 6 Ziffern aus deiner Authenticator-App. Handy weg? Dann einen Wiederherstellungs-Code eingeben.</p>
+          </>
+        )}
         <label className="check">
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
           <span>Angemeldet bleiben</span>

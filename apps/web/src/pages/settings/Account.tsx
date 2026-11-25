@@ -5,6 +5,7 @@ import { api, errorText, post } from '../../api/client.ts';
 import { usePrefs } from '../../api/prefs.tsx';
 import { dateTime } from '../../format.ts';
 import { ConfirmWithPassword } from './ConfirmWithPassword.tsx';
+import { TwoFactor } from './TwoFactor.tsx';
 import { Choice, Group, Row, useSave, useSettings } from './Row.tsx';
 
 interface Device {
@@ -140,6 +141,8 @@ export function Account() {
           />
         </Row>
       </Group>
+
+      <TwoFactor />
 
       <Group title="Angemeldete Geräte">
         {devices === null ? (

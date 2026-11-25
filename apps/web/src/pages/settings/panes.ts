@@ -32,7 +32,7 @@ export const PANES: Pane[] = [
   {
     id: 'account',
     title: 'Konto & Sicherheit',
-    summary: 'Benutzername, Passwort, angemeldete Geräte',
+    summary: 'Passwort, Zwei-Faktor, angemeldete Geräte',
     icon: UserRound,
     keywords: ['konto', 'sicherheit', 'login'],
     rows: [
@@ -40,6 +40,7 @@ export const PANES: Pane[] = [
       { label: 'Passwort ändern', keywords: ['kennwort', 'passwort'] },
       { label: 'Angemeldete Geräte', keywords: ['sitzung', 'session', 'abmelden', 'handy'] },
       { label: 'Angemeldet bleiben', keywords: ['tage', 'sitzung'] },
+      { label: 'Zwei-Faktor-Anmeldung', keywords: ['2fa', 'authenticator', 'code', 'totp', 'wiederherstellung'] },
       { label: 'Anmelde-Protokoll', keywords: ['log', 'verlauf', 'fehlgeschlagen'] },
       { label: 'Auf diesem Gerät abmelden', keywords: ['logout', 'abmelden'] },
     ],
@@ -74,13 +75,16 @@ export const PANES: Pane[] = [
   {
     id: 'network',
     title: 'Netzwerk',
-    summary: 'Adressen, Handy-Zugang',
+    summary: 'Adressen, Handy-Zugang, Überwachung',
     icon: Network,
     keywords: ['ip', 'lan', 'wlan'],
     rows: [
       { label: 'Adressen', keywords: ['ip', 'hostname', 'port'] },
       { label: 'Am Handy öffnen', keywords: ['qr', 'code', 'iphone', 'scannen'] },
       { label: 'Fernzugriff', keywords: ['tailscale', 'unterwegs', 'vpn'] },
+      { label: 'Prüfintervall', keywords: ['dienste', 'erreichbar', 'uptime', 'sekunden'] },
+      { label: 'Automatischer Scan', keywords: ['geräte', 'scan', 'wlan', 'neu'] },
+      { label: 'Speedtest', keywords: ['internet', 'geschwindigkeit', 'download', 'upload'] },
       { label: 'Netzwerkfreigabe', keywords: ['smb', 'explorer', 'laufwerk', 'samba'] },
     ],
   },

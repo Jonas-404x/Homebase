@@ -1893,3 +1893,21 @@ select.input {
     width: 56px;
   }
 }
+
+/* ---------- Zwei-Faktor ---------- */
+
+.recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: var(--space-3);
+  list-style: none;
+  border-radius: var(--radius-s);
+  background: var(--surface-sunken);
+}
+.totp-secret {
+  overflow-wrap: anywhere;
+  font-size: var(--text-small);
+  user-select: all;
+}

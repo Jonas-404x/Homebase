@@ -1,6 +1,8 @@
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
-import { Group, Row, SERVER_ONLY, useSettings } from './Row.tsx';
+import { defaultPrefs } from '@mainframe/shared';
+import { usePrefs } from '../../api/prefs.tsx';
+import { Choice, Group, Row, SERVER_ONLY, useSave, useSettings } from './Row.tsx';
 
 /** Tailscale vergibt Adressen aus 100.64.0.0/10. */
 export const isTailscale = (ip: string) => {
@@ -34,6 +36,8 @@ function Qr({ url }: { url: string | null }) {
 
 export function NetworkPane() {
   const { info } = useSettings();
+  const prefs = usePrefs().prefs ?? defaultPrefs;
+  const save = useSave();
   const lan = info?.addresses.find((a) => !isTailscale(a.ip))?.ip;
   const ts = info?.addresses.find((a) => isTailscale(a.ip))?.ip;
   const url = info && lan ? `http://${lan}:${info.port}` : null;
@@ -68,6 +72,32 @@ export function NetworkPane() {
         ) : (
           <Row label="Fernzugriff" hint="Von unterwegs über Tailscale, ohne Ports am Router zu öffnen." disabledReason="Tailscale ist noch nicht eingerichtet" />
         )}
+      </Group>
+      <Group title="Überwachung" footer="Gilt für den Bereich Dienste. Ein Speedtest lädt jedes Mal rund 30 MB.">
+        <Row label="Prüfintervall" hint="Wie oft Apps und Links auf Erreichbarkeit geprüft werden.">
+          <Choice
+            label="Prüfintervall"
+            value={prefs.checkIntervalSec}
+            options={[{ value: 30, label: '30 Sek.' }, { value: 60, label: '1 Min.' }, { value: 300, label: '5 Min.' }]}
+            onChange={(v) => void save({ checkIntervalSec: v })}
+          />
+        </Row>
+        <Row label="Automatischer Scan" hint="Sucht neue Geräte im WLAN und meldet sie.">
+          <Choice
+            label="Automatischer Scan"
+            value={prefs.scanMinutes}
+            options={[{ value: 0, label: 'Aus' }, { value: 15, label: '15 Min.' }, { value: 60, label: '1 Std.' }, { value: 360, label: '6 Std.' }]}
+            onChange={(v) => void save({ scanMinutes: v })}
+          />
+        </Row>
+        <Row label="Speedtest" hint="Misst die Internet-Geschwindigkeit von selbst.">
+          <Choice
+            label="Speedtest"
+            value={prefs.speedtestHours}
+            options={[{ value: 0, label: 'Aus' }, { value: 6, label: 'alle 6 Std.' }, { value: 24, label: 'täglich' }]}
+            onChange={(v) => void save({ speedtestHours: v })}
+          />
+        </Row>
       </Group>
       <Group title="Später">
         <Row label="Netzwerkfreigabe" hint="Den Speicher des Servers im Windows-Explorer als Laufwerk sehen." disabledReason={later} />
