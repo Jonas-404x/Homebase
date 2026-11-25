@@ -69,7 +69,7 @@ export function Overview() {
       setLive((h) =>
         [
           ...h,
-          { at: Date.now(), cpu: s.cpu.loadPercent, memory: s.memory.totalBytes ? (s.memory.usedBytes / s.memory.totalBytes) * 100 : 0, rx: s.network.rxBytesPerSec, tx: s.network.txBytesPerSec },
+          { at: Date.now(), cpu: s.cpu.loadPercent, memory: s.memory.totalBytes ? (s.memory.usedBytes / s.memory.totalBytes) * 100 : 0, rx: s.network.rxBytesPerSec, tx: s.network.txBytesPerSec, temp: s.temperatureC },
         ].slice(-MAX_LIVE),
       );
     }, []),
