@@ -73,11 +73,11 @@ describe('Hilfen', () => {
 });
 
 function fakeDeps(over: Partial<ScanDeps> = {}): ScanDeps & { arp: string } {
-  const d = {
+  const d: ScanDeps & { arp: string } = {
     arp: WINDOWS,
     lan: () => ({ prefix: '192.168.1', self: '192.168.1.20', mac: '0a:0b:0c:0d:0e:0f' }),
     sweep: async () => {},
-    readArp: async () => d.arp,
+    readArp: async (): Promise<string> => d.arp,
     reverse: async (ip: string) => (ip === '192.168.1.1' ? 'router.local' : null),
     vendor: (mac: string) => (mac.startsWith('3c:a6:2f') ? 'AVM GmbH' : null),
     selfName: () => 'mainframe-pc',
