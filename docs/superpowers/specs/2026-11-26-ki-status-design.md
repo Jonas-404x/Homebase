@@ -31,6 +31,7 @@ Erfolg heißt: Jonas sieht in der Übersicht nicht nur, dass etwas kaputt ist, s
 - Die KI führt nichts aus: kein Neustart, keine Einstellung, kein Knopf.
 - Keine Benachrichtigung aufs Handy. Das kommt mit Teil 6. Dann kann das Pop-up dort mitgeschickt werden.
 - Kein Anbieter außer Gemini. Die Schnittstelle erlaubt später weitere Anbieter.
+- Keine Schlüssel von mehreren Google-Konten, um die kostenlosen Limits zu vervielfachen (Jonas hat gefragt). Googles Bedingungen verbieten es, Limits zu umgehen, und das kann zur Sperre der Konten führen. Außerdem ist es unnötig, weil Mainframe nur wenige Anfragen am Tag stellt.
 
 **Anti-Ziele (wäre ein Fehlschlag, auch wenn es technisch läuft)**
 - Es entstehen Kosten oder eine Rechnung.
