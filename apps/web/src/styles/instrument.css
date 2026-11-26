@@ -502,3 +502,19 @@ p,
     display: none;
   }
 }
+
+/* ---------- Logo: eigene Kachel mit feiner Kante, damit es sich vom Graphit-Hintergrund abhebt ---------- */
+
+.nav-brand img,
+.auth-logo,
+.about-logo {
+  border-radius: 22%;
+  box-shadow: 0 0 0 1px rgb(255 240 225 / 0.14), 0 2px 8px rgb(0 0 0 / 0.35);
+}
+@media (prefers-color-scheme: light) {
+  .nav-brand img,
+  .auth-logo,
+  .about-logo {
+    box-shadow: 0 1px 3px rgb(60 40 20 / 0.2);
+  }
+}
