@@ -1,4 +1,4 @@
-import { CircleAlert, CircleCheck, Info, Stethoscope, TriangleAlert } from 'lucide-react';
+import { ChevronDown, CircleAlert, CircleCheck, Info, Stethoscope, TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import type { InstalledApp, StatusItem, StatusReport } from '@mainframe/shared';
@@ -15,6 +15,7 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
   const [report, setReport] = useState<StatusReport | null>(null);
   const [failed, setFailed] = useState(false);
   const [diagnose, setDiagnose] = useState<{ target: string; title: string } | null>(null);
+  const [showHints, setShowHints] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -38,6 +39,10 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
     });
 
   const level = report?.level ?? 'ok';
+  // Hinweise (grau) brauchen nichts von dir: zugeklappt, damit die Werte darunter sichtbar bleiben.
+  const important = report?.items.filter((i) => i.level !== 'info') ?? [];
+  const hints = report?.items.filter((i) => i.level === 'info') ?? [];
+  const shown = showHints ? [...important, ...hints] : important;
   const HeadIcon = level === 'ok' ? CircleCheck : level === 'warn' ? TriangleAlert : CircleAlert;
 
   return (
@@ -52,9 +57,9 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
           Alles prüfen
         </button>
       </div>
-      {report && report.items.length > 0 && (
+      {shown.length > 0 && (
         <ul className="status-items">
-          {report.items.map((item) => {
+          {shown.map((item) => {
             const Icon = ICON[item.level];
             return (
               <li key={item.id} className={`status-item status-item-${item.level}`}>
@@ -79,6 +84,12 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
             );
           })}
         </ul>
+      )}
+      {hints.length > 0 && (
+        <button type="button" className="status-hints-toggle" aria-expanded={showHints} onClick={() => setShowHints((v) => !v)}>
+          <ChevronDown aria-hidden="true" size={16} className={showHints ? 'chevron-open' : undefined} />
+          {showHints ? 'Hinweise ausblenden' : hints.length === 1 ? '1 Hinweis' : `${hints.length} Hinweise`}
+        </button>
       )}
       {diagnose && (
         <DiagnoseDialog

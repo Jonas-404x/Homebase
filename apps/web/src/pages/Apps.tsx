@@ -37,7 +37,7 @@ function UsageLine({ app, usage, units }: { app: InstalledApp; usage: AppUsage |
   if (!usage) return null;
   const parts: string[] = [];
   if (app.state === 'running' || app.state === 'restarting') parts.push(`CPU ${percent(usage.cpuPercent)}`, `RAM ${size(usage.memBytes, units)}`);
-  if (usage.diskBytes !== null) parts.push(`Speicher ${size(usage.diskBytes, units)}`);
+  if (usage.diskBytes !== null) parts.push(`Speicher ${usage.diskBytes > 0 && usage.diskBytes < 1e6 ? 'unter 1 MB' : size(usage.diskBytes, units)}`);
   return parts.length > 0 ? <p className="secondary small app-usage">{parts.join(' · ')}</p> : null;
 }
 

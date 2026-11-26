@@ -78,6 +78,22 @@ describe('Apps-Seite', () => {
     expect(screen.queryByText(/CPU/)).not.toBeInTheDocument();
   });
 
+  it('zeigt sehr wenig Speicher als „unter 1 MB“ statt 0 MB', async () => {
+    mockApi({
+      'GET /api/catalog': () => ({ json: [demoCatalog] }),
+      'GET /api/apps': () => ({ json: [demoInstalled] }),
+      'GET /api/apps/usage': () => ({ json: [{ appId: 'demo', cpuPercent: 0, memBytes: 15_000_000, diskBytes: 200_000 }] }),
+    });
+    render(
+      <MemoryRouter>
+        <LiveProvider socket={fakeSocket()}>
+          <Apps />
+        </LiveProvider>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('CPU 0,0 % · RAM 15 MB · Speicher unter 1 MB')).toBeInTheDocument();
+  });
+
   it('öffnet die Diagnose einer App', async () => {
     const { calls } = renderApps();
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Diagnose von Demo' }));

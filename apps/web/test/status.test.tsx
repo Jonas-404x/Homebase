@@ -48,6 +48,10 @@ describe('Statusübersicht', () => {
     mockApi({ 'GET /api/status': () => ({ json: report }) });
     renderAt(<StatusPanel apps={apps} />);
     expect(await screen.findByRole('heading', { name: '2 Sachen brauchen dich' })).toBeInTheDocument();
+    // Hinweise sind zugeklappt.
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.queryByText('Zwei-Faktor-Anmeldung ist aus')).not.toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('button', { name: '1 Hinweis' }));
     const items = screen.getAllByRole('listitem');
     expect(items).toHaveLength(3);
     expect(within(items[0]!).getByLabelText('Problem')).toBeInTheDocument();
