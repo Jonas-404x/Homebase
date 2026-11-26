@@ -70,9 +70,11 @@ export function createAiEngine(opts: {
   providerFor: (apiKey: string, model: string) => AiProvider;
   onTexts?: () => void;
   now?: () => number;
+  debounceMs?: number;
 }): AiEngine {
   const { db, store, config } = opts;
   const now = opts.now ?? Date.now;
+  const debounceMs = opts.debounceMs ?? DEBOUNCE_MS;
   const budget = createBudget(db, now);
   let latest: StatusSnapshot | null = null;
   let pending: { fingerprint: string; since: number; timer: NodeJS.Timeout } | null = null;
@@ -181,7 +183,7 @@ export function createAiEngine(opts: {
       }
       if (pending?.fingerprint === s.fingerprint) return;
       const waited = pending ? now() - pending.since : 0;
-      schedule(s.fingerprint, waited >= MAX_WAIT_MS ? 0 : DEBOUNCE_MS);
+      schedule(s.fingerprint, waited >= MAX_WAIT_MS ? 0 : debounceMs);
     },
 
     observeHints(s) {

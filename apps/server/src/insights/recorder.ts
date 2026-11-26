@@ -14,6 +14,8 @@ export interface Recorder {
   observeApps(apps: InstalledApp[], inspects: Map<string, AppInspect | null>): void;
   /** Du hast eine App gestartet, gestoppt oder neu gestartet. */
   userAction(appId: string, action: UserAction): void;
+  /** Ist wieder eine Messung pro App fällig? (docker stats dauert, deshalb vorher fragen) */
+  usageDue(): boolean;
   sampleUsage(usage: AppUsage[]): void;
   sampleDisks(stats: SystemStats): void;
 }
@@ -66,6 +68,7 @@ export function createRecorder(opts: { store: InsightsStore; now?: () => number 
       userAt.set(appId, now());
       store.addEvent({ at: now(), appId, kind: action === 'stop' ? 'stopped' : 'started', detail: null });
     },
+    usageDue: () => now() - usageAt >= USAGE_EVERY_MS,
     sampleUsage(usage) {
       const at = now();
       if (at - usageAt < USAGE_EVERY_MS || usage.length === 0) return;

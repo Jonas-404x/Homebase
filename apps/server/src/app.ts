@@ -24,7 +24,14 @@ import { registerDeviceRoutes } from './network/routes.ts';
 import { realScanDeps, type ScanDeps } from './network/scanner.ts';
 import { registerInternetRoutes, type InternetDeps } from './internet/routes.ts';
 import { createPrefsStore, type PrefsStore } from './prefs/store.ts';
-import { registerStatusRoutes } from './status/routes.ts';
+import { buildStatusReport, registerStatusRoutes, type StatusSources } from './status/routes.ts';
+import { createAiEngine } from './ai/engine.ts';
+import { createGeminiProvider } from './ai/gemini.ts';
+import { registerAiRoutes } from './ai/routes.ts';
+import { createAiConfig } from './ai/settings.ts';
+import type { AiProvider } from './ai/types.ts';
+import { createInsights, type Insights } from './insights/loop.ts';
+import { createInsightsStore } from './insights/store.ts';
 import { registerDiagnoseRoutes } from './diagnose/routes.ts';
 import { realDiagnoseDeps, type DiagnoseDeps } from './diagnose/facts.ts';
 
@@ -33,6 +40,7 @@ declare module 'fastify' {
     hub: WsHub;
     prefs: PrefsStore;
     events: EventLog;
+    insights: Insights;
   }
 }
 
@@ -62,6 +70,12 @@ export interface AppDeps {
   diagnose?: DiagnoseDeps;
   /** Quelle für Detailansicht und Prozess-Liste (Tests). */
   system?: SystemSource;
+  /** Takt der Hinweise (Verlauf, Vorfälle, Muster, KI), 0 = aus (Tests). Standard 30000. */
+  insightsIntervalMs?: number;
+  /** Anbieter für die KI-Hinweise (Tests); Standard ist Gemini. */
+  aiProvider?: (apiKey: string, model: string) => AiProvider;
+  /** Abwarten vor einer KI-Anfrage (Tests: 0). Standard 2 Minuten. */
+  aiDebounceMs?: number;
   /** Weitere Routen (z. B. AdGuard), die Zugriff auf Engine und Hub brauchen. */
   plugins?: ((app: FastifyInstance) => void | Promise<void>)[];
 }
@@ -130,11 +144,39 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     events,
     system: deps.system,
   });
-  if (deps.engine) registerAppRoutes(app, deps.engine, hub);
+  // Erst Insights anlegen, damit die App-Routen deine Starts und Stopps melden können.
+  let onUserAction: ((id: string, action: 'start' | 'stop' | 'restart' | 'install') => void) | undefined;
+  if (deps.engine) registerAppRoutes(app, deps.engine, hub, (id, action) => onUserAction?.(id, action));
   const services = registerServiceRoutes(app, { db: deps.db, prefs, events, engine: deps.engine, intervalMs: deps.checkIntervalMs });
   const internet = registerInternetRoutes(app, { db: deps.db, prefs, events, deps: deps.internet, intervalMs: deps.internetIntervalMs });
   const devices = registerDeviceRoutes(app, { db: deps.db, prefs, events, deps: deps.network ?? realScanDeps(deps.config.dataRoot), intervalMs: deps.scanIntervalMs });
-  registerStatusRoutes(app, { db: deps.db, prefs, engine: deps.engine, stats: recentStats, services: services.list, internetOnline: internet.online, devices: devices.list });
+  const statusSources: StatusSources = { db: deps.db, prefs, engine: deps.engine, stats: recentStats, services: services.list, internetOnline: internet.online, devices: devices.list };
+  const aiConfig = createAiConfig(deps.db);
+  const insightsStore = createInsightsStore(deps.db);
+  // Offene Browser bekommen die Übersicht neu, sobald es KI-Texte, Vorfälle oder Hinweise gibt.
+  let pushing = false;
+  const pushStatus = () => {
+    if (pushing || hub.clientCount() === 0) return;
+    pushing = true;
+    void buildStatusReport(statusSources, insights)
+      .then((data) => hub.broadcast({ type: 'status', data }))
+      .catch((err: unknown) => app.log.warn({ err }, 'Statusübersicht konnte nicht verschickt werden'))
+      .finally(() => (pushing = false));
+  };
+  const ai = createAiEngine({
+    db: deps.db,
+    store: insightsStore,
+    config: aiConfig,
+    providerFor: deps.aiProvider ?? ((apiKey, model) => createGeminiProvider({ apiKey, model })),
+    onTexts: pushStatus,
+    debounceMs: deps.aiDebounceMs,
+  });
+  const insights = createInsights({ db: deps.db, store: insightsStore, sources: statusSources, engine: deps.engine, ai, config: aiConfig, push: pushStatus, intervalMs: deps.insightsIntervalMs ?? 30_000 });
+  onUserAction = insights.userAction;
+  app.decorate('insights', insights);
+  app.addHook('onClose', async () => insights.stop());
+  registerStatusRoutes(app, { ...statusSources, insights });
+  registerAiRoutes(app, { config: aiConfig, ai, onChange: pushStatus });
   registerDiagnoseRoutes(app, { stats: recentStats, services: services.list, prefs, engine: deps.engine, deps: deps.diagnose ?? realDiagnoseDeps });
   for (const p of deps.plugins ?? []) await p(app);
 
