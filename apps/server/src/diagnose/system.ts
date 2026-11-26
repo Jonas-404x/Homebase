@@ -26,6 +26,10 @@ export function diagnoseSystem(f: SystemFacts): DiagnoseReport {
         if (!detail.endsWith('.')) detail += '.';
       } else if (app.state === 'restarting') detail = 'Startet ständig neu.';
       else if (app.state === 'running' && app.health === 'unhealthy') detail = 'Meldet „ungesund“.';
+      else if (app.state === 'running') {
+        const web = f.services.find((s) => s.id === `app:${app.id}`);
+        if (web?.up === false) detail = `Weboberfläche: ${web.reason ?? 'Antwortet nicht'}.`;
+      }
       steps.push(detail === null
         ? step(id, app.name, true, 'Läuft.')
         : step(id, app.name, false, detail, 'Öffne die Diagnose der App für Details.', { kind: 'link', to: '/apps', label: 'Zu den Apps' }));

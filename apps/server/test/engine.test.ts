@@ -1,11 +1,11 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComposeRunner } from '../src/apps/compose-runner.ts';
 import type { AppInspect, DockerStatus } from '../src/apps/docker-status.ts';
 import type { DfLike } from '../src/apps/usage.ts';
-import { createAppEngine } from '../src/apps/engine.ts';
+import { createAppEngine, DOCKER_DOWN_MESSAGE } from '../src/apps/engine.ts';
 import { createStateStore } from '../src/apps/state-store.ts';
 import { loadCatalog } from '../src/catalog/loader.ts';
 import { testConfig } from './helpers.ts';
@@ -183,9 +183,51 @@ describe('AppEngine', () => {
     await engine.install('demo', { greeting: 'hi' });
     docker.containers.set('demo', [{ state: 'running' }, { state: 'restarting' }]);
     expect((await engine.list())[0]!.state).toBe('restarting');
+    await engine.stop('demo');
     docker.containers.set('demo', [{ state: 'exited' }]);
     expect((await engine.list())[0]!.state).toBe('stopped');
   });
+
+  it('meldet eine unerwartet beendete App als Fehler, eine selbst gestoppte als gestoppt (Final-Review)', async () => {
+    const { engine, docker } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    docker.containers.set('demo', [{ state: 'exited' }]);
+    expect((await engine.list())[0]).toMatchObject({ state: 'error', error: 'Die App ist unerwartet beendet.' });
+    await engine.stop('demo');
+    expect((await engine.list())[0]).toMatchObject({ state: 'stopped', error: null });
+    await engine.start('demo');
+    expect((await engine.list())[0]!.state).toBe('error');
+    await engine.stop('demo');
+    await engine.restart('demo');
+    expect((await engine.list())[0]!.state).toBe('error');
+  });
+
+  it('wartet nicht ewig auf ein hängendes Docker (Final-Review)', async () => {
+    const { engine, docker } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    const never = () => new Promise<never>(() => {});
+    docker.containersByApp = never;
+    docker.usage = never;
+    const t = Date.now();
+    const [list, usage] = await Promise.all([engine.list(), engine.usage()]);
+    expect(Date.now() - t).toBeLessThan(5000);
+    expect(list[0]).toMatchObject({ state: 'error', error: DOCKER_DOWN_MESSAGE });
+    expect(usage).toEqual([]);
+  }, 10_000);
+
+  it('wartet beim Speicher höchstens kurz und misst nie doppelt (Final-Review)', async () => {
+    const { engine, docker } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    let finish: (v: { Containers: []; Volumes: [] }) => void = () => {};
+    docker.df = () => { docker.dfCalls++; return new Promise((r) => { finish = r; }); };
+    const t = Date.now();
+    expect((await engine.usage())[0]).toMatchObject({ appId: 'demo', diskBytes: null });
+    expect(Date.now() - t).toBeLessThan(3000);
+    await engine.usage();
+    expect(docker.dfCalls).toBe(1);
+    finish({ Containers: [], Volumes: [] });
+    await vi.waitFor(async () => expect((await engine.usage())[0]!.diskBytes).not.toBeNull());
+  }, 10_000);
 
   it('meldet einen ungesunden Container, auch wenn er läuft', async () => {
     const { engine, docker } = await make();

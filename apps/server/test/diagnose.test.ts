@@ -128,7 +128,7 @@ describe('App-Diagnose', () => {
   });
 
   it('meldet den höchsten Neustartzähler und Fehler ohne Neustart', () => {
-    const r = diagnoseApp(appFacts({ inspect: { containers: [container({ restartCount: 2 }), container({ restartCount: 7 })], logs: [] } }));
+    const r = diagnoseApp(appFacts({ inspect: { containers: [container({ restartCount: 2, state: 'restarting' }), container({ restartCount: 7, state: 'restarting' })], logs: [] } }));
     expect(getStep(r, 'crashes').detail).toBe('7-mal neu gestartet.');
     const failed = diagnoseApp(appFacts({ inspect: { containers: [container({ state: 'exited', exitCode: 3 })], logs: [] } }));
     expect(getStep(failed, 'crashes').detail).toBe('Beendet mit Fehlercode 3.');
@@ -358,4 +358,34 @@ describe('Diagnose-Routen', () => {
     expect(res.statusCode).toBe(200);
     expect(getStep(res.json<DiagnoseReport>(), 'docker')).toMatchObject({ ok: false, detail: 'Docker läuft nicht.' });
   }, 15000);
+});
+
+describe('Diagnose (Final-Review)', () => {
+  it('meldet einen ungesunden Container als Problem', () => {
+    const r = diagnoseApp(appFacts({ app: installed({ health: 'unhealthy' }), inspect: { containers: [container({ health: 'unhealthy' })], logs: [] } }));
+    expect(r.ok).toBe(false);
+    expect(getStep(r, 'health')).toMatchObject({ ok: false, label: 'Gesundheits-Check', action: restart });
+    expect(getStep(diagnoseApp(appFacts({ inspect: { containers: [container({ health: 'healthy' })], logs: [] } })), 'health')).toMatchObject({ ok: true });
+    expect(diagnoseApp(appFacts()).steps.find((s) => s.id === 'health')).toBeUndefined();
+  });
+
+  it('zählt einen selbst gestoppten Container nicht als Absturz', () => {
+    const r = diagnoseApp(appFacts({ app: installed({ state: 'stopped' }), inspect: { containers: [container({ state: 'exited', exitCode: 143 })], logs: [] } }));
+    expect(getStep(r, 'container')).toMatchObject({ ok: null, detail: 'Du hast die App angehalten.' });
+    expect(getStep(r, 'crashes')).toMatchObject({ ok: null });
+    expect(r.ok).toBe(true);
+  });
+
+  it('meldet alte Neustarts einer laufenden App nicht mehr', () => {
+    const old = new Date(Date.now() - 3600_000).toISOString();
+    const recent = new Date(Date.now() - 60_000).toISOString();
+    expect(getStep(diagnoseApp(appFacts({ inspect: { containers: [container({ restartCount: 2, startedAt: old })], logs: [] } })), 'crashes')).toMatchObject({ ok: true });
+    expect(getStep(diagnoseApp(appFacts({ inspect: { containers: [container({ restartCount: 2, startedAt: recent })], logs: [] } })), 'crashes')).toMatchObject({ ok: false, detail: '2-mal neu gestartet.' });
+  });
+
+  it('nimmt im System-Check die Weboberfläche der Apps mit', () => {
+    const r = diagnoseSystem(systemFacts({ services: [service({ id: 'app:adguard', name: 'AdGuard Home', kind: 'app', up: false, reason: 'Antwortet mit Fehler 502' })] }));
+    expect(getStep(r, 'app:adguard')).toMatchObject({ ok: false, detail: 'Weboberfläche: Antwortet mit Fehler 502.' });
+    expect(r.ok).toBe(false);
+  });
 });

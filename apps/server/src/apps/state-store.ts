@@ -6,6 +6,8 @@ export interface AppStateFile {
   values: Record<string, string>;
   installedAt: string;
   lastError: string | null;
+  /** Von dir über Mainframe angehalten: dann ist ein beendeter Container kein Fehler. */
+  stoppedByUser?: boolean;
 }
 
 export interface StateStore {

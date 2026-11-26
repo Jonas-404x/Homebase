@@ -257,6 +257,17 @@ describe('/api/services', () => {
     await app.close();
   });
 
+  it('zählt eine App, deren Gesundheits-Check noch startet, nicht als funktionierend (Final-Review)', async () => {
+    const apps: InstalledApp[] = [{ id: 'adguard', name: 'AdGuard Home', state: 'running', health: 'starting', error: null, webUiUrl: ':3000/', installedAt: '' }];
+    const deps = testDeps({ checkIntervalMs: 0, engine: engineWith(apps) });
+    createServiceStore(deps.db).addCheck('app:adguard', Date.now() - 10_000, true, 10);
+    const app = await buildApp(deps);
+    const cookie = await setupAndLogin(app);
+    const [s] = (await app.inject({ method: 'GET', url: '/api/services', headers: { cookie } })).json() as ServiceStatus[];
+    expect([s!.up, s!.reason]).toEqual([null, null]);
+    await app.close();
+  });
+
   it('braucht eine Anmeldung', async () => {
     const app = await buildApp(testDeps({ checkIntervalMs: 0 }));
     expect((await app.inject({ method: 'GET', url: '/api/services' })).statusCode).toBe(401);

@@ -117,7 +117,7 @@ export function DiagnoseDialog({ target, title, onClose }: { target: string; tit
           </ol>
         )}
         <div className="dialog-actions">
-          <button type="button" className="button" onClick={() => void run()}>
+          <button type="button" className="button" disabled={acting} onClick={() => void run()}>
             Noch mal prüfen
           </button>
           <button type="button" className="button button-primary" onClick={onClose}>

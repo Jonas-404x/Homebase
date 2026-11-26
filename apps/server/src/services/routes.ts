@@ -46,7 +46,7 @@ const percent = (s: { total: number; ok: number }) => (s.total === 0 ? null : Ma
 export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; prefs: PrefsStore; events?: EventLog; engine?: AppEngine; intervalMs?: number }): { list: () => Promise<ServiceStatus[]> } {
   const store = createServiceStore(opts.db);
 
-  const all = async (): Promise<(Target & { stopped: boolean })[]> => {
+  const all = async (): Promise<(Target & { stopped: boolean; pending: boolean })[]> => {
     const apps = opts.engine ? await opts.engine.list().catch(() => []) : [];
     return [
       ...apps
@@ -58,8 +58,10 @@ export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; pref
           kind: 'app' as const,
           stopped: a.state === 'stopped',
           blocked: containerProblem(a),
+          // Healthcheck noch nicht durch: weder "funktioniert" noch "kaputt", sondern noch offen.
+          pending: a.state === 'running' && a.health === 'starting',
         })),
-      ...store.listLinks().map((l) => ({ id: `link:${l.id}`, name: l.name, url: l.url, kind: 'link' as const, stopped: false, blocked: null })),
+      ...store.listLinks().map((l) => ({ id: `link:${l.id}`, name: l.name, url: l.url, kind: 'link' as const, stopped: false, blocked: null, pending: false })),
     ];
   };
   const checker = createChecker({ store, events: opts.events, targets: async () => (await all()).filter((t) => !t.stopped) });
@@ -69,7 +71,7 @@ export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; pref
     return (await all()).map((t) => {
       const last = t.stopped ? null : store.last(t.id);
       // Ein gestörter Container zählt sofort, nicht erst nach der nächsten Prüfrunde.
-      const up = t.stopped ? null : t.blocked ? false : last ? last.ok : null;
+      const up = t.stopped || (t.pending && !t.blocked) ? null : t.blocked ? false : last ? last.ok : null;
       return {
         id: t.id,
         name: t.name,

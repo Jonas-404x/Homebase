@@ -1,5 +1,5 @@
 import { ChevronDown, CircleAlert, CircleCheck, Info, Stethoscope, TriangleAlert } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import type { InstalledApp, StatusItem, StatusReport } from '@mainframe/shared';
 import { api } from '../api/client.ts';
@@ -17,11 +17,19 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
   const [diagnose, setDiagnose] = useState<{ target: string; title: string } | null>(null);
   const [showHints, setShowHints] = useState(false);
 
+  // Nur die neueste Anfrage darf den Stand setzen; ältere, langsamere Antworten werden verworfen.
+  const generation = useRef(0);
   const load = useCallback(async () => {
+    const mine = ++generation.current;
     try {
-      setReport(await api<StatusReport>('/api/status'));
+      const next = await api<StatusReport>('/api/status');
+      if (mine !== generation.current) return;
+      setReport(next);
       setFailed(false);
     } catch {
+      if (mine !== generation.current) return;
+      // Keinen alten Stand stehen lassen: "Alles läuft" von vor Minuten wäre irreführend.
+      setReport(null);
       setFailed(true);
     }
   }, []);

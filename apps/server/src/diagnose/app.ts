@@ -22,7 +22,11 @@ export function diagnoseApp(f: AppFacts): DiagnoseReport {
   const restart: DiagnoseAction = { kind: 'restart-app', appId: f.app.id };
   const containers = f.inspect?.containers ?? [];
   const running = containers.length > 0 && containers.every((c) => c.state === 'running');
-  if (containers.length === 0) {
+  // Von dir angehalten: kein Absturz, nur ein Hinweis.
+  const byUser = f.app.state === 'stopped' && !running;
+  if (byUser) {
+    steps.push(step('container', 'Container läuft', null, 'Du hast die App angehalten.'));
+  } else if (containers.length === 0) {
     steps.push(step('container', 'Container läuft', false, 'Für die App gibt es keinen Container.', 'Starte die App neu.', restart));
   } else if (running) {
     steps.push(step('container', 'Container läuft', true, containers.length === 1 ? 'Der Container läuft.' : 'Alle Container laufen.'));
@@ -32,9 +36,13 @@ export function diagnoseApp(f: AppFacts): DiagnoseReport {
   }
 
   const failed = containers.find((c) => c.state !== 'running' && c.exitCode !== 0);
-  const restarts = Math.max(0, ...containers.map((c) => c.restartCount));
+  // Neustarts zählen nur, wenn sie gerade passieren: der Zähler bleibt sonst wochenlang stehen.
+  const recent = (c: (typeof containers)[number]) => c.state === 'restarting' || (c.startedAt !== null && Date.now() - Date.parse(c.startedAt) < 10 * 60_000);
+  const restarts = Math.max(0, ...containers.filter(recent).map((c) => c.restartCount));
   const logFix = 'Schau unten ins Log, dort steht meist, was fehlt.';
-  if (containers.some((c) => c.oomKilled)) {
+  if (byUser) {
+    steps.push(step('crashes', 'Abstürze', null, 'Übersprungen, weil du die App angehalten hast.'));
+  } else if (containers.some((c) => c.oomKilled)) {
     steps.push(step('crashes', 'Abstürze', false, 'Der Container wurde beendet, weil der Arbeitsspeicher voll war.', 'Beende andere Apps oder gib dem Rechner mehr Arbeitsspeicher.', restart));
   } else if (failed) {
     steps.push(step('crashes', 'Abstürze', false, `Beendet mit Fehlercode ${failed.exitCode}` + (failed.restartCount > 0 ? `, ${failed.restartCount}-mal neu gestartet` : '') + '.', logFix, restart));
@@ -42,6 +50,13 @@ export function diagnoseApp(f: AppFacts): DiagnoseReport {
     steps.push(step('crashes', 'Abstürze', false, `${restarts}-mal neu gestartet.`, logFix, restart));
   } else {
     steps.push(step('crashes', 'Abstürze', true, 'Keine Abstürze.'));
+  }
+
+  const healths = containers.map((c) => c.health).filter((h) => h !== null);
+  if (running && healths.length > 0) {
+    if (healths.includes('unhealthy')) steps.push(step('health', 'Gesundheits-Check', false, 'Die App läuft, ihr eigener Gesundheits-Check schlägt aber fehl.', logFix, restart));
+    else if (healths.includes('starting')) steps.push(step('health', 'Gesundheits-Check', null, 'Der Gesundheits-Check läuft noch. Prüf in einer Minute noch mal.'));
+    else steps.push(step('health', 'Gesundheits-Check', true, 'Der Gesundheits-Check ist in Ordnung.'));
   }
 
   const errors = (f.inspect?.logs ?? []).filter((line) => /\b(error|fatal|exception|panic)\b/i.test(line)).slice(-3);
