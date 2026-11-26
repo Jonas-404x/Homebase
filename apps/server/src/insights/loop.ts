@@ -119,7 +119,8 @@ export function createInsights(opts: {
       if (engine && g.dockerOk) {
         await Promise.all(g.apps.map(async (a) => inspects.set(a.id, await within(engine.inspect(a.id).catch(() => null), null, INSPECT_TIMEOUT_MS))));
       }
-      recorder.observeApps(g.apps, inspects);
+      // Ohne Docker sieht jede App abgestürzt aus; das ist ein Docker-Vorfall, kein Absturz jeder App.
+      if (g.dockerOk) recorder.observeApps(g.apps, inspects);
       if (engine && g.dockerOk && recorder.usageDue()) recorder.sampleUsage(await within(engine.usage().catch(() => []), [], INSPECT_TIMEOUT_MS));
       if (g.stats) recorder.sampleDisks(g.stats);
       if (t - prunedAt >= HOUR) {

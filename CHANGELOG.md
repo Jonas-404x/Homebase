@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### AI hints in the status overview (server part)
+
+Rules still decide what exists, how urgent it is and which buttons a card has; the optional AI (Google Gemini, free tier) only phrases the text. Without a key, without internet or over the daily cap everything looks exactly like before. The UI for this comes in a later step.
+
+- **New history** in the local database: app events (restarts, crashes, your own start/stop) for 14 days, CPU and RAM per app every 5 minutes for 7 days, disk usage per drive every hour for 30 days. Your own restarts never count as a crash
+- **Patterns**: an app restarting in the same 1-hour window on at least 3 of 7 days, the daily RAM average rising 3 days in a row by at least 10 points, a drive that will be full in under 14 days at the 7-day rate. They show up as grey hints in `GET /api/status`
+- **Night spikes**: at 07:00 Mainframe looks at 00:00–07:00 for at least 10 minutes over a threshold (CPU fixed at 90 %, RAM and temperature use your warning thresholds) and adds a hint like "Um 02:40 war der Prozessor 20 Minuten bei bis zu 98 %, vor allem Jellyfin." until you dismiss it, at most 24 hours
+- **Critical incidents** (pop-up list): Docker down, a drive at 95 % or more, temperature 10 °C above the warning threshold, AdGuard not running or not answering (not when you stopped it yourself). Stored in the database, one pop-up per incident for all browsers; an incident that is over before you look becomes a hint instead
+- **Gemini provider** behind a small `summarize(facts)` interface; default model `gemini-3.5-flash-lite` (a setting). The key is sent only in the `x-goog-api-key` header, answers are requested as JSON with a schema and validated again on the server (lengths 120/60/200, unknown ids, urgency or button fields are dropped)
+- **What leaves the house is scrubbed**: IPs, MACs, e-mail addresses, URLs with credentials, token-like strings, user names in paths, every name/hostname/IP/MAC from the device scanner, the server's own hostname and Minecraft player names. Cards and hints go out with neutral ids (`c1`, `h1`), drive paths are reduced to a letter, your own links are never sent. Log lines (at most 5 per app, 300 characters each) can be switched off
+- **Cost brakes**: at most 50 requests per day by default (1–1000 or unlimited), counted in the database before each request so a restart or a bug cannot get around it; one request for the headline and all cards, only when the fingerprint of the cards changes, after 2 minutes of quiet; texts expire after 6 hours; 10 minutes pause after an error or HTTP 429; patterns and night spikes at most every 6 hours
+- **`GET /api/status` never waits on the AI**: it adds `ai` texts to cards, `aiSummary`, hint items and unseen `incidents` only from what is already cached and still matches; new texts are pushed to open browsers as a `status` WebSocket message
+- **New endpoints**: `GET/PATCH /api/ai/settings`, `PUT/DELETE /api/ai/key` (the key is never returned, logged, exported or put into prefs), `POST /api/ai/test`, `POST /api/status/incidents/:id/seen`, `POST /api/status/hints/:id/dismiss`
+
 ### New look: "Instrument"
 
 - **Warm graphite palette** with depth from lighter surfaces instead of borders; light mode follows the system as a neutral warm white
