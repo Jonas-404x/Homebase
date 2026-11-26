@@ -44,9 +44,11 @@ describe('Gemini provider', () => {
     expect(body.contents[0].parts[0].text).toContain('Jellyfin hat einen Fehler');
   });
 
-  it('versucht es bei HTTP 400 einmal ohne Schema und bleibt dann dabei', async () => {
+  it('lässt nach HTTP 400 das Schema weg – erst bei der nächsten (gezählten) Anfrage, nie zwei Anfragen auf einmal', async () => {
     const { impl, calls } = fakeFetch([status(400), ok('{}'), ok('{}')]);
     const p = createGeminiProvider({ apiKey: KEY, model: DEFAULT_GEMINI_MODEL, fetchImpl: impl });
+    expect(await codeOf(p.summarize(facts))).toBe('bad_response');
+    expect(calls).toHaveLength(1);
     await p.summarize(facts);
     await p.summarize(facts);
     expect(calls.map((c) => 'responseJsonSchema' in JSON.parse(String(c.init.body)).generationConfig)).toEqual([true, false, false]);

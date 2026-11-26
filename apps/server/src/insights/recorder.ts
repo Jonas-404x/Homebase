@@ -34,6 +34,7 @@ export function createRecorder(opts: { store: InsightsStore; now?: () => number 
   const now = opts.now ?? Date.now;
   const seen = new Map<string, Seen>();
   const userAt = new Map<string, number>();
+  const lastAction = new Map<string, UserAction>();
   let usageAt = -Infinity;
   let diskAt = -Infinity;
 
@@ -47,13 +48,14 @@ export function createRecorder(opts: { store: InsightsStore; now?: () => number 
         const info = inspects.get(a.id) ?? null;
         const containers = new Map((info?.containers ?? []).map((c) => [c.name, { startedAt: c.startedAt, restartCount: c.restartCount }]));
         seen.set(a.id, { state: a.state, containers: info ? containers : (prev?.containers ?? new Map()) });
-        if (!prev || byUser(a.id)) continue;
-
-        if (a.state === 'error' && prev.state !== 'error') {
+        if (!prev) continue;
+        // Ein Absturz bleibt ein Absturz, auch kurz nach deinem Start; nur nach deinem Stopp ist "beendet" erwartet.
+        if (a.state === 'error' && prev.state !== 'error' && lastAction.get(a.id) !== 'stop') {
           const failed = info?.containers.find((c) => c.state !== 'running' && c.exitCode !== 0);
           store.addEvent({ at, appId: a.id, kind: 'crash', detail: failed ? String(failed.exitCode) : null });
           continue;
         }
+        if (byUser(a.id)) continue;
         // Docker startet abgestürzte Container oft schneller neu, als wir nachsehen: Zähler und Startzeit verraten es trotzdem.
         let restarted = false;
         if (info) {
@@ -70,6 +72,7 @@ export function createRecorder(opts: { store: InsightsStore; now?: () => number 
     },
     userAction(appId, action) {
       userAt.set(appId, now());
+      lastAction.set(appId, action);
       store.addEvent({ at: now(), appId, kind: action === 'stop' ? 'stopped' : 'started', detail: null });
     },
     usageDue: () => now() - usageAt >= USAGE_EVERY_MS,

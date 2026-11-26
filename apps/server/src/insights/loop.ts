@@ -7,13 +7,14 @@ import type { AiEngine } from '../ai/engine.ts';
 import { aiCard, baseFingerprint, buildHintFacts, buildStatusFacts, type AppLogFacts } from '../ai/facts.ts';
 import type { AiConfig } from '../ai/settings.ts';
 import { collectStatus } from '../status/collect.ts';
-import { gatherStatus, type StatusSources } from '../status/routes.ts';
+import { gatherStatus, type Gathered, type StatusSources } from '../status/routes.ts';
 import { within } from '../util/within.ts';
 import { createIncidentTracker, evaluateIncidents, pastIncidentTitle, type IncidentKind } from './incidents.ts';
 import { detectNightSpikes, nightWindow, NIGHT_END_HOUR } from './night.ts';
 import { dailyAverages, detectDiskFill, detectMemoryRise, detectRestartPatterns, type Hint, type HintKind } from './patterns.ts';
 import { createRecorder, type UserAction } from './recorder.ts';
-import { buildBlocklist } from './scrub.ts';
+import { buildBlocklist, isMinecraft, minecraftOnline } from './scrub.ts';
+import type { AiOverview } from '../ai/types.ts';
 import type { HintRow, InsightsStore } from './store.ts';
 import { dayKey, minuteOfDay } from './time.ts';
 
@@ -55,6 +56,21 @@ function hintItem(h: Hint): StatusItem {
     case 'past-incident':
       return { ...base, source: 'incident', to: null, diagnose: null, dismissible: true };
   }
+}
+
+/** Harmlose Eckdaten für den Kopfsatz, wenn alles läuft: grob gerundet, keine Namen. */
+function overviewOf(g: Gathered, inspects: Map<string, AppInspect | null>): AiOverview | undefined {
+  if (!g.stats) return undefined;
+  const ten = (v: number) => Math.round(v / 10) * 10;
+  const mem = g.stats.memory.totalBytes > 0 ? (g.stats.memory.usedBytes / g.stats.memory.totalBytes) * 100 : 0;
+  const counts = g.apps.filter((a) => isMinecraft(a.id)).map((a) => minecraftOnline(inspects.get(a.id)?.logs ?? [])).filter((n): n is number => n !== null);
+  return {
+    uptimeHours: Math.round(g.stats.uptimeSeconds / 3600),
+    runningApps: g.apps.filter((a) => a.state === 'running').length,
+    cpuPercent: ten(g.stats.cpu.loadPercent),
+    memoryPercent: ten(mem),
+    ...(counts.length > 0 ? { minecraftPlayers: counts.reduce((x, y) => x + y, 0) } : {}),
+  };
 }
 
 export function createInsights(opts: {
@@ -139,21 +155,40 @@ export function createInsights(opts: {
       // Startest du AdGuard gerade selbst neu, ist das kein Vorfall.
       const current = evaluateIncidents({ dockerOk: g.dockerOk, apps: g.apps, services: g.services, stats: g.stats, thresholds: g.input.thresholds })
         .filter((c) => !(c.kind === 'adguard' && recorder.byUser('adguard')));
+      // Keine Messwerte heißt nicht „wieder gut“: offene Platten- und Temperatur-Vorfälle bleiben, bis eine Messung das Gegenteil zeigt.
+      if (!g.stats) {
+        for (const i of store.openIncidents()) {
+          if (i.kind !== 'disk' && i.kind !== 'temperature') continue;
+          current.push({ key: i.key, kind: i.kind, title: String(i.facts.title ?? ''), detail: String(i.facts.detail ?? ''), pastTitle: String(i.facts.pastTitle ?? '') });
+        }
+      }
       const { changed } = tracker.update(current);
       if (t - patternsAt >= HOUR) recomputePatterns(names);
       const night = checkNight(names);
 
       if (config.enabled()) {
-        const ctx = { blocklist: buildBlocklist(sources.devices(), hostname), players: [] };
+        // Sperrliste: Geräte, eigener Hostname, dein Benutzername, der KI-Schlüssel und geheime Werte der Apps (z. B. Passwörter).
+        const secrets = [db.getSetting('admin_user'), config.key()].filter((v): v is string => Boolean(v));
+        if (engine) {
+          const secretFields = new Map(engine.catalog().map((c) => [c.id, c.fields.filter((f) => f.type === 'secret').map((f) => f.key)]));
+          for (const a of g.apps) {
+            const keys = secretFields.get(a.id) ?? [];
+            if (keys.length === 0) continue;
+            const values = await within(engine.values(a.id).catch(() => ({}) as Record<string, string>), {} as Record<string, string>, INSPECT_TIMEOUT_MS);
+            for (const k of keys) if (values[k]) secrets.push(String(values[k]));
+          }
+        }
+        const ctx = { blocklist: [...buildBlocklist(sources.devices(), hostname), ...secrets], players: [] };
         const apps = new Map<string, AppLogFacts>();
         for (const a of g.apps) {
           const info = inspects.get(a.id) ?? null;
           const failed = info?.containers.find((c) => c.state !== 'running' && c.exitCode !== 0);
           apps.set(a.id, { name: a.name, state: a.state, exitCode: failed ? failed.exitCode : null, logs: info?.logs ?? [] });
         }
-        const incidents = store.openIncidents().filter((i) => !i.seen).map((i) => ({ id: String(i.id), title: String(i.facts.title ?? ''), detail: String(i.facts.detail ?? '') }));
-        const sf = buildStatusFacts({ items: report.items, apps, incidents, ctx, sendLogs: config.get().sendLogs });
-        ai.observeStatus({ fingerprint: sf.fingerprint, base: sf.base, facts: sf.facts, idMap: sf.idMap, issues: sf.facts.cards.length > 0 || incidents.length > 0 });
+        const incidents = store.openIncidents().filter((i) => !i.seen).map((i) => ({ id: String(i.id), key: i.key, title: String(i.facts.title ?? ''), detail: String(i.facts.detail ?? '') }));
+        const sf = buildStatusFacts({ items: report.items, apps, incidents, ctx, sendLogs: config.get().sendLogs, overview: overviewOf(g, inspects) });
+        const issues = sf.facts.cards.length > 0 || incidents.length > 0;
+        ai.observeStatus({ fingerprint: sf.fingerprint, base: sf.base, facts: sf.facts, idMap: sf.idMap, issues, calm: !issues && report.level === 'ok' });
         const hints = allHints();
         if (hints.length > 0) ai.observeHints(buildHintFacts(hints, ctx));
       }
@@ -194,7 +229,8 @@ export function createInsights(opts: {
           ai: texts?.popups[String(i.id)] ?? null,
           openedAt: i.openedAt,
         }));
-      return { ...report, items: [...items, ...hints], aiSummary: report.level !== 'ok' ? (texts?.headline ?? null) : null, incidents };
+      // Kopfsatz auch, wenn alles läuft (bis die Antwort da ist, gilt der feste Text).
+      return { ...report, items: [...items, ...hints], aiSummary: texts?.headline ?? null, incidents };
     },
     markIncidentSeen(id) {
       const ok = store.incident(id) !== null && store.markSeen(id);

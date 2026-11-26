@@ -50,6 +50,17 @@ describe('recorder', () => {
     expect(store.events(0).map((e) => e.kind)).toEqual(['stopped']);
   });
 
+  it('meldet einen Absturz auch kurz nach deinem Start', () => {
+    const { store, rec, tick } = setup();
+    rec.observeApps([app({ state: 'stopped' })], inspect({ state: 'exited' }));
+    rec.userAction('jellyfin', 'start');
+    tick(30_000);
+    rec.observeApps([app()], inspect({ startedAt: '2026-11-26T03:00:20Z' }));
+    tick(60_000);
+    rec.observeApps([app({ state: 'error' })], inspect({ state: 'exited', exitCode: 1 }));
+    expect(store.events(0).map((e) => e.kind)).toEqual(['started', 'crash']);
+  });
+
   it('meldet einen Absturz mit Fehlercode', () => {
     const { store, rec, tick } = setup();
     rec.observeApps([app()], inspect({}));

@@ -34,13 +34,17 @@ describe('detectRestartPatterns', () => {
 
 describe('detectMemoryRise', () => {
   it('meldet 3 Tage Anstieg in Folge mit mindestens 10 Punkten', () => {
-    const hints = detectMemoryRise([{ day: 'a', memory: 50 }, { day: 'b', memory: 53 }, { day: 'c', memory: 56 }, { day: 'd', memory: 60 }]);
+    const hints = detectMemoryRise([{ day: '2026-11-22', memory: 50 }, { day: '2026-11-23', memory: 53 }, { day: '2026-11-24', memory: 56 }, { day: '2026-11-25', memory: 60 }]);
     expect(hints.map((h) => h.id)).toEqual(['pattern:memory']);
   });
 
+  it('braucht Tage direkt hintereinander', () => {
+    expect(detectMemoryRise([{ day: '2026-11-20', memory: 50 }, { day: '2026-11-22', memory: 55 }, { day: '2026-11-24', memory: 60 }, { day: '2026-11-25', memory: 70 }])).toEqual([]);
+  });
+
   it('meldet nichts bei 9 Punkten oder einem Tag Pause', () => {
-    expect(detectMemoryRise([{ day: 'a', memory: 50 }, { day: 'b', memory: 53 }, { day: 'c', memory: 56 }, { day: 'd', memory: 59 }])).toEqual([]);
-    expect(detectMemoryRise([{ day: 'a', memory: 50 }, { day: 'b', memory: 49 }, { day: 'c', memory: 56 }, { day: 'd', memory: 70 }])).toEqual([]);
+    expect(detectMemoryRise([{ day: '2026-11-22', memory: 50 }, { day: '2026-11-23', memory: 53 }, { day: '2026-11-24', memory: 56 }, { day: '2026-11-25', memory: 59 }])).toEqual([]);
+    expect(detectMemoryRise([{ day: '2026-11-22', memory: 50 }, { day: '2026-11-23', memory: 49 }, { day: '2026-11-24', memory: 56 }, { day: '2026-11-25', memory: 70 }])).toEqual([]);
   });
 
   it('bildet Tagesmittel nach lokalem Datum und lässt den laufenden Tag weg', () => {

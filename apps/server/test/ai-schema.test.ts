@@ -69,6 +69,28 @@ describe('buildStatusFacts', () => {
     expect(r.facts.cards[0]!.exitCode).toBe(1);
   });
 
+  it('maskiert Laufwerkspfade mit Leerzeichen vollständig', () => {
+    const r = buildStatusFacts({
+      items: [item({ id: 'disk:/media/Familie Muster', level: 'warn', title: 'Laufwerk /media/Familie Muster ist zu 92 % voll', detail: 'Pfad /media/Familie Muster' })],
+      apps: new Map(), incidents: [{ id: '1', key: 'disk:/media/Familie Muster', title: 'Laufwerk /media/Familie Muster ist fast voll', detail: 'x' }], ctx, sendLogs: true,
+    });
+    expect(JSON.stringify(r.facts)).not.toContain('Muster');
+    expect(r.facts.cards[0]!.title).toBe('Datenlaufwerk ist zu 92 % voll');
+  });
+
+  it('ohne Logzeilen ändert ein neuer Logtext den Fingerabdruck nicht', () => {
+    const fp = (line: string) => buildStatusFacts({ items: [item({ id: 'app:jellyfin', diagnose: 'jellyfin' })], apps: new Map([['jellyfin', { ...jelly, logs: [line] }]]), incidents: [], ctx, sendLogs: false }).fingerprint;
+    expect(fp('ERROR a')).toBe(fp('ERROR b'));
+  });
+
+  it('wenn alles läuft: harmlose Eckdaten, Fingerabdruck nur aus groben Werten', () => {
+    const calm = (cpuPercent: number, runningApps: number) =>
+      buildStatusFacts({ items: [item({ id: 'twofactor', level: 'info' })], apps: new Map(), incidents: [], ctx, sendLogs: true, overview: { uptimeHours: 30, runningApps, cpuPercent, memoryPercent: 40, minecraftPlayers: 3 } });
+    expect(calm(10, 4).facts).toMatchObject({ overall: 'ok', cards: [], overview: { runningApps: 4, minecraftPlayers: 3 } });
+    expect(calm(10, 4).fingerprint).toBe(calm(60, 4).fingerprint);
+    expect(calm(10, 4).fingerprint).not.toBe(calm(10, 5).fingerprint);
+  });
+
   it('lässt Logzeilen weg, wenn der Schalter aus ist', () => {
     const r = buildStatusFacts({ items: [item({ id: 'app:jellyfin', diagnose: 'jellyfin' })], apps: new Map([['jellyfin', jelly]]), incidents: [], ctx, sendLogs: false });
     expect(r.facts.cards[0]!.logLines).toBeUndefined();

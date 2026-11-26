@@ -78,7 +78,12 @@ export function dailyAverages(points: HistoryPoint[], now: number): { day: strin
 export function detectMemoryRise(days: { day: string; memory: number }[]): Hint[] {
   if (days.length < 4) return [];
   const last = days.slice(-4);
-  for (let i = 1; i < last.length; i++) if (last[i]!.memory <= last[i - 1]!.memory) return [];
+  // Wirklich aufeinanderfolgende Kalendertage (fehlt ein Tag im Verlauf, ist es kein „3 Tage in Folge“).
+  const date = (d: string) => new Date(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, Number(d.slice(8, 10))).getTime();
+  for (let i = 1; i < last.length; i++) {
+    if (Math.round((date(last[i]!.day) - date(last[i - 1]!.day)) / DAY) !== 1) return [];
+    if (last[i]!.memory <= last[i - 1]!.memory) return [];
+  }
   const a = last[0]!.memory;
   const b = last[3]!.memory;
   if (b - a < 10) return [];

@@ -172,10 +172,14 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     providerFor: deps.aiProvider ?? ((apiKey, model) => createGeminiProvider({ apiKey, model })),
     onTexts: pushStatus,
     debounceMs: deps.aiDebounceMs,
+    // Den Kopfsatz für „alles läuft“ nur holen, wenn jemand die Übersicht offen hat.
+    isWatched: () => hub.clientCount() > 0,
   });
   const insights = createInsights({ db: deps.db, store: insightsStore, sources: statusSources, engine: deps.engine, ai, config: aiConfig, push: pushStatus, intervalMs: deps.insightsIntervalMs ?? 30_000, incidentOpenAfterMs: deps.incidentOpenAfterMs });
   onUserAction = insights.userAction;
   app.decorate('insights', insights);
+  // Beim Öffnen gleich einmal nachsehen, statt bis zum nächsten Takt zu warten.
+  if ((deps.insightsIntervalMs ?? 30_000) > 0) hub.onFirstClient(() => void insights.tick().catch(() => {}));
   app.addHook('onClose', async () => insights.stop());
   registerStatusRoutes(app, { ...statusSources, insights });
   registerAiRoutes(app, { config: aiConfig, ai, onChange: pushStatus });

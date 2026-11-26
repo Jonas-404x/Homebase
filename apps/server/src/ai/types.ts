@@ -26,10 +26,24 @@ export interface AiIncidentFact {
   detail: string;
 }
 
+/** Harmlose Eckdaten, keine Namen. */
+export interface AiOverview {
+  /** Stunden seit dem letzten Start des Rechners */
+  uptimeHours: number;
+  runningApps: number;
+  /** Grob, auf 10 gerundet */
+  cpuPercent: number;
+  memoryPercent: number;
+  /** Nur die Zahl, nie Namen; fehlt ohne Minecraft */
+  minecraftPlayers?: number;
+}
+
 export interface AiFacts {
   scope: 'status' | 'hints' | 'test';
   /** Gesamtzustand der Übersicht (nur scope status) */
-  overall?: 'warn' | 'problem';
+  overall?: 'ok' | 'warn' | 'problem';
+  /** Nur wenn alles läuft: harmlose Eckdaten für einen freundlichen Kopfsatz */
+  overview?: AiOverview;
   cards: AiCardFact[];
   incidents: AiIncidentFact[];
   hints: AiHintFact[];

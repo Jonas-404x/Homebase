@@ -20,7 +20,9 @@ const TASK: Record<AiFacts['scope'], string> = {
   status:
     'Schreib einen Kopfsatz (headline), der zusammenfasst, was los ist. Schreib für jede Karte (cards) Titel und Text; ' +
     'stehen Logzeilen dabei, schreib eine Vermutung zum Grund. Schreib für jeden Vorfall (incidents) einen Satz für das Pop-up (popups). ' +
-    'Nutze genau die ids aus den Fakten.',
+    'Nutze genau die ids aus den Fakten. ' +
+    'Ist overall „ok“, gibt es keine Karten: schreib nur einen kurzen, freundlichen Kopfsatz, dass alles läuft; ' +
+    'du darfst eine Eckdate aus overview nennen (z. B. Spielerzahl bei Minecraft).',
   hints: 'Schreib für jeden Hinweis (hints) einen verständlichen Satz (hints, mit derselben id). Nutze genau die ids aus den Fakten.',
   test: 'Das ist ein Test. Antworte mit dem Kopfsatz „Die KI ist verbunden.“ und leeren Listen.',
 };
@@ -64,10 +66,11 @@ export function createGeminiProvider(opts: { apiKey: string; model: string; fetc
     async summarize(facts) {
       if (!opts.apiKey) throw new AiError('no_key');
       if (!MODEL_PATTERN.test(opts.model)) throw new AiError('model');
-      let res = await call(facts, useSchema);
+      const res = await call(facts, useSchema);
       if (res.status === 400 && useSchema) {
+        // Kein zweiter Versuch in derselben Anfrage: der wäre nicht gezählt. Die nächste geht ohne Schema.
         useSchema = false;
-        res = await call(facts, false);
+        throw new AiError('bad_response');
       }
       if (res.status === 429) throw new AiError('rate_limit');
       if (res.status === 401 || res.status === 403) throw new AiError('auth');

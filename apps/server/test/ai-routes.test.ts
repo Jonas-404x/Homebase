@@ -18,7 +18,7 @@ function fakeEngine(over: { dockerOk?: boolean; apps?: InstalledApp[] } = {}): A
   const apps = over.apps ?? [{ id: 'jellyfin', name: 'Jellyfin', state: 'error', error: 'Die App ist unerwartet beendet.', webUiUrl: null, installedAt: '' }];
   const inspect: AppInspect = {
     containers: [{ name: 'mf-jellyfin-app-1', state: 'exited', health: null, restartCount: 0, exitCode: 1, oomKilled: false, startedAt: null, ports: [] }],
-    logs: ['[10:00:01] starting', '[10:00:02] ERROR cannot open config at 192.0.2.10'],
+    logs: ['[10:00:01] starting', '[10:00:02] ERROR cannot open config at 192.0.2.10', '[10:00:03] ERROR login failed for jonas'],
   };
   return {
     list: async () => apps,
@@ -95,7 +95,10 @@ describe('Statusübersicht mit KI', () => {
     await vi.waitFor(() => expect(calls).toHaveLength(1));
     // Bereinigt, ohne echte IDs.
     expect(JSON.stringify(calls[0])).not.toContain('192.0.2.10');
-    expect(calls[0]!.cards[0]).toMatchObject({ id: 'c1', app: 'Jellyfin', exitCode: 1, logLines: ['[10:00:02] ERROR cannot open config at [ip]'] });
+    // Dein Benutzername (aus der Anmeldung) und der Schlüssel gehen nie raus.
+    expect(JSON.stringify(calls[0])).not.toContain('jonas');
+    expect(JSON.stringify(calls[0])).not.toContain(KEY);
+    expect(calls[0]!.cards[0]).toMatchObject({ id: 'c1', app: 'Jellyfin', exitCode: 1, logLines: ['[10:00:02] ERROR cannot open config at [ip]', '[10:00:03] ERROR login failed for [gerät]'] });
 
     await vi.waitFor(() => expect(sent.some((m) => m.type === 'status')).toBe(true));
     const r = await status();
@@ -104,6 +107,28 @@ describe('Statusübersicht mit KI', () => {
     expect(card.title).toBe('Jellyfin hat einen Fehler'); // fester Text bleibt daneben
     expect(card.ai).toEqual({ title: 'Jellyfin startet nicht', detail: 'Vermutlich fehlt die Konfigurationsdatei.' });
     expect(r.items.find((i) => i.id === 'twofactor')!.ai).toBeUndefined();
+    await server.close();
+  });
+
+  it('schreibt auch einen Kopfsatz, wenn alles läuft, mit harmlosen Eckdaten', async () => {
+    const hub = createWsHub();
+    hub.clientCount = () => 1;
+    hub.broadcast = () => {};
+    const { calls, factory } = fakeProvider();
+    const apps: InstalledApp[] = [{ id: 'jellyfin', name: 'Jellyfin', state: 'running', error: null, webUiUrl: null, installedAt: '' }];
+    const server = await buildApp(testDeps({ ...fast, engine: fakeEngine({ apps }), aiProvider: factory, aiDebounceMs: 0, hub }));
+    const cookie = await setupAndLogin(server);
+    await server.inject({ method: 'PUT', url: '/api/ai/key', headers: { cookie }, payload: { key: KEY } });
+    // Zwei-Faktor aus ist nur ein Hinweis: die Übersicht ist "ok".
+    await server.insights.tick();
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]).toMatchObject({ overall: 'ok', cards: [], overview: { runningApps: 1 } });
+    await vi.waitFor(async () => {
+      const r = (await server.inject({ method: 'GET', url: '/api/status', headers: { cookie } })).json() as StatusReport;
+      expect(r.level).toBe('ok');
+      expect(r.summary).toBe('Alles läuft');
+      expect(r.aiSummary).toBe('Jellyfin startet nicht, vermutlich wegen der Konfiguration.');
+    });
     await server.close();
   });
 

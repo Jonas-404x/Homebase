@@ -157,7 +157,12 @@ describe('AI engine', () => {
   it('Hinweise: nur bei neuen Hinweisen und höchstens alle 6 Stunden', async () => {
     const { engine, config, calls } = setup(undefined, async () => ({ hints: [{ id: 'h1', text: 'Speicher wächst.' }, { id: 'h2', text: 'Nachts heiß.' }] }));
     config.setKey(KEY);
-    const hints = (...ids: string[]) => ({ facts: { ...facts, scope: 'hints' as const }, idMap: { cards: {}, popups: {}, hints: Object.fromEntries(ids.map((id, i) => [`h${i + 1}`, id])) } });
+    const content: Record<string, string> = {};
+    const hints = (...ids: string[]) => ({
+      facts: { ...facts, scope: 'hints' as const },
+      idMap: { cards: {}, popups: {}, hints: Object.fromEntries(ids.map((id, i) => [`h${i + 1}`, id])) },
+      fingerprints: Object.fromEntries(ids.map((id) => [id, content[id] ?? 'v1'])),
+    });
     engine.observeHints(hints('pattern:memory'));
     await vi.advanceTimersByTimeAsync(0);
     expect(calls).toHaveLength(1);
@@ -171,6 +176,72 @@ describe('AI engine', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(calls).toHaveLength(2);
     expect(engine.hintTexts()).toEqual({ 'pattern:memory': 'Speicher wächst.', 'night:x': 'Nachts heiß.' });
+    // Gleicher Inhalt: nie wieder. Neuer Inhalt (z. B. neuer Tagesschnitt): nach 6 Stunden einmal.
+    vi.setSystemTime(Date.now() + 7 * 60 * MIN);
+    engine.observeHints(hints('pattern:memory', 'night:x'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls).toHaveLength(2);
+    content['pattern:memory'] = 'v2';
+    engine.observeHints(hints('pattern:memory', 'night:x'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls).toHaveLength(3);
+  });
+
+  it('Hinweise ohne brauchbaren Text werden nach 6 Stunden noch mal versucht', async () => {
+    const { engine, config, calls } = setup(undefined, async () => ({ hints: [{ id: 'h9', text: 'falsche id' }] }));
+    config.setKey(KEY);
+    const snapH = { facts: { ...facts, scope: 'hints' as const }, idMap: { cards: {}, popups: {}, hints: { h1: 'pattern:memory' } }, fingerprints: { 'pattern:memory': 'v1' } };
+    engine.observeHints(snapH);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(engine.hintTexts()).toEqual({});
+    engine.observeHints(snapH);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls).toHaveLength(1);
+    vi.setSystemTime(Date.now() + 6 * 60 * MIN);
+    engine.observeHints(snapH);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('Kopfsatz, wenn alles läuft: nur wenn jemand hinschaut, dann höchstens einmal pro Stunde', async () => {
+    const db = openDb(':memory:');
+    const config = createAiConfig(db);
+    const calls: AiFacts[] = [];
+    let watched = false;
+    const engine = createAiEngine({
+      db, store: createInsightsStore(db), config, isWatched: () => watched,
+      providerFor: () => ({ summarize: async (f) => (calls.push(f), { headline: 'Alles läuft super.' }) }),
+    });
+    config.setKey(KEY);
+    const calm = snap('ok', { issues: false, calm: true, facts: { ...facts, overall: 'ok', cards: [] } });
+    engine.observeStatus(calm);
+    await vi.advanceTimersByTimeAsync(3 * MIN);
+    expect(calls).toHaveLength(0);
+    watched = true;
+    engine.observeStatus(calm);
+    await vi.advanceTimersByTimeAsync(3 * MIN);
+    expect(calls).toHaveLength(1);
+    expect(engine.statusTexts('base')?.headline).toBe('Alles läuft super.');
+    for (let i = 0; i < 10; i++) {
+      engine.observeStatus(calm);
+      await vi.advanceTimersByTimeAsync(5 * MIN);
+    }
+    expect(calls).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(10 * MIN); // über 1 Stunde alt
+    expect(engine.statusTexts('base')).toBeNull();
+    engine.observeStatus(calm);
+    await vi.advanceTimersByTimeAsync(3 * MIN);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('der Logzeilen-Schalter gilt sofort, auch für schon gesammelte Fakten', async () => {
+    const { engine, config, calls } = setup();
+    config.setKey(KEY);
+    engine.observeStatus(snap('a', { facts: { ...facts, cards: [{ ...facts.cards[0]!, logLines: ['ERROR x'] }] } }));
+    config.update({ sendLogs: false });
+    await vi.advanceTimersByTimeAsync(3 * MIN);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.cards[0]!.logLines).toBeUndefined();
   });
 
   it('der Test-Knopf meldet Erfolg oder den Fehler in einfachen Worten', async () => {

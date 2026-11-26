@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { StatusItem } from '@mainframe/shared';
 import { isMinecraft, minecraftPlayers, scrubLine, scrubLogLines, type ScrubContext } from '../insights/scrub.ts';
 import type { Hint } from '../insights/patterns.ts';
-import type { AiCardFact, AiFacts, AiHintFact, AiIncidentFact, AiTexts } from './types.ts';
+import type { AiCardFact, AiFacts, AiHintFact, AiIncidentFact, AiOverview, AiTexts } from './types.ts';
 
 /** Was die Diagnose als Fehlerzeile erkennt. */
 const ERROR_LINE = /\b(error|fatal|exception|panic)\b/i;
@@ -19,9 +19,12 @@ export interface StatusFactsInput {
   items: StatusItem[];
   /** Nach App-ID */
   apps: Map<string, AppLogFacts>;
-  incidents: AiIncidentFact[];
+  /** key = Vorfall-Schlüssel wie "disk:/media/x" (für das Maskieren des Pfads) */
+  incidents: (AiIncidentFact & { key?: string })[];
   ctx: ScrubContext;
   sendLogs: boolean;
+  /** Harmlose Eckdaten für den Kopfsatz, wenn alles läuft */
+  overview?: AiOverview;
 }
 
 export interface StatusFacts {
@@ -52,17 +55,33 @@ export function remapTexts(t: AiTexts, m: IdMap): AiTexts {
 
 const hash = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 24);
 
-/** Nur Laufwerksbuchstaben gehen raus, keine Pfade wie /media/<name>. */
+/** Fallback für Texte ohne bekannten Pfad: nur Laufwerksbuchstaben gehen raus, keine Pfade wie /media/<name>. */
 export const maskMounts = (text: string) =>
   text.replace(/Laufwerk (\S+?)(?=\s|$)/g, (m, mount: string) => (/^[A-Za-z]:$/.test(mount) ? m : mount === '/' ? 'Systemlaufwerk' : 'Datenlaufwerk'));
 
-const outgoing = (text: string, ctx: ScrubContext) => scrubLine(maskMounts(text), ctx);
+/** Ersetzt einen bekannten Pfad (auch mit Leerzeichen, z. B. „/media/Familie Muster“) überall im Text. */
+export function maskMount(text: string, mount: string): string {
+  if (/^[A-Za-z]:\\?$/.test(mount) || mount === '') return text;
+  const label = mount === '/' ? 'Systemlaufwerk' : 'Datenlaufwerk';
+  return text.split(`Laufwerk ${mount}`).join(label).split(mount).join('[laufwerk]');
+}
+
+/** Pfad des Laufwerks aus einer ID wie "disk:/media/x" oder "pattern:disk:/media/x". */
+const mountOf = (id: string) => /^(?:pattern:)?disk:(.+)$/.exec(id)?.[1] ?? null;
+
+const outgoing = (text: string, ctx: ScrubContext, id?: string) => {
+  const mount = id ? mountOf(id) : null;
+  return scrubLine(maskMounts(mount ? maskMount(text, mount) : text), ctx);
+};
 
 /** Karten, für die die KI Text schreibt: Probleme und Warnungen, ohne eigene Links (deren Namen sind von dir). */
 export const aiCard = (i: StatusItem) => i.level !== 'info' && !i.id.startsWith('service:link:');
 
 /** Basis-Fingerabdruck aus id und level; den kann auch GET /api/status ohne Log billig bilden. */
 export const baseFingerprint = (items: StatusItem[]) => hash(items.filter(aiCard).map((i) => `${i.id}:${i.level}`).sort().join('\n'));
+
+/** Zahlen und Hex-IDs raus, sonst ändert jede neue Uhrzeit oder Request-ID im Log den Fingerabdruck. */
+const stable = (line: string) => line.replace(/\b[0-9a-f]{6,}\b/gi, '#').replace(/\d+/g, '#');
 
 export function buildStatusFacts(input: StatusFactsInput): StatusFacts {
   const { ctx } = input;
@@ -72,7 +91,7 @@ export function buildStatusFacts(input: StatusFactsInput): StatusFacts {
   for (const item of input.items.filter(aiCard)) {
     const sent = `c${cards.length + 1}`;
     idMap.cards[sent] = item.id;
-    const card: AiCardFact = { id: sent, level: item.level as 'problem' | 'warn', title: outgoing(item.title, ctx), detail: outgoing(item.detail, ctx) };
+    const card: AiCardFact = { id: sent, level: item.level as 'problem' | 'warn', title: outgoing(item.title, ctx, item.id), detail: outgoing(item.detail, ctx, item.id) };
     let part = `${item.id}:${item.level}`;
     const appId = item.diagnose && item.diagnose !== 'system' ? item.diagnose : null;
     const app = appId ? input.apps.get(appId) : undefined;
@@ -82,36 +101,51 @@ export function buildStatusFacts(input: StatusFactsInput): StatusFacts {
       card.app = app.name;
       card.state = app.state;
       if (app.exitCode !== null) card.exitCode = app.exitCode;
-      if (input.sendLogs && lines.length > 0) card.logLines = lines;
-      // Zahlen und Hex-IDs raus, sonst ändert jede neue Uhrzeit oder Request-ID im Log den Fingerabdruck.
-      part += `|${app.state}|${app.exitCode ?? ''}|${(lines.at(-1) ?? '').replace(/\b[0-9a-f]{6,}\b/gi, '#').replace(/\d+/g, '#')}`;
+      part += `|${app.state}|${app.exitCode ?? ''}`;
+      // Ohne Logzeilen zählt das Log auch nicht für den Fingerabdruck: sonst gäbe es neue Anfragen mit gleichen Fakten.
+      if (input.sendLogs && lines.length > 0) {
+        card.logLines = lines;
+        part += `|${stable(lines.at(-1)!)}`;
+      }
     }
     cards.push(card);
     parts.push(part);
   }
   const incidents = input.incidents.map((i, n) => {
     idMap.popups[`i${n + 1}`] = i.id;
-    return { id: `i${n + 1}`, title: outgoing(i.title, ctx), detail: outgoing(i.detail, ctx) };
+    return { id: `i${n + 1}`, title: outgoing(i.title, ctx, i.key), detail: outgoing(i.detail, ctx, i.key) };
   });
   parts.push(...input.incidents.map((i) => `incident:${i.id}`));
-  const overall = cards.some((c) => c.level === 'problem') ? 'problem' : 'warn';
+  const calm = cards.length === 0 && incidents.length === 0;
+  const overall = calm ? 'ok' : cards.some((c) => c.level === 'problem') ? 'problem' : 'warn';
+  const facts: AiFacts = { scope: 'status', overall, cards, incidents, hints: [] };
+  if (calm && input.overview) {
+    facts.overview = input.overview;
+    // Nur grobe, stabile Werte: Auslastung und Laufzeit ändern sich ständig und lösen keine neue Anfrage aus.
+    parts.push(`ok|apps:${input.overview.runningApps}|mc:${input.overview.minecraftPlayers ?? ''}`);
+  }
   return {
-    facts: { scope: 'status', overall, cards, incidents, hints: [] },
+    facts,
     fingerprint: hash(parts.sort().join('\n')),
     base: baseFingerprint(input.items),
     idMap,
   };
 }
 
-export function buildHintFacts(hints: Hint[], ctx: ScrubContext): { facts: AiFacts; fingerprint: string; idMap: IdMap } {
+export function buildHintFacts(hints: Hint[], ctx: ScrubContext): { facts: AiFacts; idMap: IdMap; fingerprints: Record<string, string> } {
   const idMap: IdMap = { cards: {}, hints: {}, popups: {} };
-  hints.forEach((h, n) => (idMap.hints[`h${n + 1}`] = h.id));
-  const list: AiHintFact[] = hints.map((h, n) => ({
-    id: `h${n + 1}`,
-    kind: h.kind,
-    title: outgoing(h.title, ctx),
-    detail: outgoing(h.detail, ctx),
-    facts: Object.fromEntries(Object.entries(h.facts).map(([k, v]) => [k, typeof v === 'string' ? outgoing(v, ctx) : v])),
-  }));
-  return { facts: { scope: 'hints', cards: [], incidents: [], hints: list }, fingerprint: hash(hints.map((h) => h.id).sort().join('\n')), idMap };
+  const fingerprints: Record<string, string> = {};
+  const list: AiHintFact[] = hints.map((h, n) => {
+    idMap.hints[`h${n + 1}`] = h.id;
+    // Fingerabdruck aus dem Inhalt: ändern sich die Zahlen (z. B. neuer Tagesschnitt), darf neu formuliert werden.
+    fingerprints[h.id] = hash(JSON.stringify([h.id, h.title, h.detail, h.facts]));
+    return {
+      id: `h${n + 1}`,
+      kind: h.kind,
+      title: outgoing(h.title, ctx, h.id),
+      detail: outgoing(h.detail, ctx, h.id),
+      facts: Object.fromEntries(Object.entries(h.facts).map(([k, v]) => [k, typeof v === 'string' ? outgoing(v, ctx, h.id) : v])),
+    };
+  });
+  return { facts: { scope: 'hints', cards: [], incidents: [], hints: list }, idMap, fingerprints };
 }

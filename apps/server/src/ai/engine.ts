@@ -15,6 +15,8 @@ const MAX_WAIT_MS = 10 * MIN;
 export const TEXT_TTL_MS = 6 * 60 * MIN;
 /** Nach Fehler oder HTTP 429 frühestens so viel später wieder. */
 export const BACKOFF_MS = 10 * MIN;
+/** Kopfsatz, wenn alles läuft: höchstens so lange gültig (dann beim Öffnen einmal neu). */
+export const CALM_TTL_MS = 60 * MIN;
 /** Muster und Nacht-Spitzen höchstens so oft. */
 export const HINTS_EVERY_MS = 6 * 60 * MIN;
 
@@ -23,13 +25,17 @@ export interface StatusSnapshot {
   base: string;
   facts: AiFacts;
   idMap: IdMap;
-  /** Gibt es Probleme, Warnungen oder offene Vorfälle? Sonst wird nicht gefragt. */
+  /** Gibt es Probleme, Warnungen oder offene Vorfälle? */
   issues: boolean;
+  /** Alles läuft: dann gibt es nur einen freundlichen Kopfsatz, und nur, wenn jemand die Übersicht offen hat. */
+  calm?: boolean;
 }
 
 export interface HintSnapshot {
   facts: AiFacts;
   idMap: IdMap;
+  /** Fingerabdruck pro Hinweis (echte ID) aus seinem Inhalt */
+  fingerprints: Record<string, string>;
 }
 
 export interface AiState {
@@ -57,7 +63,8 @@ interface StatusCache {
   texts: AiTexts;
 }
 interface HintsCache {
-  ids: string[];
+  /** Für welchen Inhalt der Text geschrieben wurde, pro Hinweis */
+  fps: Record<string, string>;
   texts: Record<string, string>;
 }
 
@@ -71,6 +78,8 @@ export function createAiEngine(opts: {
   onTexts?: () => void;
   now?: () => number;
   debounceMs?: number;
+  /** Hat gerade jemand die Übersicht offen? Nur dann wird der Kopfsatz für „alles läuft“ geholt. */
+  isWatched?: () => boolean;
 }): AiEngine {
   const { db, store, config } = opts;
   const now = opts.now ?? Date.now;
@@ -143,10 +152,13 @@ export function createAiEngine(opts: {
 
   // Eine Zeile pro Fingerabdruck: springt eine App zwischen zwei Fehlerbildern hin und her, wird nicht jedes Mal neu gefragt.
   const statusScope = (fingerprint: string) => `status:${fingerprint}`;
+  const ttl = (s: StatusSnapshot) => (s.issues ? TEXT_TTL_MS : CALM_TTL_MS);
   const freshStatus = (s: StatusSnapshot) => {
     const c = store.getCache(statusScope(s.fingerprint));
-    return c !== null && now() - c.at < TEXT_TTL_MS;
+    return c !== null && now() - c.at < ttl(s);
   };
+  /** Soll für diesen Zustand gefragt werden? Probleme immer; „alles läuft“ nur, wenn jemand hinschaut. */
+  const wanted = (s: StatusSnapshot) => s.issues || (Boolean(s.calm) && (opts.isWatched?.() ?? true));
 
   const clearPending = () => {
     if (pending) clearTimeout(pending.timer);
@@ -156,13 +168,15 @@ export function createAiEngine(opts: {
   const fire = async () => {
     pending = null;
     const s = latest;
-    if (!s || !s.issues || !config.enabled() || freshStatus(s)) return;
+    if (!s || !wanted(s) || !config.enabled() || freshStatus(s)) return;
     const waitBackoff = backoffUntil - now();
     if (waitBackoff > 0) {
       schedule(s.fingerprint, waitBackoff);
       return;
     }
-    const texts = await ask(s.facts, s.idMap);
+    // Logzeilen-Schalter gilt sofort, auch für Fakten, die vor dem Ausschalten gesammelt wurden.
+    const facts = config.get().sendLogs ? s.facts : { ...s.facts, cards: s.facts.cards.map(({ logLines: _drop, ...c }) => c) };
+    const texts = await ask(facts, s.idMap);
     if (!texts) return;
     store.putCache(statusScope(s.fingerprint), { fingerprint: s.fingerprint, at: now(), json: JSON.stringify({ base: s.base, texts } satisfies StatusCache) });
     store.pruneCache('status:', now() - TEXT_TTL_MS);
@@ -180,7 +194,7 @@ export function createAiEngine(opts: {
   return {
     observeStatus(s) {
       latest = s;
-      if (!s.issues || !config.enabled() || freshStatus(s)) {
+      if (!wanted(s) || !config.enabled() || freshStatus(s)) {
         clearPending();
         return;
       }
@@ -193,15 +207,20 @@ export function createAiEngine(opts: {
       const ids = Object.values(s.idMap.hints);
       if (ids.length === 0 || !config.enabled()) return;
       const cache = readCache<HintsCache>('hints');
-      const known = new Set(cache?.value.ids ?? []);
-      if (!ids.some((id) => !known.has(id))) return;
+      const fps = cache?.value.fps ?? {};
+      // Nur fragen, wenn ein Hinweis neu ist oder sich sein Inhalt geändert hat – und höchstens alle 6 Stunden.
+      if (!ids.some((id) => fps[id] !== s.fingerprints[id])) return;
       if (cache && now() - cache.at < HINTS_EVERY_MS) return;
       void ask(s.facts, s.idMap).then((texts) => {
         if (!texts) return;
-        // Texte zu Hinweisen, die es noch gibt, behalten; neue dazu.
-        const kept = Object.fromEntries(Object.entries(cache?.value.texts ?? {}).filter(([id]) => ids.includes(id)));
-        const value: HintsCache = { ids, texts: { ...kept, ...texts.hints } };
-        store.putCache('hints', { fingerprint: ids.join('\n'), at: now(), json: JSON.stringify(value) });
+        // Texte zu Hinweisen, die es noch gibt und die sich nicht geändert haben, behalten; neue dazu.
+        const keep = (id: string) => ids.includes(id) && fps[id] === s.fingerprints[id];
+        const value: HintsCache = {
+          fps: Object.fromEntries([...Object.entries(fps).filter(([id]) => keep(id) && cache?.value.texts[id] !== undefined), ...Object.keys(texts.hints).map((id) => [id, s.fingerprints[id]!])]),
+          texts: { ...Object.fromEntries(Object.entries(cache?.value.texts ?? {}).filter(([id]) => keep(id))), ...texts.hints },
+        };
+        // Auch wenn die KI für manche Hinweise nichts Brauchbares geschickt hat: der Zeitpunkt zählt, nach 6 Stunden geht es noch mal.
+        store.putCache('hints', { fingerprint: 'hints', at: now(), json: JSON.stringify(value) });
         opts.onTexts?.();
       });
     },
@@ -209,13 +228,14 @@ export function createAiEngine(opts: {
     statusTexts(base) {
       if (!latest || !config.enabled()) return null;
       const c = readCache<StatusCache>(statusScope(latest.fingerprint));
-      if (!c || c.value.base !== base || now() - c.at >= TEXT_TTL_MS) return null;
+      if (!c || c.value.base !== base || now() - c.at >= ttl(latest)) return null;
       return c.value.texts;
     },
 
     hintTexts() {
       if (!config.enabled()) return {};
-      return readCache<HintsCache>('hints')?.value.texts ?? {};
+      const c = readCache<HintsCache>('hints');
+      return c?.value.texts ?? {};
     },
 
     state: readState,
