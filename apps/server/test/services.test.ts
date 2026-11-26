@@ -40,6 +40,33 @@ describe('checkUrl', () => {
     expect((await checkUrl(`http://127.0.0.1:${bad}/`)).ok).toBe(false);
   });
 
+  it('zählt eine Anmeldeseite als funktionierend, eine fehlende Seite nicht', async () => {
+    const status = (code: number) =>
+      serve((_q, r) => {
+        r.statusCode = code;
+        if (code === 302) r.setHeader('location', '/login');
+        r.end();
+      });
+    for (const code of [200, 204, 302, 401, 403]) {
+      const r = await checkUrl(`http://127.0.0.1:${await status(code)}/`);
+      expect(r, String(code)).toMatchObject({ ok: true, reason: null });
+    }
+    for (const code of [404, 500, 502]) {
+      const r = await checkUrl(`http://127.0.0.1:${await status(code)}/`);
+      expect(r, String(code)).toEqual({ ok: false, ms: null, reason: `Antwortet mit Fehler ${code}` });
+    }
+  });
+
+  it('sagt, warum etwas nicht erreichbar ist', async () => {
+    const closed = await serve(() => {});
+    servers.pop()!.close();
+    await new Promise((r) => setTimeout(r, 50));
+    expect((await checkUrl(`http://127.0.0.1:${closed}/`)).reason).toBe('Verbindung abgelehnt');
+    expect((await checkUrl(`tcp://127.0.0.1:${closed}`, 500)).reason).toBe('Verbindung abgelehnt');
+    expect((await checkUrl('file:///etc/passwd')).reason).toBe('Nicht erreichbar');
+    expect((await checkUrl('http://gibt-es-nicht.invalid/', 2000)).reason).toBe('Nicht erreichbar');
+  });
+
   // Router, NAS und Co. nutzen oft ein selbst ausgestelltes Zertifikat. Für die Erreichbarkeit zählt das nicht.
   const hasOpenssl = (() => {
     try {
@@ -62,7 +89,7 @@ describe('checkUrl', () => {
   it('wertet einen Dienst, der nicht antwortet, nach der Zeitgrenze als nicht erreichbar', async () => {
     const hang = await serve(() => {});
     const t = Date.now();
-    expect(await checkUrl(`http://127.0.0.1:${hang}/`, 200)).toEqual({ ok: false, ms: null });
+    expect(await checkUrl(`http://127.0.0.1:${hang}/`, 200)).toEqual({ ok: false, ms: null, reason: 'Zeitüberschreitung' });
     expect(Date.now() - t).toBeLessThan(2000);
   });
 
@@ -84,7 +111,7 @@ describe('createChecker', () => {
     let up = false;
     let t = 1000;
     const targets: Target[] = [{ id: 'link:r', name: 'Router', url: 'http://router', kind: 'link' }];
-    const checker = createChecker({ store, events, targets: async () => targets, check: async () => ({ ok: up, ms: up ? 5 : null }), now: () => t });
+    const checker = createChecker({ store, events, targets: async () => targets, check: async () => ({ ok: up, ms: up ? 5 : null, reason: up ? null : 'Zeitüberschreitung' }), now: () => t });
     await checker.runOnce();
     t = 2000;
     await checker.runOnce();
@@ -93,6 +120,26 @@ describe('createChecker', () => {
     await checker.runOnce();
     expect(store.summary('link:r', 0)).toEqual({ total: 3, ok: 1 });
     expect(events.list().map((e) => `${e.level} ${e.text}`)).toEqual(['info Wieder erreichbar: Router', 'warn Nicht erreichbar: Router']);
+  });
+
+  it('prüft einen gestörten Container nicht per Netz und merkt sich den Grund', async () => {
+    const store = createServiceStore(openDb(':memory:'));
+    const events = createEventLog();
+    let calls = 0;
+    const checker = createChecker({
+      store,
+      events,
+      targets: async () => [{ id: 'app:x', name: 'X', url: 'http://x', kind: 'app', blocked: 'Container meldet „ungesund“' }],
+      check: async () => {
+        calls++;
+        return { ok: true, ms: 1, reason: null };
+      },
+    });
+    await checker.runOnce();
+    expect(calls).toBe(0);
+    expect(store.last('app:x')).toMatchObject({ ok: false });
+    expect(checker.reason('app:x')).toBe('Container meldet „ungesund“');
+    expect(events.list().map((e) => e.text)).toEqual(['Nicht erreichbar: X']);
   });
 
   it('startet keine zweite Prüfung, solange die erste noch läuft', async () => {
@@ -104,7 +151,7 @@ describe('createChecker', () => {
       targets: async () => [{ id: 'link:x', name: 'X', url: 'http://x', kind: 'link' }],
       check: () => {
         calls++;
-        return new Promise((r) => (finish = () => r({ ok: true, ms: 1 })));
+        return new Promise((r) => (finish = () => r({ ok: true, ms: 1, reason: null })));
       },
     });
     const a = checker.runOnce();
@@ -129,6 +176,8 @@ function engineWith(apps: InstalledApp[]): AppEngine {
     followLogs: async () => () => {},
     values: async () => ({}),
     dockerStatus: async () => ({ ok: true, message: null }),
+    usage: async () => [],
+    inspect: async () => ({ containers: [], logs: [] }),
   };
 }
 
@@ -147,7 +196,7 @@ describe('/api/services', () => {
     expect(link).toMatchObject({ name: 'Router', url: 'http://192.168.1.1' });
     expect((await app.inject({ method: 'PATCH', url: `/api/services/links/${link.id}`, headers: { cookie }, payload: { name: 'Fritzbox' } })).statusCode).toBe(204);
     const list = (await app.inject({ method: 'GET', url: '/api/services', headers: { cookie } })).json() as ServiceStatus[];
-    expect(list).toEqual([{ id: `link:${link.id}`, name: 'Fritzbox', url: 'http://192.168.1.1', kind: 'link', up: null, ms: null, stopped: false, uptime24h: null, uptime7d: null, bars: Array(48).fill(null) }]);
+    expect(list).toEqual([{ id: `link:${link.id}`, name: 'Fritzbox', url: 'http://192.168.1.1', kind: 'link', up: null, ms: null, reason: null, stopped: false, uptime24h: null, uptime7d: null, bars: Array(48).fill(null) }]);
     expect((await app.inject({ method: 'DELETE', url: `/api/services/links/${link.id}`, headers: { cookie } })).statusCode).toBe(204);
     expect((await app.inject({ method: 'DELETE', url: `/api/services/links/${link.id}`, headers: { cookie } })).statusCode).toBe(404);
     await app.close();
@@ -188,6 +237,34 @@ describe('/api/services', () => {
     apps.splice(0, 1);
     const after = (await app.inject({ method: 'GET', url: '/api/services', headers: { cookie } })).json() as ServiceStatus[];
     expect(after.map((s) => s.id)).toEqual(['app:ntfy']);
+    await app.close();
+  });
+
+  it('zeigt bei einer gestörten App sofort den Grund', async () => {
+    const apps: InstalledApp[] = [
+      { id: 'adguard', name: 'AdGuard Home', state: 'running', health: 'unhealthy', error: null, webUiUrl: ':3000/', installedAt: '' },
+      { id: 'ntfy', name: 'ntfy', state: 'restarting', error: null, webUiUrl: ':8082/', installedAt: '' },
+      { id: 'jelly', name: 'Jellyfin', state: 'error', error: 'kaputt', webUiUrl: ':8096/', installedAt: '' },
+    ];
+    const app = await buildApp(testDeps({ checkIntervalMs: 0, engine: engineWith(apps) }));
+    const cookie = await setupAndLogin(app);
+    const list = (await app.inject({ method: 'GET', url: '/api/services', headers: { cookie } })).json() as ServiceStatus[];
+    expect(list.map((s) => [s.id, s.up, s.reason])).toEqual([
+      ['app:adguard', false, 'Container meldet „ungesund“'],
+      ['app:ntfy', false, 'Container startet ständig neu'],
+      ['app:jelly', false, 'Container gestoppt'],
+    ]);
+    await app.close();
+  });
+
+  it('zählt eine App, deren Gesundheits-Check noch startet, nicht als funktionierend (Final-Review)', async () => {
+    const apps: InstalledApp[] = [{ id: 'adguard', name: 'AdGuard Home', state: 'running', health: 'starting', error: null, webUiUrl: ':3000/', installedAt: '' }];
+    const deps = testDeps({ checkIntervalMs: 0, engine: engineWith(apps) });
+    createServiceStore(deps.db).addCheck('app:adguard', Date.now() - 10_000, true, 10);
+    const app = await buildApp(deps);
+    const cookie = await setupAndLogin(app);
+    const [s] = (await app.inject({ method: 'GET', url: '/api/services', headers: { cookie } })).json() as ServiceStatus[];
+    expect([s!.up, s!.reason]).toEqual([null, null]);
     await app.close();
   });
 

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <title>Mainframe</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0f1115; color: #eef0f5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 28px; }
+    main { width: 100%; max-width: 580px; }
+    h1 { font-size: clamp(24px, 5vw, 32px); line-height: 1.2; margin: 0 0 20px; }
+    p { color: #afb6c4; line-height: 1.6; overflow-wrap: anywhere; }
+    label { display: block; margin: 28px 0 8px; font-weight: 600; }
+    input { width: 100%; padding: 12px; border: 1px solid #485164; border-radius: 8px; background: #191d26; color: inherit; font: inherit; }
+    input:focus-visible, button:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 3px; }
+    .buttons { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+    button { padding: 11px 15px; border: 1px solid #485164; border-radius: 8px; background: #242a37; color: inherit; font: inherit; cursor: pointer; }
+    button[type="submit"] { background: #b6c4ff; border-color: #b6c4ff; color: #131827; font-weight: 600; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #message { color: #ffb4b4; min-height: 1.6em; margin-bottom: 0; }
+    .hint { font-size: 13px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 id="heading">Mainframe ist nicht erreichbar</h1>
+    <p id="explanation">Die Verbindung zu Mainframe konnte nicht hergestellt werden.</p>
+    <form id="address-form">
+      <label for="address">Adresse</label>
+      <input id="address" name="address" type="text" placeholder="http://localhost:8787" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="message" required>
+      <div class="buttons">
+        <button id="retry" type="button">Erneut versuchen</button>
+        <button id="save" type="submit">Speichern und verbinden</button>
+      </div>
+      <p id="message" role="status" aria-live="polite"></p>
+    </form>
+    <p id="hint" class="hint">Mainframe versucht es alle 10 Sekunden von selbst, solange du die Adresse nicht bearbeitest.</p>
+  </main>
+  <script>
+    const api = window.mainframeDesktop;
+    const editing = new URLSearchParams(location.search).get('mode') === 'address';
+    const input = document.getElementById('address');
+    const message = document.getElementById('message');
+    const retry = document.getElementById('retry');
+    const save = document.getElementById('save');
+
+    if (editing) {
+      document.getElementById('heading').textContent = 'Adresse von Mainframe';
+      document.getElementById('explanation').textContent = 'Gib die Adresse des Mainframe-Servers ein, mit dem du dich verbinden möchtest.';
+      document.getElementById('hint').hidden = true;
+      retry.hidden = true;
+    }
+
+    let busy = false;
+    let savedAddress = '';
+
+    async function run(action) {
+      busy = true;
+      retry.disabled = save.disabled = true;
+      message.textContent = '';
+      try {
+        const result = await action();
+        if (result?.ok === false) message.textContent = result.message;
+      } catch {
+        message.textContent = 'Die Verbindung konnte nicht gestartet werden. Bitte versuche es erneut.';
+      } finally {
+        busy = false;
+        retry.disabled = save.disabled = false;
+      }
+    }
+
+    // Alle 10 Sekunden von selbst neu verbinden, aber nicht, während jemand die Adresse bearbeitet.
+    if (!editing) {
+      setInterval(() => {
+        const typing = document.activeElement === input || input.value.trim() !== savedAddress;
+        if (!busy && !typing) run(() => api.retry());
+      }, 10_000);
+    }
+
+    api.getAddress().then((address) => {
+      input.value = address;
+      savedAddress = address;
+      if (!editing) {
+        document.getElementById('explanation').textContent = `Mainframe unter ${address} antwortet nicht. Ist der Server an und im selben Netz?`;
+      }
+      if (editing) input.focus();
+    }).catch(() => { message.textContent = 'Die gespeicherte Adresse konnte nicht gelesen werden.'; });
+
+    retry.addEventListener('click', () => run(() => api.retry()));
+    document.getElementById('address-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      run(() => api.setAddress(input.value));
+    });
+  </script>
+</body>
+</html>

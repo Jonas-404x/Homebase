@@ -33,6 +33,8 @@ function renderApps(opts: { installResult?: () => { status?: number; json?: unkn
   const calls = mockApi({
     'GET /api/catalog': () => ({ json: [adguardCatalog, demoCatalog] }),
     'GET /api/apps': () => ({ json: [demoInstalled] }),
+    'GET /api/apps/usage': () => ({ json: [{ appId: 'demo', cpuPercent: 1.5, memBytes: 50_000_000, diskBytes: 1_200_000_000 }] }),
+    'POST /api/apps/demo/diagnose': () => ({ json: { target: 'demo', ok: true, steps: [{ id: 'docker', label: 'Docker', ok: true, detail: 'Docker läuft.', fix: null, action: null }] } }),
     'POST /api/apps/adguard/install': opts.installResult ?? (() => ({ json: { ...demoInstalled, id: 'adguard', name: 'AdGuard Home' } })),
     'DELETE /api/apps/demo': () => ({ status: 204 }),
     'GET /api/apps/adguard/credentials': () => ({
@@ -54,6 +56,52 @@ function renderApps(opts: { installResult?: () => { status?: number; json?: unkn
 }
 
 describe('Apps-Seite', () => {
+  it('zeigt CPU, RAM und Speicher pro App', async () => {
+    renderApps();
+    expect(await screen.findByText('CPU 1,5 % · RAM 50 MB · Speicher 1,2 GB')).toBeInTheDocument();
+  });
+
+  it('zeigt bei einer gestoppten App nur den Speicher', async () => {
+    mockApi({
+      'GET /api/catalog': () => ({ json: [demoCatalog] }),
+      'GET /api/apps': () => ({ json: [{ ...demoInstalled, state: 'stopped' }] }),
+      'GET /api/apps/usage': () => ({ json: [{ appId: 'demo', cpuPercent: 0, memBytes: 0, diskBytes: 3_000_000 }] }),
+    });
+    render(
+      <MemoryRouter>
+        <LiveProvider socket={fakeSocket()}>
+          <Apps />
+        </LiveProvider>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('Speicher 3 MB')).toBeInTheDocument();
+    expect(screen.queryByText(/CPU/)).not.toBeInTheDocument();
+  });
+
+  it('zeigt sehr wenig Speicher als „unter 1 MB“ statt 0 MB', async () => {
+    mockApi({
+      'GET /api/catalog': () => ({ json: [demoCatalog] }),
+      'GET /api/apps': () => ({ json: [demoInstalled] }),
+      'GET /api/apps/usage': () => ({ json: [{ appId: 'demo', cpuPercent: 0, memBytes: 15_000_000, diskBytes: 200_000 }] }),
+    });
+    render(
+      <MemoryRouter>
+        <LiveProvider socket={fakeSocket()}>
+          <Apps />
+        </LiveProvider>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('CPU 0,0 % · RAM 15 MB · Speicher unter 1 MB')).toBeInTheDocument();
+  });
+
+  it('öffnet die Diagnose einer App', async () => {
+    const { calls } = renderApps();
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Diagnose von Demo' }));
+    expect(await screen.findByRole('dialog', { name: 'Diagnose: Demo' })).toBeInTheDocument();
+    expect(await screen.findByText('Alles in Ordnung.')).toBeInTheDocument();
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/api/apps/demo/diagnose')).toBe(true);
+  });
+
   it('baut den Öffnen-Link mit der eigenen Adresse des Browsers (Review I4)', async () => {
     mockApi({
       'GET /api/catalog': () => ({ json: [demoCatalog] }),

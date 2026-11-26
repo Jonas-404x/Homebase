@@ -104,7 +104,7 @@ export function createWatcher(opts: {
 
   return {
     async tick(): Promise<void> {
-      const r = await opts.probe().catch(() => ({ ok: false, ms: null }));
+      const r = await opts.probe().catch((): CheckResult => ({ ok: false, ms: null, reason: 'Nicht erreichbar' }));
       const at = now();
       opts.store.addProbe(at, r.ok, r.ms);
       if (r.ok) {

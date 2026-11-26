@@ -2,7 +2,7 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { defaultPrefs, type InstalledApp, type Prefs, type SystemStats } from '@mainframe/shared';
+import { defaultPrefs, type InstalledApp, type Prefs, type StatusReport, type SystemStats } from '@mainframe/shared';
 import { LiveProvider } from '../src/api/live.tsx';
 import { PrefsProvider } from '../src/api/prefs.tsx';
 import { Overview } from '../src/pages/Overview.tsx';
@@ -27,8 +27,11 @@ const stats = (over: Partial<SystemStats> = {}): SystemStats => ({
 
 const adguard: InstalledApp = { id: 'adguard', name: 'AdGuard Home', state: 'running', error: null, webUiUrl: ':3000/', installedAt: '' };
 
-function renderOverview(apps: InstalledApp[], docker = { ok: true, message: null as string | null }, prefs: Prefs = defaultPrefs) {
+const allGood: StatusReport = { level: 'ok', summary: 'Alles läuft', items: [] };
+
+function renderOverview(apps: InstalledApp[], docker = { ok: true, message: null as string | null }, prefs: Prefs = defaultPrefs, status: () => StatusReport = () => allGood) {
   const calls = mockApi({
+    'GET /api/status': () => ({ json: status() }),
     'GET /api/apps': () => ({ json: apps }),
     'GET /api/system/docker': () => ({ json: docker }),
     'GET /api/adguard/stats': () => ({ json: { queriesToday: 200, blockedToday: 50, blockedPercent: 25, protectionEnabled: true } }),
@@ -147,10 +150,14 @@ describe('Übersicht', () => {
     expect(calls.some((c) => c.path.startsWith('/api/system/history'))).toBe(false);
   });
 
-  it('warnt oben, wenn ein Laufwerk fast voll ist', async () => {
-    const { socket } = renderOverview([]);
-    act(() => socket.emit({ type: 'stats', data: stats({ disks: [{ mount: 'C:', totalBytes: 100 * GB, usedBytes: 95 * GB }] }) }));
-    expect(await screen.findByText('Laufwerk C: ist fast voll (95 % belegt).')).toBeInTheDocument();
+  it('zeigt oben die Statusübersicht', async () => {
+    renderOverview([], undefined, undefined, () => ({
+      level: 'warn',
+      summary: '1 Sache braucht dich',
+      items: [{ id: 'disk:C:', level: 'warn', title: 'Laufwerk C: ist zu 95 % voll', detail: 'Lösch alte Dateien.', to: null, diagnose: 'system' }],
+    }));
+    expect(await screen.findByRole('heading', { name: '1 Sache braucht dich' })).toBeInTheDocument();
+    expect(screen.getByText('Laufwerk C: ist zu 95 % voll')).toBeInTheDocument();
   });
 
   it('öffnet per Klick auf eine Karte die Detailansicht', async () => {
@@ -177,11 +184,6 @@ describe('Übersicht', () => {
     expect(await screen.findByRole('img', { name: 'Prozessor-Verlauf der letzten 60 Minuten' })).toBeInTheDocument();
   });
 
-  it('zeigt den Docker-Hinweis', async () => {
-    renderOverview([], { ok: false, message: 'Docker läuft gerade nicht oder startet noch. Mainframe prüft das alle paar Sekunden von selbst.' });
-    expect(await screen.findByText('Docker läuft gerade nicht oder startet noch. Mainframe prüft das alle paar Sekunden von selbst.')).toBeInTheDocument();
-  });
-
   it('zeigt das AdGuard-Widget nur, wenn AdGuard installiert ist', async () => {
     renderOverview([]);
     await screen.findByText('Übersicht');
@@ -198,14 +200,21 @@ describe('Übersicht', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const docker = { ok: false, message: 'Docker startet gerade.' as string | null };
-      const { calls } = renderOverview([], docker);
-      expect(await screen.findByText('Docker startet gerade.')).toBeInTheDocument();
+      const down: StatusReport = {
+        level: 'problem',
+        summary: '1 Sache braucht dich',
+        items: [{ id: 'docker', level: 'problem', title: 'Docker läuft nicht', detail: 'Ohne Docker laufen keine Apps.', to: '/settings/docker', diagnose: 'system' }],
+      };
+      const { calls } = renderOverview([], docker, defaultPrefs, () => (docker.ok ? allGood : down));
+      expect(await screen.findByText('Docker läuft nicht')).toBeInTheDocument();
       const appLoads = () => calls.filter((c) => c.path === '/api/apps').length;
       const before = appLoads();
       docker.ok = true;
       docker.message = null;
+      // Schneller als der normale 15-Sekunden-Takt der Übersicht.
       await act(() => vi.advanceTimersByTimeAsync(5000));
-      expect(screen.queryByText('Docker startet gerade.')).not.toBeInTheDocument();
+      expect(screen.queryByText('Docker läuft nicht')).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Alles läuft' })).toBeInTheDocument();
       expect(appLoads()).toBeGreaterThan(before);
     } finally {
       vi.useRealTimers();

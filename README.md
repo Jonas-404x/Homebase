@@ -15,6 +15,9 @@
 - **Reach it from anywhere** with Tailscale (free): no open router ports, only your own devices get in
 - **Network-wide ad blocking** with AdGuard Home, preconfigured out of the box
 - **Minecraft panel like a paid host** *(planned)*: players with skins, stats, live console with commands, troll buttons, world uploads, plugins, backups, plus a public address your friends can join via playit.gg
+- **Knows when something is wrong**: a status overview shows at a glance whether everything runs and what needs you, and a diagnose button explains in plain words why an app or the whole system has a problem and how to fix it
+- **CPU, RAM and disk per app**, so you see which app eats your server
+- **Windows app**: Mainframe in its own window with the logo in the taskbar (the phone keeps the web app)
 - **Command palette**: hit `Ctrl+K` and do anything in a second
 - **Built for a small box**: the whole thing is tuned to run next to a Minecraft server on an 8 GB machine
 
@@ -30,10 +33,11 @@ Node 24 + TypeScript, Fastify, React, Docker Compose. Every service runs in its 
 2. **Settings, design and phone**: settings panes, accent colors, history charts, home-screen app ✓
    - 2.1: detail views, process list, 7-day history, six new apps, Tailscale access, Android-style phone effects ✓
 3. **Services and network**: uptime checks, network scanner and device inventory, internet watcher with speedtest, two-factor login ✓
+   - 3.1: status overview, diagnose button, CPU/RAM/disk per app, stricter service check, Windows app ✓
 4. **Server move**: Ubuntu setup script, network share visible in Windows Explorer, Wake-on-LAN, AdGuard for the whole network, HTTPS
 5. **Minecraft**: server with live console, playit.gg, players, stats, worlds, plugins, backups
 6. **Notifications and backups**: push via ntfy and Discord, automatic backups
-7. **Discord bot**, 8. **more apps**, 9. **Claude on the server** (assistant inside Mainframe)
+7. **Discord bot**, 8. **more apps**, 9. **Claude on the server** (assistant inside Mainframe), 10. **AI farm** (agents that work on projects on their own)
 
 ## Development
 
@@ -45,6 +49,14 @@ npm run dev          # server on :8787 + web UI with hot reload on http://localh
 ```
 
 On first start Mainframe asks you to choose a username and password.
+
+### Windows app
+
+```bash
+npm run desktop:dist   # builds apps/desktop/dist/Mainframe Setup <version>.exe
+```
+
+Install it once; it opens Mainframe at `http://localhost:8787` in its own window. Right-click the tray icon › **Adresse ändern …** to point it at the home server later. Details in [apps/desktop/README.md](apps/desktop/README.md).
 
 ### Remote access (Tailscale)
 

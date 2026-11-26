@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import type { ServiceStatus } from '@mainframe/shared';
+import type { InstalledApp, ServiceStatus } from '@mainframe/shared';
 import type { AppEngine } from '../apps/engine.ts';
 import type { Db } from '../db.ts';
 import { MainframeError } from '../errors.ts';
@@ -32,41 +32,62 @@ function checkLinkUrl(raw: unknown): string {
   return url;
 }
 
+/** Was am Container schon ohne Netzprüfung als gestört erkennbar ist. */
+function containerProblem(a: InstalledApp): string | null {
+  if (a.state === 'restarting') return 'Container startet ständig neu';
+  if (a.state === 'error') return 'Container gestoppt';
+  if (a.health === 'unhealthy') return 'Container meldet „ungesund“';
+  return null;
+}
+
 const percent = (s: { total: number; ok: number }) => (s.total === 0 ? null : Math.round((s.ok / s.total) * 1000) / 10);
 
 /** Dienste-Seite: installierte Apps und eigene Links, regelmäßig auf Erreichbarkeit geprüft. */
-export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; prefs: PrefsStore; events?: EventLog; engine?: AppEngine; intervalMs?: number }): void {
+export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; prefs: PrefsStore; events?: EventLog; engine?: AppEngine; intervalMs?: number }): { list: () => Promise<ServiceStatus[]> } {
   const store = createServiceStore(opts.db);
 
-  const all = async (): Promise<(Target & { stopped: boolean })[]> => {
+  const all = async (): Promise<(Target & { stopped: boolean; pending: boolean })[]> => {
     const apps = opts.engine ? await opts.engine.list().catch(() => []) : [];
     return [
       ...apps
         .filter((a) => a.webUiUrl)
-        .map((a) => ({ id: `app:${a.id}`, name: a.name, url: `http://127.0.0.1${a.webUiUrl}`, kind: 'app' as const, stopped: a.state === 'stopped' })),
-      ...store.listLinks().map((l) => ({ id: `link:${l.id}`, name: l.name, url: l.url, kind: 'link' as const, stopped: false })),
+        .map((a) => ({
+          id: `app:${a.id}`,
+          name: a.name,
+          url: `http://127.0.0.1${a.webUiUrl}`,
+          kind: 'app' as const,
+          stopped: a.state === 'stopped',
+          blocked: containerProblem(a),
+          // Healthcheck noch nicht durch: weder "funktioniert" noch "kaputt", sondern noch offen.
+          pending: a.state === 'running' && a.health === 'starting',
+        })),
+      ...store.listLinks().map((l) => ({ id: `link:${l.id}`, name: l.name, url: l.url, kind: 'link' as const, stopped: false, blocked: null, pending: false })),
     ];
   };
   const checker = createChecker({ store, events: opts.events, targets: async () => (await all()).filter((t) => !t.stopped) });
 
-  app.get('/api/services', async (): Promise<ServiceStatus[]> => {
+  const list = async (): Promise<ServiceStatus[]> => {
     const now = Date.now();
     return (await all()).map((t) => {
       const last = t.stopped ? null : store.last(t.id);
+      // Ein gestörter Container zählt sofort, nicht erst nach der nächsten Prüfrunde.
+      const up = t.stopped || (t.pending && !t.blocked) ? null : t.blocked ? false : last ? last.ok : null;
       return {
         id: t.id,
         name: t.name,
         url: t.url,
         kind: t.kind,
-        up: last ? last.ok : null,
-        ms: last?.ms ?? null,
+        up,
+        ms: up ? (last?.ms ?? null) : null,
+        reason: up !== false ? null : (t.blocked ?? checker.reason(t.id)),
         stopped: t.stopped,
         uptime24h: percent(store.summary(t.id, now - DAY)),
         uptime7d: percent(store.summary(t.id, now - KEEP)),
         bars: store.bars(t.id, now - DAY, now, BARS),
       };
     });
-  });
+  };
+  app.get('/api/services', list);
 
   // Prüfen im Hintergrund; ein Fehler (z. B. Datenbank beim Beenden schon zu) darf den Server nicht beenden.
   const recheck = () => void checker.runOnce().catch(() => {});
@@ -87,6 +108,7 @@ export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; pref
     if (!store.updateLink(req.params.id, patch)) throw new MainframeError('not_found', 'Diesen Link gibt es nicht.', 404);
     if (patch.url !== undefined && patch.url !== before?.url) {
       store.clearChecks(`link:${req.params.id}`);
+      checker.forget(`link:${req.params.id}`);
       recheck();
     }
     return reply.code(204).send();
@@ -120,4 +142,5 @@ export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; pref
   app.addHook('onClose', async () => {
     if (timer) clearInterval(timer);
   });
+  return { list };
 }

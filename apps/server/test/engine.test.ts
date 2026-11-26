@@ -1,10 +1,11 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComposeRunner } from '../src/apps/compose-runner.ts';
-import type { DockerStatus } from '../src/apps/docker-status.ts';
-import { createAppEngine } from '../src/apps/engine.ts';
+import type { AppInspect, DockerStatus } from '../src/apps/docker-status.ts';
+import type { DfLike } from '../src/apps/usage.ts';
+import { createAppEngine, DOCKER_DOWN_MESSAGE } from '../src/apps/engine.ts';
 import { createStateStore } from '../src/apps/state-store.ts';
 import { loadCatalog } from '../src/catalog/loader.ts';
 import { testConfig } from './helpers.ts';
@@ -32,13 +33,29 @@ class FakeCompose implements ComposeRunner {
 
 class FakeDocker implements DockerStatus {
   up = true;
-  containers = new Map<string, { state: string }[]>();
+  containers = new Map<string, { state: string; health?: 'healthy' | 'unhealthy' | 'starting' | null }[]>();
   async ping() { return this.up; }
   async containersByApp() {
     if (!this.up) throw new Error('connect ENOENT');
     return this.containers;
   }
   async followLogs() { return () => {}; }
+  usageMap = new Map<string, { cpuPercent: number; memBytes: number }>();
+  dfData: DfLike = { Containers: [], Volumes: [] };
+  dfCalls = 0;
+  async usage() {
+    if (!this.up) throw new Error('connect ENOENT');
+    return this.usageMap;
+  }
+  async df() {
+    this.dfCalls++;
+    return this.dfData;
+  }
+  inspected: string[] = [];
+  async inspect(appId: string): Promise<AppInspect> {
+    this.inspected.push(appId);
+    return { containers: [{ name: 'demo-1', state: 'exited', health: null, restartCount: 3, exitCode: 1, oomKilled: false, startedAt: null, ports: [] }], logs: ['Error: kaputt'] };
+  }
 }
 
 let dataRoot: string;
@@ -166,8 +183,61 @@ describe('AppEngine', () => {
     await engine.install('demo', { greeting: 'hi' });
     docker.containers.set('demo', [{ state: 'running' }, { state: 'restarting' }]);
     expect((await engine.list())[0]!.state).toBe('restarting');
+    await engine.stop('demo');
     docker.containers.set('demo', [{ state: 'exited' }]);
     expect((await engine.list())[0]!.state).toBe('stopped');
+  });
+
+  it('meldet eine unerwartet beendete App als Fehler, eine selbst gestoppte als gestoppt (Final-Review)', async () => {
+    const { engine, docker } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    docker.containers.set('demo', [{ state: 'exited' }]);
+    expect((await engine.list())[0]).toMatchObject({ state: 'error', error: 'Die App ist unerwartet beendet.' });
+    await engine.stop('demo');
+    expect((await engine.list())[0]).toMatchObject({ state: 'stopped', error: null });
+    await engine.start('demo');
+    expect((await engine.list())[0]!.state).toBe('error');
+    await engine.stop('demo');
+    await engine.restart('demo');
+    expect((await engine.list())[0]!.state).toBe('error');
+  });
+
+  it('wartet nicht ewig auf ein hängendes Docker (Final-Review)', async () => {
+    const { engine, docker } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    const never = () => new Promise<never>(() => {});
+    docker.containersByApp = never;
+    docker.usage = never;
+    const t = Date.now();
+    const [list, usage] = await Promise.all([engine.list(), engine.usage()]);
+    expect(Date.now() - t).toBeLessThan(5000);
+    expect(list[0]).toMatchObject({ state: 'error', error: DOCKER_DOWN_MESSAGE });
+    expect(usage).toEqual([]);
+  }, 10_000);
+
+  it('wartet beim Speicher höchstens kurz und misst nie doppelt (Final-Review)', async () => {
+    const { engine, docker } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    let finish: (v: { Containers: []; Volumes: [] }) => void = () => {};
+    docker.df = () => { docker.dfCalls++; return new Promise((r) => { finish = r; }); };
+    const t = Date.now();
+    expect((await engine.usage())[0]).toMatchObject({ appId: 'demo', diskBytes: null });
+    expect(Date.now() - t).toBeLessThan(3000);
+    await engine.usage();
+    expect(docker.dfCalls).toBe(1);
+    finish({ Containers: [], Volumes: [] });
+    await vi.waitFor(async () => expect((await engine.usage())[0]!.diskBytes).not.toBeNull());
+  }, 10_000);
+
+  it('meldet einen ungesunden Container, auch wenn er läuft', async () => {
+    const { engine, docker } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    docker.containers.set('demo', [{ state: 'running', health: 'healthy' }, { state: 'running', health: 'unhealthy' }]);
+    expect((await engine.list())[0]).toMatchObject({ state: 'running', health: 'unhealthy' });
+    docker.containers.set('demo', [{ state: 'running', health: 'healthy' }]);
+    expect((await engine.list())[0]!.health).toBe('healthy');
+    docker.containers.set('demo', [{ state: 'running', health: null }]);
+    expect((await engine.list())[0]!.health).toBeUndefined();
   });
 
   it('löscht beim Entfernen nur auf Wunsch die Daten', async () => {
@@ -212,5 +282,33 @@ describe('AppEngine.catalog', () => {
   it('liefert im Dev-Modus devDefault als Standard-Port', async () => {
     const { engine } = await make();
     expect(engine.catalog()[0]!.ports[0]!.default).toBe(18080);
+  });
+
+  it('liefert CPU, RAM und Speicher pro installierter App', async () => {
+    const { engine, docker } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    fs.writeFileSync(path.join(dataRoot, 'apps', 'demo', 'data', 'x.bin'), Buffer.alloc(500));
+    docker.usageMap.set('demo', { cpuPercent: 2.5, memBytes: 1000 });
+    docker.dfData = { Containers: [{ Labels: { 'mainframe.app': 'demo' }, SizeRw: 10 }], Volumes: [] };
+    const [u] = await engine.usage();
+    expect(u).toMatchObject({ appId: 'demo', cpuPercent: 2.5, memBytes: 1000 });
+    expect(u!.diskBytes).toBeGreaterThanOrEqual(510);
+    await engine.usage();
+    expect(docker.dfCalls).toBe(1); // Speicher wird zwischengespeichert, das Ermitteln ist langsam
+  });
+
+  it('liefert ohne Docker keine Werte statt eines Fehlers', async () => {
+    const { engine, docker } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    docker.up = false;
+    expect(await engine.usage()).toEqual([]);
+  });
+
+  it('gibt Container-Zustand und Log einer installierten App für die Diagnose', async () => {
+    const { engine, docker } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    expect((await engine.inspect('demo')).containers[0]).toMatchObject({ restartCount: 3, exitCode: 1 });
+    expect(docker.inspected).toEqual(['demo']);
+    await expect(engine.inspect('fremd')).rejects.toMatchObject({ status: 404 });
   });
 });

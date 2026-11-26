@@ -1,12 +1,14 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { AppState, CatalogApp, InstalledApp } from '@mainframe/shared';
+import type { AppState, AppUsage, CatalogApp, InstalledApp } from '@mainframe/shared';
 import { renderCompose, resolveValues } from '../catalog/render.ts';
 import type { CatalogEntry } from '../catalog/loader.ts';
 import type { Config } from '../config.ts';
 import { MainframeError } from '../errors.ts';
 import type { ComposeRunner } from './compose-runner.ts';
-import type { DockerStatus } from './docker-status.ts';
+import type { AppInspect, DockerStatus, Health } from './docker-status.ts';
+import { within } from '../util/within.ts';
+import { diskByApp, dirSize } from './usage.ts';
 import type { AppStateFile, StateStore } from './state-store.ts';
 
 export interface AppHook {
@@ -24,8 +26,16 @@ export interface AppEngine {
   followLogs(id: string, onLine: (line: string) => void): Promise<() => void>;
   values(id: string): Promise<Record<string, string>>;
   dockerStatus(): Promise<{ ok: boolean; message: string | null }>;
+  /** CPU, RAM und Speicher pro installierter App; ohne Docker eine leere Liste. */
+  usage(): Promise<AppUsage[]>;
+  /** Container-Zustand und letzte Log-Zeilen für die Diagnose. */
+  inspect(id: string): Promise<AppInspect>;
   hooks: Map<string, AppHook>;
 }
+
+export const UNEXPECTED_EXIT_MESSAGE = 'Die App ist unerwartet beendet.';
+/** Wie lange eine Docker-Abfrage höchstens dauern darf, bevor Docker als hängend gilt. */
+const DOCKER_TIMEOUT_MS = 4000;
 
 export const DOCKER_DOWN_MESSAGE = 'Docker läuft gerade nicht oder startet noch. Mainframe prüft das alle paar Sekunden von selbst.';
 
@@ -39,12 +49,24 @@ export function explainComposeError(raw: string): string {
   return `Das hat nicht geklappt: ${lastLine}`;
 }
 
-function deriveState(containers: { state: string }[] | undefined, lastError: string | null): AppState {
+type ContainerSummary = { state: string; health?: Health };
+
+/** Schlechtester Healthcheck-Zustand aller Container; undefined, wenn keiner einen hat. */
+function deriveHealth(containers: ContainerSummary[] | undefined): InstalledApp['health'] {
+  const hs = (containers ?? []).map((c) => c.health).filter((h): h is NonNullable<Health> => Boolean(h));
+  if (hs.includes('unhealthy')) return 'unhealthy';
+  if (hs.includes('starting')) return 'starting';
+  return hs.length > 0 ? 'healthy' : undefined;
+}
+
+function deriveState(containers: { state: string }[] | undefined, s: AppStateFile): { state: AppState; error: string | null } {
   const list = containers ?? [];
-  if (list.some((c) => c.state === 'restarting')) return 'restarting';
-  if (list.length > 0 && list.every((c) => c.state === 'running')) return 'running';
-  if (lastError) return 'error';
-  return 'stopped';
+  if (list.some((c) => c.state === 'restarting')) return { state: 'restarting', error: null };
+  if (list.length > 0 && list.every((c) => c.state === 'running')) return { state: 'running', error: null };
+  if (s.lastError) return { state: 'error', error: s.lastError };
+  // Nur was du selbst angehalten hast, ist "gestoppt"; sonst ist die App abgestürzt oder nach einem Neustart nicht hochgekommen.
+  if (s.stoppedByUser) return { state: 'stopped', error: null };
+  return { state: 'error', error: UNEXPECTED_EXIT_MESSAGE };
 }
 
 export function createAppEngine(deps: {
@@ -80,7 +102,7 @@ export function createAppEngine(deps: {
     return s;
   };
 
-  const toInstalled = (s: AppStateFile, containers: Map<string, { state: string }[]> | null): InstalledApp => {
+  const toInstalled = (s: AppStateFile, containers: Map<string, ContainerSummary[]> | null): InstalledApp => {
     const app = catalog.find((c) => c.app.id === s.id)?.app;
     const port = app?.webUi ? s.values[app.webUi.portKey] : undefined;
     const base = {
@@ -91,30 +113,57 @@ export function createAppEngine(deps: {
     };
     if (installing.has(s.id)) return { ...base, state: 'installing', error: null };
     if (!containers) return { ...base, state: 'error', error: DOCKER_DOWN_MESSAGE };
-    const state = deriveState(containers.get(s.id), s.lastError);
-    return { ...base, state, error: state === 'error' ? s.lastError : null };
+    const { state, error } = deriveState(containers.get(s.id), s);
+    const health = state === 'running' ? deriveHealth(containers.get(s.id)) : undefined;
+    return { ...base, state, ...(health ? { health } : {}), error };
+  };
+
+  // Speicherbelegung ist langsam zu ermitteln (docker df, Ordner durchgehen): höchstens einmal pro Minute,
+  // nie zweimal gleichzeitig, und eine Abfrage wartet höchstens kurz darauf (sonst alter Wert oder keiner).
+  let disk: { at: number; ids: string; map: Map<string, number> } | null = null;
+  let diskJob: Promise<void> | null = null;
+  const refreshDisk = (ids: string[]): Promise<void> => {
+    diskJob ??= (async () => {
+      try {
+        const df = await within(docker.df(), null, 30_000);
+        if (!df) return;
+        const dirs = new Map(await Promise.all(ids.map(async (id) => [id, await dirSize(appDir(id))] as const)));
+        disk = { at: Date.now(), ids: ids.join(','), map: diskByApp(df, ids, dirs) };
+      } catch {
+        // alter Wert bleibt
+      } finally {
+        diskJob = null;
+      }
+    })();
+    return diskJob;
+  };
+  const diskCached = async (ids: string[]): Promise<Map<string, number> | null> => {
+    const fresh = disk !== null && disk.ids === ids.join(',') && Date.now() - disk.at < 60_000;
+    if (!fresh) await within(refreshDisk(ids), undefined, 2000);
+    return disk?.map ?? null;
   };
 
   const list = async (): Promise<InstalledApp[]> => {
     const states = await store.list();
-    let containers: Map<string, { state: string }[]> | null = null;
-    try {
-      containers = await docker.containersByApp();
-    } catch {
-      containers = null;
-    }
+    // Ein hängendes Docker zählt wie ein gestopptes: die Liste kommt trotzdem.
+    const containers = await within<Map<string, ContainerSummary[]> | null>(docker.containersByApp(), null, DOCKER_TIMEOUT_MS);
     return states.map((s) => toInstalled(s, containers));
   };
 
-  const action = (fn: (dir: string) => Promise<void>) => async (id: string) => {
-    const s = await installed(id);
+  // stoppedByUser: true = du hältst die App an (schon vorher merken, damit sie währenddessen nicht als abgestürzt gilt).
+  const action = (fn: (dir: string) => Promise<void>, stoppedByUser: boolean) => async (id: string) => {
+    let s = await installed(id);
     await assertDocker();
+    if (stoppedByUser && !s.stoppedByUser) {
+      s = { ...s, stoppedByUser: true };
+      await store.save(s);
+    }
     try {
       await fn(appDir(id));
     } catch (err) {
       throw new MainframeError('action_failed', explainComposeError(err instanceof Error ? err.message : String(err)), 500);
     }
-    if (s.lastError) await store.save({ ...s, lastError: null });
+    if (s.lastError || Boolean(s.stoppedByUser) !== stoppedByUser) await store.save({ ...s, lastError: null, stoppedByUser });
   };
 
   return {
@@ -166,9 +215,9 @@ export function createAppEngine(deps: {
       return now!;
     },
 
-    start: action((d) => compose.start(d)),
-    stop: action((d) => compose.stop(d)),
-    restart: action((d) => compose.restart(d)),
+    start: action((d) => compose.start(d), false),
+    stop: action((d) => compose.stop(d), true),
+    restart: action((d) => compose.restart(d), false),
 
     async remove(id, opts) {
       await installed(id);
@@ -196,6 +245,25 @@ export function createAppEngine(deps: {
     async dockerStatus() {
       const ok = await docker.ping();
       return { ok, message: ok ? null : DOCKER_DOWN_MESSAGE };
+    },
+
+    async usage() {
+      const ids = (await store.list()).map((s) => s.id);
+      if (ids.length === 0) return [];
+      const live = await within<Map<string, { cpuPercent: number; memBytes: number }> | null>(docker.usage(), null, DOCKER_TIMEOUT_MS);
+      if (!live) return [];
+      const disk = await diskCached(ids);
+      return ids.map((id) => ({
+        appId: id,
+        cpuPercent: live.get(id)?.cpuPercent ?? 0,
+        memBytes: live.get(id)?.memBytes ?? 0,
+        diskBytes: disk?.get(id) ?? null,
+      }));
+    },
+
+    async inspect(id) {
+      await installed(id);
+      return docker.inspect(id);
     },
   };
 }

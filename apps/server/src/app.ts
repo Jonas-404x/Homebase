@@ -1,7 +1,7 @@
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
-import type { ApiError } from '@mainframe/shared';
+import type { ApiError, SystemStats } from '@mainframe/shared';
 import { registerAuthGuard } from './auth/plugin.ts';
 import { registerAuthRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
@@ -24,6 +24,9 @@ import { registerDeviceRoutes } from './network/routes.ts';
 import { realScanDeps, type ScanDeps } from './network/scanner.ts';
 import { registerInternetRoutes, type InternetDeps } from './internet/routes.ts';
 import { createPrefsStore, type PrefsStore } from './prefs/store.ts';
+import { registerStatusRoutes } from './status/routes.ts';
+import { registerDiagnoseRoutes } from './diagnose/routes.ts';
+import { realDiagnoseDeps, type DiagnoseDeps } from './diagnose/facts.ts';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -55,6 +58,8 @@ export interface AppDeps {
   internetIntervalMs?: number;
   /** Probe und Speedtest (Tests). */
   internet?: InternetDeps;
+  /** Werkzeuge für die Diagnose (Tests). */
+  diagnose?: DiagnoseDeps;
   /** Quelle für Detailansicht und Prozess-Liste (Tests). */
   system?: SystemSource;
   /** Weitere Routen (z. B. AdGuard), die Zugriff auf Engine und Hub brauchen. */
@@ -108,7 +113,17 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     startedAt: Date.now(),
     onSessionsChanged,
   });
-  registerSystemRoutes(app, hub, deps.statsProvider ?? createStatsProvider(), prefs, {
+  // Jede Messung merken: Statusübersicht und Diagnose nehmen den letzten Wert (Verlauf misst alle 10 s),
+  // statt selbst neu zu messen. Das dauert unter Windows unter Last mehrere Sekunden.
+  const measure = deps.statsProvider ?? createStatsProvider();
+  let lastStats: { at: number; value: SystemStats } | null = null;
+  const statsProvider: StatsProvider = async () => {
+    const value = await measure();
+    lastStats = { at: Date.now(), value };
+    return value;
+  };
+  const recentStats = () => (lastStats && Date.now() - lastStats.at < 30_000 ? Promise.resolve(lastStats.value) : statsProvider());
+  registerSystemRoutes(app, hub, statsProvider, prefs, {
     intervalMs: deps.statsIntervalMs,
     historySampleMs: deps.historySampleMs,
     db: deps.db,
@@ -116,9 +131,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     system: deps.system,
   });
   if (deps.engine) registerAppRoutes(app, deps.engine, hub);
-  registerServiceRoutes(app, { db: deps.db, prefs, events, engine: deps.engine, intervalMs: deps.checkIntervalMs });
-  registerInternetRoutes(app, { db: deps.db, prefs, events, deps: deps.internet, intervalMs: deps.internetIntervalMs });
-  registerDeviceRoutes(app, { db: deps.db, prefs, events, deps: deps.network ?? realScanDeps(deps.config.dataRoot), intervalMs: deps.scanIntervalMs });
+  const services = registerServiceRoutes(app, { db: deps.db, prefs, events, engine: deps.engine, intervalMs: deps.checkIntervalMs });
+  const internet = registerInternetRoutes(app, { db: deps.db, prefs, events, deps: deps.internet, intervalMs: deps.internetIntervalMs });
+  const devices = registerDeviceRoutes(app, { db: deps.db, prefs, events, deps: deps.network ?? realScanDeps(deps.config.dataRoot), intervalMs: deps.scanIntervalMs });
+  registerStatusRoutes(app, { db: deps.db, prefs, engine: deps.engine, stats: recentStats, services: services.list, internetOnline: internet.online, devices: devices.list });
+  registerDiagnoseRoutes(app, { stats: recentStats, services: services.list, prefs, engine: deps.engine, deps: deps.diagnose ?? realDiagnoseDeps });
   for (const p of deps.plugins ?? []) await p(app);
 
   if (deps.config.webDistDir) {

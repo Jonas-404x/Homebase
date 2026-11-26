@@ -170,6 +170,7 @@ export function ServicesPane() {
                 ) : (
                   <span className="mono service-url">{s.url}</span>
                 )}
+                {s.up === false && s.reason && <p className="service-reason">{s.reason}</p>}
                 <div className="uptime-bars" aria-hidden="true">
                   {s.bars.map((v, i) => (
                     <span key={i} className={v === null ? 'bar bar-empty' : v >= 0.99 ? 'bar bar-ok' : v >= 0.5 ? 'bar bar-warn' : 'bar bar-down'} />

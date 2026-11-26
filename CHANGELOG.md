@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Part 3.1: Status, diagnose and a Windows app
+
+- **Status overview** at the top of the overview page: "Everything is running" or how many things need you, with each problem, warning and hint, a link to where you fix it and a diagnose button; refreshes every 15 seconds
+- **Diagnose button** for every app and for the whole system: checks Docker, the container, crashes and exit codes, errors in the log, the open port, the web interface, disk space and RAM (system: every app, your links, internet, DNS, disks, RAM, temperature), explains each result in one sentence and offers a fix ("Restart", or a link to the right page)
+- **CPU, RAM and disk per app** on the Apps page (every 5 seconds) and in the CPU and RAM detail views
+- **Stricter service check**: "reachable" now means "working": a 404 or 502 counts as down and the tile says why ("Antwortet mit Fehler 404", "Zeitüberschreitung", "Verbindung abgelehnt"); a login page (401/403) still counts as working; an app whose container keeps restarting or reports "unhealthy" counts as down right away
+- **Crash detection**: an app you did not stop yourself but whose container exited (a crash, or it did not come back after a reboot) now shows up as a problem instead of "stopped"; AdGuard Home now restarts on its own like the other apps (`restart: unless-stopped`, new installs)
+- **RAM warning** in the event log when memory crosses its threshold (disk and temperature already had one)
+- **Windows app** (`apps/desktop`, Electron): Mainframe in its own window with the logo in the taskbar and a tray icon, a German offline page with automatic retry, and an address switch for the future server; build the installer with `npm run desktop:dist`
+
 ### Part 3: Services and network
 
 - **New "Services" tab** with three sections: Services, Devices and Internet

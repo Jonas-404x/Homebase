@@ -18,6 +18,7 @@ const svc = (over: Partial<ServiceStatus>): ServiceStatus => ({
   kind: 'app',
   up: true,
   ms: 12,
+  reason: null,
   stopped: false,
   uptime24h: 99.5,
   uptime7d: 98,
@@ -52,7 +53,7 @@ const internet: InternetStatus = {
 function renderAt(path: string, routes: Parameters<typeof mockApi>[0] = {}) {
   const calls = mockApi({
     'GET /api/prefs': () => ({ json: defaultPrefs }),
-    'GET /api/services': () => ({ json: [svc({}), svc({ id: 'link:r1', name: 'Router', url: 'http://192.168.1.1', kind: 'link', up: false, ms: null, uptime24h: 80 }), svc({ id: 'app:ntfy', name: 'ntfy', up: null, stopped: true, uptime24h: null, uptime7d: null })] }),
+    'GET /api/services': () => ({ json: [svc({}), svc({ id: 'link:r1', name: 'Router', url: 'http://192.168.1.1', kind: 'link', up: false, ms: null, reason: 'Antwortet mit Fehler 404', uptime24h: 80 }), svc({ id: 'app:ntfy', name: 'ntfy', up: null, stopped: true, uptime24h: null, uptime7d: null })] }),
     'GET /api/devices': () => ({ json: { devices: [dev({}), dev({ mac: 'da:a1:19:44:55:66', ip: '192.168.1.31', hostname: null, vendor: null, randomMac: true, known: false })], scanning: false } }),
     'GET /api/internet': () => ({ json: internet }),
     ...routes,
@@ -80,6 +81,8 @@ describe('Dienste', () => {
     expect(within(adguard).getByText('99,5 %')).toBeInTheDocument();
     const router = screen.getByRole('heading', { name: 'Router' }).closest('article')!;
     expect(within(router).getByText('Nicht erreichbar')).toBeInTheDocument();
+    expect(within(router).getByText('Antwortet mit Fehler 404')).toBeInTheDocument();
+    expect(within(adguard).queryByText(/Antwortet mit/)).not.toBeInTheDocument();
     const ntfy = screen.getByRole('heading', { name: 'ntfy' }).closest('article')!;
     expect(within(ntfy).getByText('Gestoppt')).toBeInTheDocument();
   });

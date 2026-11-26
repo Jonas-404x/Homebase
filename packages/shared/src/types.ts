@@ -123,10 +123,22 @@ export interface InstalledApp {
   id: string;
   name: string;
   state: AppState;
+  /** Gesundheit laut Healthcheck der Container; fehlt, wenn die App keinen hat. */
+  health?: 'healthy' | 'unhealthy' | 'starting';
   error: string | null;
   /** Nur ":<port><pfad>" – den Host setzt der Browser davor (siehe apps/web/src/api/webUi.ts). */
   webUiUrl: string | null;
   installedAt: string;
+}
+
+/** CPU, RAM und belegter Speicher einer installierten App. */
+export interface AppUsage {
+  appId: string;
+  /** Anteil an der CPU des ganzen Rechners in Prozent. */
+  cpuPercent: number;
+  memBytes: number;
+  /** Container-Schicht + Volumes + App-Ordner; null, solange unbekannt. */
+  diskBytes: number | null;
 }
 
 /** Ein Eingabefeld einer installierten App mit seinem Wert (z. B. Benutzername und Passwort). */
@@ -167,6 +179,8 @@ export interface ServiceStatus {
   /** null = noch nicht geprüft */
   up: boolean | null;
   ms: number | null;
+  /** Warum der Dienst nicht funktioniert, z. B. "Antwortet mit Fehler 404"; null wenn er läuft oder unbekannt */
+  reason: string | null;
   /** App ist gestoppt, wird dann nicht geprüft */
   stopped: boolean;
   /** Verfügbarkeit in Prozent, null = keine Prüfungen im Zeitraum */
@@ -214,4 +228,45 @@ export interface InternetStatus {
   outages: Outage[];
   speedtests: SpeedtestResult[];
   running: boolean;
+}
+
+/** Ein Punkt der Statusübersicht: problem = rot, warn = gelb, info = grau (zählt nicht). */
+export interface StatusItem {
+  id: string;
+  level: 'problem' | 'warn' | 'info';
+  title: string;
+  detail: string;
+  /** Seite in Mainframe, auf der man es beheben kann */
+  to: string | null;
+  /** App-ID für die Diagnose oder "system"; null = keine Diagnose */
+  diagnose: string | null;
+}
+
+export interface StatusReport {
+  level: 'ok' | 'warn' | 'problem';
+  summary: string;
+  items: StatusItem[];
+}
+
+/** Was ein Knopf in der Diagnose tun kann. */
+export type DiagnoseAction = { kind: 'restart-app'; appId: string } | { kind: 'link'; to: string; label: string };
+
+/** Ein Prüfschritt der Diagnose. ok: true = gut, false = Problem, null = übersprungen. */
+export interface DiagnoseStep {
+  id: string;
+  label: string;
+  ok: boolean | null;
+  /** Ein Satz: was geprüft wurde und was dabei herauskam */
+  detail: string;
+  /** Ein Satz, wie man es behebt; null wenn ok oder übersprungen */
+  fix: string | null;
+  action: DiagnoseAction | null;
+}
+
+export interface DiagnoseReport {
+  /** App-ID oder "system" */
+  target: string;
+  /** true, wenn kein Schritt ein Problem gefunden hat */
+  ok: boolean;
+  steps: DiagnoseStep[];
 }

@@ -1,8 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { defaultPrefs, type HistoryPoint, type ProcessInfo, type SystemDetails } from '@mainframe/shared';
+import { defaultPrefs, type HistoryPoint, type InstalledApp, type ProcessInfo, type SystemDetails } from '@mainframe/shared';
 import { LiveProvider } from '../src/api/live.tsx';
 import { PrefsProvider } from '../src/api/prefs.tsx';
 import { Details } from '../src/pages/Details.tsx';
@@ -17,6 +17,11 @@ const details: SystemDetails = {
   network: [{ iface: 'Ethernet', ip: '192.168.1.20', speedMbit: 1000 }],
   temperature: { mainC: null, maxC: null, coresC: [] },
 };
+const apps: InstalledApp[] = [
+  { id: 'adguard', name: 'AdGuard Home', state: 'running', error: null, webUiUrl: ':3000/', installedAt: '' },
+  { id: 'mc', name: 'Minecraft', state: 'running', error: null, webUiUrl: null, installedAt: '' },
+  { id: 'ntfy', name: 'ntfy', state: 'stopped', error: null, webUiUrl: null, installedAt: '' },
+];
 const procs: ProcessInfo[] = [{ name: 'brave', count: 20, cpuPercent: 12.1, memBytes: 3.6e9 }];
 const now = Date.now();
 const hist: HistoryPoint[] = [
@@ -31,6 +36,13 @@ function renderAt(path: string, history: HistoryPoint[] = hist, d: SystemDetails
     'GET /api/system/history': () => ({ json: history }),
     'GET /api/system/details': () => ({ json: d }),
     'GET /api/system/processes': () => ({ json: procs }),
+    'GET /api/apps': () => ({ json: apps }),
+    'GET /api/apps/usage': () => ({
+      json: [
+        { appId: 'adguard', cpuPercent: 0.4, memBytes: 60_000_000, diskBytes: null },
+        { appId: 'mc', cpuPercent: 12, memBytes: 2_000_000_000, diskBytes: null },
+      ],
+    }),
   });
   render(
     <MemoryRouter initialEntries={[path]}>
@@ -59,6 +71,13 @@ describe('Detailansicht', () => {
     expect(await screen.findByText('brave')).toBeInTheDocument();
     expect(screen.getByText('Kern 4')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Übersicht' })).toHaveAttribute('href', '/');
+  });
+
+  it('zeigt den Verbrauch der Apps, sortiert nach der Seite', async () => {
+    renderAt('/details/memory');
+    const table = (await screen.findByRole('heading', { name: 'Apps' })).parentElement!;
+    const rows = await within(table).findAllByRole('row');
+    expect(rows.slice(1).map((r) => r.textContent)).toEqual(['Minecraft12,0 %2,0 GB', 'AdGuard Home0,4 %60 MB']);
   });
 
   it('lässt den Zeitraum bis 7 Tage umstellen', async () => {

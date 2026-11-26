@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { WebSocket } from 'ws';
-import type { AppCredential } from '@mainframe/shared';
+import type { AppCredential, AppUsage } from '@mainframe/shared';
 import type { WsHub } from '../ws/hub.ts';
 import type { AppEngine } from './engine.ts';
 
@@ -18,6 +18,16 @@ export function registerAppRoutes(app: FastifyInstance, engine: AppEngine, hub: 
   app.get('/api/catalog', async () => engine.catalog());
   app.get('/api/system/docker', async () => engine.dockerStatus());
   app.get('/api/apps', async () => await engine.list());
+
+  // `docker stats` braucht pro Abfrage gut eine Sekunde: mehrere offene Fenster teilen sich eine Messung.
+  let usage: { at: number; value: Promise<AppUsage[]> } | null = null;
+  app.get('/api/apps/usage', async () => {
+    if (!usage || Date.now() - usage.at > 3000) {
+      const value = engine.usage().catch(() => [] as AppUsage[]);
+      usage = { at: Date.now(), value };
+    }
+    return usage.value;
+  });
 
   // Zugangsdaten (z. B. das von Mainframe erzeugte AdGuard-Passwort) – nur mit Session (Auth-Guard).
   app.get<IdParams>('/api/apps/:id/credentials', async (req): Promise<AppCredential[]> => {

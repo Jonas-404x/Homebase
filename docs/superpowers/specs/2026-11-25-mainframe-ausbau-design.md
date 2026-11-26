@@ -28,11 +28,14 @@ Jonas: „Mir ist egal, womit du anfängst, du sollst eh alles machen.“ Die Re
 | **2** | Einstellungen (viele, in Bereichen), Design-Überarbeitung, Handy-App (PWA) | nein |
 | **2.1** | Rückmeldungen nach Teil 2: Übersicht aufräumen, Detailansicht mit großem Graphen, Tab-Effekt am Handy, Minecraft-Tab („Kommt bald“), erste neue Apps | nein |
 | **3** | Startseite „Dienste“ mit Erreichbarkeits-Prüfung, Netzwerk-Scanner | nein |
+| **3.1** | Statusübersicht, Werte pro App, Diagnose, RAM-Warnung, genauere Dienstprüfung, Windows-App (.exe) | nein |
 | **4** | Umzug auf den Server: Setup-Skript, Tailscale, AdGuard fürs ganze WLAN, Netzwerkfreigabe im Explorer, Wake-on-LAN, Neustart/Herunterfahren | ja |
 | **5** | Minecraft (wie im alten Design) | besser ja |
 | **6** | Benachrichtigungen (Handy + Discord), automatische Sicherungen | teilweise |
 | **7** | Discord-Bot (Status, Dienste starten/stoppen, Warnungen) | ja (läuft dort 24/7) |
 | **8** | Mehr Apps im Katalog | nein |
+| **9** | Assistent: Claude beantwortet Fragen zum Server und richtet Dinge ein | ja |
+| **10** | KI-Farm: eigene Projekte, die KI-Agenten in Sandboxes selbstständig bearbeiten | ja |
 
 Teil 4 wird vorgezogen, sobald der OptiPlex da ist.
 
@@ -197,6 +200,43 @@ Jonas fand die Einstellungen und die Ladeanimation „deutlich hochwertiger“. 
   - Regelmäßiger Speedtest (Intervall einstellbar, standardmäßig selten, damit er das Netz nicht belastet) und ein Verlauf von Ausfällen der Internetverbindung.
   - Anzeige als Kurve mit Zeitraum wie in der Detailansicht, dazu „Ausfälle diese Woche“.
 
+## Teil 3.1: Status, Diagnose und Windows-App (Jonas, 2026-11-26)
+
+Jonas: „Fang am besten mit der Statusübersicht, den Werten pro App und der Diagnose an.“ Ziel: Er sieht sofort, ob alles läuft und wo er sich kümmern muss, und bekommt bei Problemen eine verständliche Erklärung statt Rätselraten. Alles hier geht ohne Server.
+
+- **Statusübersicht** oben auf der Übersicht:
+  - Ein Satz als Zusammenfassung: „Alles läuft“ (grün) oder „2 Sachen brauchen dich“ (gelb/rot).
+  - Darunter nur die Punkte, um die er sich kümmern muss, jeder mit kurzer Erklärung und einem Knopf zur passenden Stelle (App, Dienst, Einstellung) oder zur Diagnose.
+  - Quellen: Docker läuft nicht; App mit Fehler oder unerwartet gestoppt; Dienst nicht erreichbar; Internet weg; Laufwerk, RAM oder Temperatur über der Warnschwelle; neue unbekannte Geräte im WLAN (nur als Hinweis); Zwei-Faktor-Anmeldung aus (nur als Tipp).
+  - Stufen: **Problem** (rot, etwas geht nicht), **Achtung** (gelb, bald ein Problem), **Hinweis** (grau). Die Zusammenfassung richtet sich nach der schlimmsten Stufe; Hinweise allein ergeben weiter „Alles läuft“.
+- **Werte pro App:** CPU, RAM und belegter Speicher (Container plus Daten-Volumes) für jede installierte App.
+  - Auf der Apps-Seite an jeder App, dazu in der Prozess-Liste der Detailansicht ein Abschnitt „Apps“.
+  - CPU und RAM live (alle paar Sekunden), Speicher seltener (Ermittlung ist langsam).
+- **Diagnose-Knopf:** prüft der Reihe nach, woran es liegt, und erklärt in einfachen Worten, was Jonas tun kann.
+  - Für eine App: Docker erreichbar? Container läuft? Wie oft neu gestartet, mit welchem Exit-Code? Fehlerzeilen in den letzten Log-Zeilen? Port offen? Weboberfläche antwortet richtig? Genug Speicher und RAM frei?
+  - Für das ganze System (Knopf in der Statusübersicht): Docker, alle Apps, Dienste, Internet (Verbindung und Namensauflösung), Laufwerke, RAM, Temperatur.
+  - Jeder Schritt: OK / Problem, ein Satz was los ist, ein Satz was zu tun ist; wenn möglich ein Knopf dafür (zum Beispiel „App neu starten“).
+- **RAM-Warnung:** Die Warnschwelle für RAM gibt es schon in den Einstellungen, sie wird aber nie geprüft. Ab jetzt wie bei Laufwerk und Temperatur: Eintrag im Ereignis-Protokoll und Punkt in der Statusübersicht.
+- **Genauere Dienstprüfung:** „Erreichbar“ heißt künftig „funktioniert“:
+  - Webseiten zählen nur mit Antwort 2xx, 3xx, 401 oder 403 (Anmeldeseiten) als OK, nicht mehr jede Antwort unter 500.
+  - Bei Apps muss außerdem der Container laufen und, falls er einen eingebauten Gesundheitscheck hat, „gesund“ melden.
+  - Die Kachel nennt den Grund, wenn etwas nicht geht („Antwortet mit Fehler 502“, „Zeitüberschreitung“, „Verbindung abgelehnt“, „Container gestoppt“).
+- **Windows-App (.exe)** für den Main-PC (am Handy bleibt die Web-App):
+  - Eigenes Programm mit Mainframe-Logo in Taskleiste und Startmenü, eigenem Fenster und Symbol neben der Uhr (Öffnen, Beenden).
+  - Es zeigt Mainframe von einer einstellbaren Adresse: jetzt der eigene PC, später der Server. Ist die Adresse nicht erreichbar, erscheint eine kleine Seite zum Ändern der Adresse und „Erneut versuchen“.
+  - Installation über eine Setup-Datei, die Mainframe selbst baut. Keine Veröffentlichung, kein Store.
+
+**Claudes Entscheidungen (Jonas: „bitte startet jetzt“):**
+- Windows-App mit **Electron**: Rust für Tauri ist nicht installiert, Electron passt zum JavaScript-Stack. Nachteil: Setup-Datei rund 80–100 MB.
+- Die Windows-App ist nur ein Fenster auf Mainframe, sie startet den Mainframe-Server nicht selbst (der läuft schon im Hintergrund bzw. später auf dem Server).
+- Kein „muss diesen Text enthalten“ pro Link: die strengere Statusregel plus Container-Gesundheit reicht fürs Erste.
+
+**Für später vorgemerkt (Jonas, 2026-11-26):**
+- **Terminal** für den ganzen Rechner (eigene Befehle, Live-Ausgabe): in Teil 4 auf dem Server. Nur mit eingeschalteter Zwei-Faktor-Anmeldung, erneuter Passwort-Abfrage und Protokoll jedes Befehls.
+- **WLAN-Wackler:** In Teil 4 bekommt der Server einen Netzwerk-Wächter, der die Verbindung neu aufbaut, wenn der Router minutenlang nicht erreichbar ist; Server per LAN-Kabel.
+- **Wenn-dann-Automationen** (Teil 6, zu den geplanten Aufgaben), **gemeinsame Zeitleiste** für Änderungen und Fehler, **genauere Speicherverwaltung** (was belegt wie viel, Aufräumen), **Sicherungen mit geprüfter Wiederherstellung** (Teil 6: jede Sicherung wird testweise entpackt und geprüft), **Live-Logs pro App**.
+- **Minecraft-Testmodus** für Plugins und Updates (Teil 5): erst auf einer Kopie der Welt testen, dann übernehmen.
+
 ## Teil 4: Umzug auf den Server
 
 Wie im alten Design (Setup-Skript für Ubuntu, Docker, Tailscale, `ufw`, AdGuard auf Port 53), dazu:
@@ -271,6 +311,21 @@ Wie im alten Design (Setup-Skript für Ubuntu, Docker, Tailscale, `ufw`, AdGuard
   - Umsetzung: eine feste Rollen-Anweisung („Du bist der Admin dieses Servers, lehne alles ohne Server-Bezug ab“), eine Werkzeug-Liste nur mit Shell und Dateien im Server-Bereich, kein Web-Zugriff außer Paketquellen, Arbeitsordner auf den Server beschränkt.
   - Ehrlich gesagt: Eine Anweisung kann ein Sprachmodell nicht zu 100 % festnageln. Die harte Grenze sind die Werkzeuge und Ordner, nicht der Text.
 - **RAM:** Claude Code braucht nur, während es arbeitet, grob einige hundert MB. Auf 8 GB passt das, nur nicht gleichzeitig mit einem voll ausgelasteten Minecraft-Server.
+
+## Teil 10 (Idee von Jonas, 2026-11-26): KI-Farm
+
+Etwas anderes als der Assistent aus Teil 9. Jonas: Es soll „ein richtiges AI-System“ werden, mit dem „extrem viel“ gesteuert werden kann und auf dem Projekte automatisiert laufen. Es wird **nicht** mit dem Assistenten vermischt, der Fragen zum Server beantwortet und dort Programme einrichtet.
+
+- **Eigener Bereich in Mainframe** (Arbeitstitel „KI-Farm“): Projekte anlegen, jedem Projekt einen Auftrag geben, und KI-Agenten (Claude Code, optional Codex) arbeiten daran selbstständig weiter.
+- **Jedes Projekt in seiner eigenen Sandbox:** ein eigener Container mit eigenem Ordner und eigenem Git-Verlauf. Die Agenten der Farm kommen **nicht** an den Server selbst, an Mainframe oder an andere Projekte. Das ist die harte Grenze zum Assistenten aus Teil 9.
+- **Steuerung:** Aufträge in eine Warteschlange stellen, zeitgesteuert starten (zum Beispiel nachts), pausieren, abbrechen. Live-Ausgabe jedes Agenten, Verlauf, Ergebnis als Git-Stand mit Zusammenfassung.
+- **Freigaben:** Alles, was nach außen geht (Veröffentlichen, etwas verschicken, Geld), braucht Jonas' Bestätigung in Mainframe oder am Handy.
+- **Grenzen der Hardware und des Abos:**
+  - Der OptiPlex hat 8 GB RAM. Realistisch laufen 1–2 Agenten gleichzeitig, und nicht neben einem voll ausgelasteten Minecraft-Server. Pro Projekt ein CPU- und RAM-Deckel.
+  - Läuft über Jonas' eigene Abos (Claude, ChatGPT). Deren Nutzungslimits gelten auch hier. Die Farm zeigt an, wenn ein Limit erreicht ist, und macht später weiter.
+- **Benachrichtigung,** wenn ein Auftrag fertig ist oder hängt (über Teil 6).
+- **Noch offen, mit Jonas klären, bevor es gebaut wird:** Welche Art Projekte sollen dort laufen (Programmieren, Texte, Recherche, etwas anderes)? Wie viel soll ohne Rückfrage passieren? Kommt eine Erweiterung der Hardware infrage, falls 8 GB nicht reichen?
+- Kommt nach Teil 9, weil es auf derselben Grundlage aufbaut (Claude Code auf dem Server, Kopf-loser Modus).
 
 ## Nicht-Ziele
 

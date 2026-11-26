@@ -87,7 +87,7 @@ describe('createWatcher', () => {
     const events = createEventLog();
     const results = [true, false, false, false, true];
     let t = 0;
-    const w = createWatcher({ store, events, probe: async () => ({ ok: results.shift()!, ms: 5 }), runSpeedtest: async () => ({ at: 0, downMbps: 1, upMbps: 1, pingMs: 1 }), now: () => (t += MIN) });
+    const w = createWatcher({ store, events, probe: async () => ({ ok: results.shift()!, ms: 5, reason: null }), runSpeedtest: async () => ({ at: 0, downMbps: 1, upMbps: 1, pingMs: 1 }), now: () => (t += MIN) });
     for (let i = 0; i < 5; i++) await w.tick();
     expect(events.list().map((e) => `${e.level} ${e.text}`).reverse()).toEqual(['warn Internet weg', 'info Internet wieder da (nach 3 Min.)']);
     expect(store.probes(0)).toHaveLength(5);
@@ -97,7 +97,7 @@ describe('createWatcher', () => {
     let release: () => void = () => {};
     const w = createWatcher({
       store: createNetStore(openDb(':memory:')),
-      probe: async () => ({ ok: true, ms: 1 }),
+      probe: async () => ({ ok: true, ms: 1, reason: null }),
       runSpeedtest: () => new Promise((r) => (release = () => r({ at: 1, downMbps: 1, upMbps: 1, pingMs: 1 }))),
     });
     const a = w.speedtest();
@@ -111,7 +111,7 @@ describe('createWatcher', () => {
 
 describe('/api/internet', () => {
   it('liefert Status, Ausfälle und Speedtests für den Zeitraum', async () => {
-    const deps = testDeps({ internet: { probe: async () => ({ ok: true, ms: 1 }), speedtest: async () => ({ at: Date.now(), downMbps: 100, upMbps: 20, pingMs: 9 }) } });
+    const deps = testDeps({ internet: { probe: async () => ({ ok: true, ms: 1, reason: null }), speedtest: async () => ({ at: Date.now(), downMbps: 100, upMbps: 20, pingMs: 9 }) } });
     const store = createNetStore(deps.db);
     const now = Date.now();
     store.addProbe(now - 30 * MIN, false, null);

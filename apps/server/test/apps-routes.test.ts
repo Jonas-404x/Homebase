@@ -43,6 +43,8 @@ function fakeEngine() {
     },
     values: async () => ({ adminUser: 'admin', adminPassword: 'geheimXYZ', web: '3000' }),
     dockerStatus: async () => ({ ok: false, message: "Docker läuft gerade nicht." }),
+    usage: async () => [{ appId: 'adguard', cpuPercent: 1.5, memBytes: 50_000_000, diskBytes: 12_000_000 }],
+    inspect: async () => ({ containers: [], logs: [] }),
   };
   return { engine, calls, logStopped: () => logStopped };
 }
@@ -135,6 +137,14 @@ describe('Docker-Status', () => {
     const { app, cookie } = await setup();
     const res = await app.inject({ method: 'GET', url: '/api/system/docker', headers: { cookie } });
     expect(res.json()).toEqual({ ok: false, message: 'Docker läuft gerade nicht.' });
+    await app.close();
+  });
+
+  it('liefert CPU, RAM und Speicher pro App', async () => {
+    const { app, cookie } = await setup();
+    expect((await app.inject({ method: 'GET', url: '/api/apps/usage' })).statusCode).toBe(401);
+    const res = await app.inject({ method: 'GET', url: '/api/apps/usage', headers: { cookie } });
+    expect(res.json()).toEqual([{ appId: 'adguard', cpuPercent: 1.5, memBytes: 50_000_000, diskBytes: 12_000_000 }]);
     await app.close();
   });
 });
