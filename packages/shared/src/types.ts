@@ -129,6 +129,16 @@ export interface InstalledApp {
   installedAt: string;
 }
 
+/** CPU, RAM und belegter Speicher einer installierten App. */
+export interface AppUsage {
+  appId: string;
+  /** Anteil an der CPU des ganzen Rechners in Prozent. */
+  cpuPercent: number;
+  memBytes: number;
+  /** Container-Schicht + Volumes + App-Ordner; null, solange unbekannt. */
+  diskBytes: number | null;
+}
+
 /** Ein Eingabefeld einer installierten App mit seinem Wert (z. B. Benutzername und Passwort). */
 export interface AppCredential {
   key: string;

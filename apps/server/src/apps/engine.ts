@@ -1,12 +1,13 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { AppState, CatalogApp, InstalledApp } from '@mainframe/shared';
+import type { AppState, AppUsage, CatalogApp, InstalledApp } from '@mainframe/shared';
 import { renderCompose, resolveValues } from '../catalog/render.ts';
 import type { CatalogEntry } from '../catalog/loader.ts';
 import type { Config } from '../config.ts';
 import { MainframeError } from '../errors.ts';
 import type { ComposeRunner } from './compose-runner.ts';
-import type { DockerStatus } from './docker-status.ts';
+import type { AppInspect, DockerStatus } from './docker-status.ts';
+import { diskByApp, dirSize } from './usage.ts';
 import type { AppStateFile, StateStore } from './state-store.ts';
 
 export interface AppHook {
@@ -24,6 +25,10 @@ export interface AppEngine {
   followLogs(id: string, onLine: (line: string) => void): Promise<() => void>;
   values(id: string): Promise<Record<string, string>>;
   dockerStatus(): Promise<{ ok: boolean; message: string | null }>;
+  /** CPU, RAM und Speicher pro installierter App; ohne Docker eine leere Liste. */
+  usage(): Promise<AppUsage[]>;
+  /** Container-Zustand und letzte Log-Zeilen für die Diagnose. */
+  inspect(id: string): Promise<AppInspect>;
   hooks: Map<string, AppHook>;
 }
 
@@ -93,6 +98,21 @@ export function createAppEngine(deps: {
     if (!containers) return { ...base, state: 'error', error: DOCKER_DOWN_MESSAGE };
     const state = deriveState(containers.get(s.id), s.lastError);
     return { ...base, state, error: state === 'error' ? s.lastError : null };
+  };
+
+  // Speicherbelegung ist langsam zu ermitteln (docker df, Ordner durchgehen): höchstens einmal pro Minute.
+  let disk: { at: number; ids: string; map: Map<string, number> } | null = null;
+  const diskCached = async (ids: string[]): Promise<Map<string, number> | null> => {
+    const key = ids.join(',');
+    if (disk && disk.ids === key && Date.now() - disk.at < 60_000) return disk.map;
+    try {
+      const df = await docker.df();
+      const dirs = new Map(await Promise.all(ids.map(async (id) => [id, await dirSize(appDir(id))] as const)));
+      disk = { at: Date.now(), ids: key, map: diskByApp(df, ids, dirs) };
+      return disk.map;
+    } catch {
+      return disk?.map ?? null;
+    }
   };
 
   const list = async (): Promise<InstalledApp[]> => {
@@ -196,6 +216,29 @@ export function createAppEngine(deps: {
     async dockerStatus() {
       const ok = await docker.ping();
       return { ok, message: ok ? null : DOCKER_DOWN_MESSAGE };
+    },
+
+    async usage() {
+      const ids = (await store.list()).map((s) => s.id);
+      if (ids.length === 0) return [];
+      let live: Map<string, { cpuPercent: number; memBytes: number }>;
+      try {
+        live = await docker.usage();
+      } catch {
+        return [];
+      }
+      const disk = await diskCached(ids);
+      return ids.map((id) => ({
+        appId: id,
+        cpuPercent: live.get(id)?.cpuPercent ?? 0,
+        memBytes: live.get(id)?.memBytes ?? 0,
+        diskBytes: disk?.get(id) ?? null,
+      }));
+    },
+
+    async inspect(id) {
+      await installed(id);
+      return docker.inspect(id);
     },
   };
 }

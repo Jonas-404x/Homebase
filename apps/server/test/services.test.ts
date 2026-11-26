@@ -129,6 +129,8 @@ function engineWith(apps: InstalledApp[]): AppEngine {
     followLogs: async () => () => {},
     values: async () => ({}),
     dockerStatus: async () => ({ ok: true, message: null }),
+    usage: async () => [],
+    inspect: async () => ({ containers: [], logs: [] }),
   };
 }
 

@@ -3,7 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { ComposeRunner } from '../src/apps/compose-runner.ts';
-import type { DockerStatus } from '../src/apps/docker-status.ts';
+import type { AppInspect, DockerStatus } from '../src/apps/docker-status.ts';
+import type { DfLike } from '../src/apps/usage.ts';
 import { createAppEngine } from '../src/apps/engine.ts';
 import { createStateStore } from '../src/apps/state-store.ts';
 import { loadCatalog } from '../src/catalog/loader.ts';
@@ -39,6 +40,22 @@ class FakeDocker implements DockerStatus {
     return this.containers;
   }
   async followLogs() { return () => {}; }
+  usageMap = new Map<string, { cpuPercent: number; memBytes: number }>();
+  dfData: DfLike = { Containers: [], Volumes: [] };
+  dfCalls = 0;
+  async usage() {
+    if (!this.up) throw new Error('connect ENOENT');
+    return this.usageMap;
+  }
+  async df() {
+    this.dfCalls++;
+    return this.dfData;
+  }
+  inspected: string[] = [];
+  async inspect(appId: string): Promise<AppInspect> {
+    this.inspected.push(appId);
+    return { containers: [{ name: 'demo-1', state: 'exited', health: null, restartCount: 3, exitCode: 1, oomKilled: false, startedAt: null, ports: [] }], logs: ['Error: kaputt'] };
+  }
 }
 
 let dataRoot: string;
@@ -212,5 +229,33 @@ describe('AppEngine.catalog', () => {
   it('liefert im Dev-Modus devDefault als Standard-Port', async () => {
     const { engine } = await make();
     expect(engine.catalog()[0]!.ports[0]!.default).toBe(18080);
+  });
+
+  it('liefert CPU, RAM und Speicher pro installierter App', async () => {
+    const { engine, docker } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    fs.writeFileSync(path.join(dataRoot, 'apps', 'demo', 'data', 'x.bin'), Buffer.alloc(500));
+    docker.usageMap.set('demo', { cpuPercent: 2.5, memBytes: 1000 });
+    docker.dfData = { Containers: [{ Labels: { 'mainframe.app': 'demo' }, SizeRw: 10 }], Volumes: [] };
+    const [u] = await engine.usage();
+    expect(u).toMatchObject({ appId: 'demo', cpuPercent: 2.5, memBytes: 1000 });
+    expect(u!.diskBytes).toBeGreaterThanOrEqual(510);
+    await engine.usage();
+    expect(docker.dfCalls).toBe(1); // Speicher wird zwischengespeichert, das Ermitteln ist langsam
+  });
+
+  it('liefert ohne Docker keine Werte statt eines Fehlers', async () => {
+    const { engine, docker } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    docker.up = false;
+    expect(await engine.usage()).toEqual([]);
+  });
+
+  it('gibt Container-Zustand und Log einer installierten App für die Diagnose', async () => {
+    const { engine, docker } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    expect((await engine.inspect('demo')).containers[0]).toMatchObject({ restartCount: 3, exitCode: 1 });
+    expect(docker.inspected).toEqual(['demo']);
+    await expect(engine.inspect('fremd')).rejects.toMatchObject({ status: 404 });
   });
 });
