@@ -123,6 +123,8 @@ export interface InstalledApp {
   id: string;
   name: string;
   state: AppState;
+  /** Gesundheit laut Healthcheck der Container; fehlt, wenn die App keinen hat. */
+  health?: 'healthy' | 'unhealthy' | 'starting';
   error: string | null;
   /** Nur ":<port><pfad>" – den Host setzt der Browser davor (siehe apps/web/src/api/webUi.ts). */
   webUiUrl: string | null;
@@ -177,6 +179,8 @@ export interface ServiceStatus {
   /** null = noch nicht geprüft */
   up: boolean | null;
   ms: number | null;
+  /** Warum der Dienst nicht funktioniert, z. B. "Antwortet mit Fehler 404"; null wenn er läuft oder unbekannt */
+  reason: string | null;
   /** App ist gestoppt, wird dann nicht geprüft */
   stopped: boolean;
   /** Verfügbarkeit in Prozent, null = keine Prüfungen im Zeitraum */

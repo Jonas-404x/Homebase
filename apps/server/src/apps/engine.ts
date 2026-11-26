@@ -6,7 +6,7 @@ import type { CatalogEntry } from '../catalog/loader.ts';
 import type { Config } from '../config.ts';
 import { MainframeError } from '../errors.ts';
 import type { ComposeRunner } from './compose-runner.ts';
-import type { AppInspect, DockerStatus } from './docker-status.ts';
+import type { AppInspect, DockerStatus, Health } from './docker-status.ts';
 import { diskByApp, dirSize } from './usage.ts';
 import type { AppStateFile, StateStore } from './state-store.ts';
 
@@ -42,6 +42,16 @@ export function explainComposeError(raw: string): string {
   }
   const lastLine = raw.trim().split(/\r?\n/).at(-1) ?? raw;
   return `Das hat nicht geklappt: ${lastLine}`;
+}
+
+type ContainerSummary = { state: string; health?: Health };
+
+/** Schlechtester Healthcheck-Zustand aller Container; undefined, wenn keiner einen hat. */
+function deriveHealth(containers: ContainerSummary[] | undefined): InstalledApp['health'] {
+  const hs = (containers ?? []).map((c) => c.health).filter((h): h is NonNullable<Health> => Boolean(h));
+  if (hs.includes('unhealthy')) return 'unhealthy';
+  if (hs.includes('starting')) return 'starting';
+  return hs.length > 0 ? 'healthy' : undefined;
 }
 
 function deriveState(containers: { state: string }[] | undefined, lastError: string | null): AppState {
@@ -85,7 +95,7 @@ export function createAppEngine(deps: {
     return s;
   };
 
-  const toInstalled = (s: AppStateFile, containers: Map<string, { state: string }[]> | null): InstalledApp => {
+  const toInstalled = (s: AppStateFile, containers: Map<string, ContainerSummary[]> | null): InstalledApp => {
     const app = catalog.find((c) => c.app.id === s.id)?.app;
     const port = app?.webUi ? s.values[app.webUi.portKey] : undefined;
     const base = {
@@ -97,7 +107,8 @@ export function createAppEngine(deps: {
     if (installing.has(s.id)) return { ...base, state: 'installing', error: null };
     if (!containers) return { ...base, state: 'error', error: DOCKER_DOWN_MESSAGE };
     const state = deriveState(containers.get(s.id), s.lastError);
-    return { ...base, state, error: state === 'error' ? s.lastError : null };
+    const health = state === 'running' ? deriveHealth(containers.get(s.id)) : undefined;
+    return { ...base, state, ...(health ? { health } : {}), error: state === 'error' ? s.lastError : null };
   };
 
   // Speicherbelegung ist langsam zu ermitteln (docker df, Ordner durchgehen): höchstens einmal pro Minute.
@@ -117,7 +128,7 @@ export function createAppEngine(deps: {
 
   const list = async (): Promise<InstalledApp[]> => {
     const states = await store.list();
-    let containers: Map<string, { state: string }[]> | null = null;
+    let containers: Map<string, ContainerSummary[]> | null = null;
     try {
       containers = await docker.containersByApp();
     } catch {

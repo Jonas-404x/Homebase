@@ -33,7 +33,7 @@ class FakeCompose implements ComposeRunner {
 
 class FakeDocker implements DockerStatus {
   up = true;
-  containers = new Map<string, { state: string }[]>();
+  containers = new Map<string, { state: string; health?: 'healthy' | 'unhealthy' | 'starting' | null }[]>();
   async ping() { return this.up; }
   async containersByApp() {
     if (!this.up) throw new Error('connect ENOENT');
@@ -185,6 +185,17 @@ describe('AppEngine', () => {
     expect((await engine.list())[0]!.state).toBe('restarting');
     docker.containers.set('demo', [{ state: 'exited' }]);
     expect((await engine.list())[0]!.state).toBe('stopped');
+  });
+
+  it('meldet einen ungesunden Container, auch wenn er läuft', async () => {
+    const { engine, docker } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    docker.containers.set('demo', [{ state: 'running', health: 'healthy' }, { state: 'running', health: 'unhealthy' }]);
+    expect((await engine.list())[0]).toMatchObject({ state: 'running', health: 'unhealthy' });
+    docker.containers.set('demo', [{ state: 'running', health: 'healthy' }]);
+    expect((await engine.list())[0]!.health).toBe('healthy');
+    docker.containers.set('demo', [{ state: 'running', health: null }]);
+    expect((await engine.list())[0]!.health).toBeUndefined();
   });
 
   it('löscht beim Entfernen nur auf Wunsch die Daten', async () => {

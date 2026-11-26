@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import type { ServiceStatus } from '@mainframe/shared';
+import type { InstalledApp, ServiceStatus } from '@mainframe/shared';
 import type { AppEngine } from '../apps/engine.ts';
 import type { Db } from '../db.ts';
 import { MainframeError } from '../errors.ts';
@@ -32,6 +32,14 @@ function checkLinkUrl(raw: unknown): string {
   return url;
 }
 
+/** Was am Container schon ohne Netzprüfung als gestört erkennbar ist. */
+function containerProblem(a: InstalledApp): string | null {
+  if (a.state === 'restarting') return 'Container startet ständig neu';
+  if (a.state === 'error') return 'Container gestoppt';
+  if (a.health === 'unhealthy') return 'Container meldet „ungesund“';
+  return null;
+}
+
 const percent = (s: { total: number; ok: number }) => (s.total === 0 ? null : Math.round((s.ok / s.total) * 1000) / 10);
 
 /** Dienste-Seite: installierte Apps und eigene Links, regelmäßig auf Erreichbarkeit geprüft. */
@@ -43,8 +51,15 @@ export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; pref
     return [
       ...apps
         .filter((a) => a.webUiUrl)
-        .map((a) => ({ id: `app:${a.id}`, name: a.name, url: `http://127.0.0.1${a.webUiUrl}`, kind: 'app' as const, stopped: a.state === 'stopped' })),
-      ...store.listLinks().map((l) => ({ id: `link:${l.id}`, name: l.name, url: l.url, kind: 'link' as const, stopped: false })),
+        .map((a) => ({
+          id: `app:${a.id}`,
+          name: a.name,
+          url: `http://127.0.0.1${a.webUiUrl}`,
+          kind: 'app' as const,
+          stopped: a.state === 'stopped',
+          blocked: containerProblem(a),
+        })),
+      ...store.listLinks().map((l) => ({ id: `link:${l.id}`, name: l.name, url: l.url, kind: 'link' as const, stopped: false, blocked: null })),
     ];
   };
   const checker = createChecker({ store, events: opts.events, targets: async () => (await all()).filter((t) => !t.stopped) });
@@ -53,13 +68,16 @@ export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; pref
     const now = Date.now();
     return (await all()).map((t) => {
       const last = t.stopped ? null : store.last(t.id);
+      // Ein gestörter Container zählt sofort, nicht erst nach der nächsten Prüfrunde.
+      const up = t.stopped ? null : t.blocked ? false : last ? last.ok : null;
       return {
         id: t.id,
         name: t.name,
         url: t.url,
         kind: t.kind,
-        up: last ? last.ok : null,
-        ms: last?.ms ?? null,
+        up,
+        ms: up ? (last?.ms ?? null) : null,
+        reason: up !== false ? null : (t.blocked ?? checker.reason(t.id)),
         stopped: t.stopped,
         uptime24h: percent(store.summary(t.id, now - DAY)),
         uptime7d: percent(store.summary(t.id, now - KEEP)),
@@ -87,6 +105,7 @@ export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; pref
     if (!store.updateLink(req.params.id, patch)) throw new MainframeError('not_found', 'Diesen Link gibt es nicht.', 404);
     if (patch.url !== undefined && patch.url !== before?.url) {
       store.clearChecks(`link:${req.params.id}`);
+      checker.forget(`link:${req.params.id}`);
       recheck();
     }
     return reply.code(204).send();

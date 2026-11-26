@@ -18,6 +18,7 @@ const svc = (over: Partial<ServiceStatus>): ServiceStatus => ({
   kind: 'app',
   up: true,
   ms: 12,
+  reason: null,
   stopped: false,
   uptime24h: 99.5,
   uptime7d: 98,
