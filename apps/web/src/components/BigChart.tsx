@@ -35,6 +35,7 @@ export function BigChart({
   format,
   label,
   timeZone,
+  threshold,
 }: {
   times: number[];
   series: BigSeries[];
@@ -44,6 +45,8 @@ export function BigChart({
   format: (v: number) => string;
   label: string;
   timeZone: string;
+  /** Warngrenze im Wertebereich der Kurve; gestrichelte Linie. */
+  threshold?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -117,6 +120,9 @@ export function BigChart({
             {[0, 0.5, 1].map((f) => (
               <line key={f} className="big-chart-grid" x1={0} x2={W} y1={H * f} y2={H * f} vectorEffect="non-scaling-stroke" />
             ))}
+            {threshold !== undefined && threshold <= top && (
+              <line className="big-chart-threshold" x1={0} x2={W} y1={y(threshold)} y2={y(threshold)} vectorEffect="non-scaling-stroke" />
+            )}
             {series.map((s) => (
               <path key={s.name} className={`big-chart-line chart-${s.tone}`} d={path(s.values)} vectorEffect="non-scaling-stroke" />
             ))}

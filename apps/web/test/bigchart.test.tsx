@@ -34,4 +34,14 @@ describe('BigChart', () => {
     const d = container.querySelector('.big-chart-line')!.getAttribute('d')!;
     expect(d.match(/M/g)).toHaveLength(2);
   });
+  it('zeichnet die Warngrenze als Linie, nur wenn es eine gibt', () => {
+    const props = { from: 0, to: 30_000, label: 'Verlauf', timeZone: 'UTC', format: fmt, max: 100, times: [0, 10_000], series: [{ name: 'Belegt', tone: 'a' as const, values: [40, 50] }] };
+    const { container, rerender } = render(<BigChart {...props} threshold={80} />);
+    const line = container.querySelector('.big-chart-threshold');
+    expect(line).not.toBeNull();
+    // 220 hoch, 80 von 100 → 20 % von oben.
+    expect(line!.getAttribute('y1')).toBe('44');
+    rerender(<BigChart {...props} />);
+    expect(container.querySelector('.big-chart-threshold')).toBeNull();
+  });
 });

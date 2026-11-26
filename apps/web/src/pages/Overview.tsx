@@ -177,7 +177,7 @@ export function Overview() {
       case 'memory':
         return (
           <StatCard key={id} icon={MemoryStick} label="Arbeitsspeicher" href="/details/memory" {...common} status={statusFor(mem, t.memory)}
-            value={stats && usedOfTotal(stats.memory.usedBytes, stats.memory.totalBytes, prefs.sizeUnits)} load={mem} meter
+            value={stats && usedOfTotal(stats.memory.usedBytes, stats.memory.totalBytes, prefs.sizeUnits)} load={mem} threshold={t.memory} meter
             chart={series('memory')} chartWindowMs={windowMs} chartMax={100} chartLabel={`Arbeitsspeicher-Verlauf der letzten ${since}`}
             detail={stats && percent(mem) + ' belegt'} />
         );
@@ -187,7 +187,7 @@ export function Overview() {
           const used = d ? (d.usedBytes / d.totalBytes) * 100 : 0;
           return (
             <StatCard key={`disk-${mount}`} icon={HardDrive} label={`Speicher ${mount}`} {...common} status={statusFor(used, t.disk)}
-              value={d && usedOfTotal(d.usedBytes, d.totalBytes, prefs.sizeUnits)} load={used} meter detail={d && percent(used) + ' belegt'} />
+              value={d && usedOfTotal(d.usedBytes, d.totalBytes, prefs.sizeUnits)} load={used} threshold={t.disk} meter detail={d && percent(used) + ' belegt'} />
           );
         });
       case 'temperature': {

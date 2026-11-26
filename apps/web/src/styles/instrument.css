@@ -1,0 +1,355 @@
+/*
+ * „Instrument“: die Optik von Mainframe. Liegt über base.css (Aufbau und Verhalten) und legt
+ * fest, wie alles aussieht: warmes Graphit, Tiefe durch hellere Flächen statt Rahmen, große
+ * ruhige Zahlen, Orange nur dort, wo etwas aktiv oder live ist.
+ */
+
+:root {
+  --radius-card: 14px;
+  --text-hero: 2.125rem;
+  --text-figure: 1.875rem;
+}
+
+/* ---------- Schrift ---------- */
+
+h1 {
+  font-size: var(--text-title);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+h2 {
+  letter-spacing: -0.01em;
+}
+h1,
+h2,
+.status-summary {
+  text-wrap: balance;
+}
+p,
+.secondary,
+.hint {
+  text-wrap: pretty;
+}
+
+/* ---------- Flächen: keine Rahmen, Tiefe durch Helligkeit ---------- */
+
+.card {
+  border-color: transparent;
+  border-radius: var(--radius-card);
+}
+@media (prefers-color-scheme: light) {
+  .card {
+    box-shadow: 0 0 0 1px var(--separator), 0 1px 2px rgb(60 40 20 / 0.05);
+  }
+}
+.dialog {
+  border-color: transparent;
+  border-radius: 18px;
+  box-shadow: 0 0 0 1px var(--separator), 0 30px 80px rgb(0 0 0 / 0.45);
+}
+
+/* ---------- Knöpfe und Eingaben ---------- */
+
+.button {
+  border-color: transparent;
+  background: var(--surface-hover);
+  border-radius: 10px;
+}
+.button:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--surface-hover), var(--text) 6%);
+}
+.button-primary,
+.button-primary:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-on);
+}
+.button-danger {
+  background: transparent;
+}
+.button-danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+}
+.field input,
+.input {
+  border-color: transparent;
+  border-radius: 10px;
+}
+.field input:focus-visible,
+.input:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 1px;
+}
+.segmented {
+  border-color: transparent;
+  border-radius: 10px;
+}
+.segment {
+  border-radius: 8px;
+}
+
+/* ---------- Navigation: Leiste wie ein Gerätepanel ---------- */
+
+@media (min-width: 768px) {
+  .nav {
+    background: var(--surface);
+  }
+  .nav-brand {
+    letter-spacing: 0.02em;
+  }
+  .nav-link {
+    position: relative;
+    color: var(--text-secondary);
+    font-weight: 500;
+    border-radius: 10px;
+  }
+  .nav-link:hover {
+    color: var(--text);
+  }
+  .nav-link[aria-current='page'] {
+    background: var(--surface-raised);
+    color: var(--text);
+  }
+  .nav-link[aria-current='page']::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 3px;
+    height: 18px;
+    margin-top: -9px;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+}
+
+/* ---------- Statusübersicht: ein Satz als Überschrift ---------- */
+
+.status-panel {
+  background: none;
+  box-shadow: none;
+  padding: 0;
+  margin-bottom: var(--space-5);
+}
+.status-head {
+  align-items: flex-end;
+}
+.status-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.status-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+}
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+}
+.status-ok .status-dot {
+  background: var(--ok);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--ok) 18%, transparent);
+}
+.status-warn .status-dot {
+  background: var(--warn);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--warn) 18%, transparent);
+}
+.status-problem .status-dot {
+  background: var(--danger);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--danger) 18%, transparent);
+}
+.status-summary {
+  font-size: var(--text-hero);
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+.status-items {
+  border-top: none;
+  background: var(--surface-raised);
+  border-radius: var(--radius-card);
+  padding: 0 var(--space-4);
+}
+.status-item {
+  padding: var(--space-4) 0;
+}
+.status-item:last-child {
+  padding-bottom: var(--space-4);
+}
+@media (prefers-color-scheme: light) {
+  .status-items {
+    box-shadow: 0 0 0 1px var(--separator);
+  }
+}
+@media (max-width: 767px) {
+  .status-summary {
+    font-size: 1.625rem;
+  }
+}
+
+/* ---------- Kennzahlen: Felder eines Messgeräts mit gemeinsamen Kanten ---------- */
+
+.grid:has(> .stat) {
+  gap: 2px;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.grid > .stat {
+  border-radius: 0;
+  box-shadow: none;
+}
+@media (prefers-color-scheme: light) {
+  .grid:has(> .stat) {
+    gap: 1px;
+    background: var(--separator);
+    box-shadow: 0 0 0 1px var(--separator);
+  }
+}
+.stat {
+  gap: var(--space-3);
+}
+.stat-value {
+  font-size: var(--text-figure);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.stat-clickable:hover {
+  border-color: transparent;
+  background: color-mix(in oklab, var(--surface-raised), var(--text) 3%);
+}
+.stat-clickable:has(.stat-link:focus-visible) {
+  outline-offset: -2px;
+}
+
+/* Balken mit Skala: Striche alle 10 %, die Warngrenze als feine Marke. */
+.meter {
+  position: relative;
+  height: 8px;
+  border-radius: 2px;
+}
+.meter::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--surface-raised) calc(10% - 1px) 10%);
+  pointer-events: none;
+}
+.meter-fill {
+  border-radius: 2px 0 0 2px;
+  background: var(--text);
+  opacity: 0.85;
+}
+.meter-warn,
+.meter-danger {
+  opacity: 1;
+}
+.meter-threshold {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--warn);
+  z-index: 1;
+}
+.sparkline-line {
+  stroke: var(--accent-text);
+  stroke-width: 1.75;
+}
+.sparkline-area {
+  opacity: 0.1;
+}
+
+/* ---------- Detailansicht ---------- */
+
+.detail-head {
+  align-items: baseline;
+  row-gap: var(--space-1);
+}
+.detail-head .settings-item-icon {
+  align-self: center;
+}
+.detail-now {
+  flex-basis: 100%;
+  margin-left: 0;
+  font-size: 2.75rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+.detail-chart-card {
+  gap: var(--space-5);
+}
+.big-chart-plot {
+  height: 260px;
+}
+.big-chart-line {
+  stroke-width: 2.25;
+}
+.big-chart-grid {
+  stroke-dasharray: 2 4;
+}
+.big-chart-threshold {
+  stroke: var(--warn);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 5;
+}
+.big-chart-cursor {
+  background: var(--accent-text);
+}
+.big-chart-readout strong {
+  font-size: 1.125rem;
+}
+.detail-summary {
+  gap: 2px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.detail-summary div {
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-sunken);
+}
+.detail-summary dd {
+  font-size: 1.375rem;
+  letter-spacing: -0.02em;
+}
+.core .meter::after {
+  display: none;
+}
+
+/* ---------- Listen, Einstellungen, Dienste ---------- */
+
+.settings-item-icon {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+.settings-item.active {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+.settings-item.active .settings-item-icon {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.badge {
+  font-variant-numeric: tabular-nums;
+}
+.bar-empty {
+  background: var(--surface-hover);
+}
+.stat-of {
+  font-size: 0.5em;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}

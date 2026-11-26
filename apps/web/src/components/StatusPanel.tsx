@@ -1,4 +1,4 @@
-import { ChevronDown, CircleAlert, CircleCheck, Info, Stethoscope, TriangleAlert } from 'lucide-react';
+import { ChevronDown, CircleAlert, Info, Stethoscope, TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import type { InstalledApp, StatusItem, StatusReport } from '@mainframe/shared';
@@ -17,6 +17,7 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
   const [failed, setFailed] = useState(false);
   const [diagnose, setDiagnose] = useState<{ target: string; title: string } | null>(null);
   const [showHints, setShowHints] = useState(false);
+  const [checkedAt, setCheckedAt] = useState<Date | null>(null);
 
   // Nur die neueste Anfrage darf den Stand setzen; ältere, langsamere Antworten werden verworfen.
   const generation = useRef(0);
@@ -27,6 +28,7 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
       if (mine !== generation.current) return;
       setReport(next);
       setFailed(false);
+      setCheckedAt(new Date());
     } catch {
       if (mine !== generation.current) return;
       // Keinen alten Stand stehen lassen: "Alles läuft" von vor Minuten wäre irreführend.
@@ -52,15 +54,19 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
   const important = report?.items.filter((i) => i.level !== 'info') ?? [];
   const hints = report?.items.filter((i) => i.level === 'info') ?? [];
   const shown = showHints ? [...important, ...hints] : important;
-  const HeadIcon = level === 'ok' ? CircleCheck : level === 'warn' ? TriangleAlert : CircleAlert;
 
   return (
     <section className={`card status-panel status-${level}`} aria-labelledby="status-title" aria-busy={!report && !failed}>
       <div className="status-head">
-        {report ? <HeadIcon className="status-head-icon" aria-hidden="true" size={24} /> : <span className="skeleton status-head-icon" />}
-        <h2 id="status-title" className="status-summary">
-          {report ? report.summary : failed ? 'Status gerade nicht abrufbar' : 'Prüft …'}
-        </h2>
+        <div className="status-title">
+          <p className="status-eyebrow">
+            <span className="status-dot" aria-hidden="true" />
+            {checkedAt ? `Zuletzt geprüft um ${checkedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : 'Wird geprüft'}
+          </p>
+          <h2 id="status-title" className="status-summary">
+            {report ? report.summary : failed ? 'Status gerade nicht abrufbar' : 'Prüft …'}
+          </h2>
+        </div>
         <button type="button" className="button" onClick={() => setDiagnose({ target: 'system', title: 'Diagnose: ganzes System' })}>
           <Stethoscope aria-hidden="true" size={18} />
           Alles prüfen

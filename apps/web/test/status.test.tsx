@@ -62,6 +62,12 @@ describe('Statusübersicht', () => {
     expect(within(items[2]!).queryByRole('button', { name: 'Diagnose' })).not.toBeInTheDocument();
   });
 
+  it('zeigt, wann zuletzt geprüft wurde', async () => {
+    mockApi({ 'GET /api/status': () => ({ json: report }) });
+    renderAt(<StatusPanel apps={apps} />);
+    expect(await screen.findByText(/^Zuletzt geprüft um \d{2}:\d{2}$/)).toBeInTheDocument();
+  });
+
   it('sagt ehrlich, wenn der Status nicht abrufbar ist', async () => {
     mockApi({});
     renderAt(<StatusPanel apps={null} />);
