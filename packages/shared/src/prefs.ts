@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const CARD_IDS = ['cpu', 'memory', 'disk', 'temperature', 'network', 'uptime', 'adguard'] as const;
 export type CardId = (typeof CARD_IDS)[number];
 
-export const ACCENTS = ['blue', 'teal', 'violet', 'pink', 'orange', 'green'] as const;
+export const ACCENTS = ['orange', 'blue', 'teal', 'violet', 'pink', 'green'] as const;
 export type Accent = (typeof ACCENTS)[number];
 
 function validTimeZone(tz: string): boolean {
@@ -62,7 +62,7 @@ export const defaultPrefs: Prefs = {
   startPage: '/',
   timeZone: 'Europe/Berlin',
   sessionDays: 30,
-  accent: 'blue',
+  accent: 'orange',
   density: 'normal',
   liveIntervalSec: 2,
   sizeUnits: 'si',

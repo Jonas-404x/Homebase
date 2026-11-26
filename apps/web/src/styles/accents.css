@@ -1,6 +1,6 @@
 /*
  * Akzentfarben (Einstellungen → Darstellung). Pro Farbe: Fläche von Hauptknöpfen (--accent),
- * Text darauf (--accent-on, immer weiß), Links/aktive Navigation (--accent-text), Hintergrund
+ * Text darauf (--accent-on), Links/aktive Navigation (--accent-text), Hintergrund
  * aktiver Navigation (--accent-soft). Geprüft mit `node scripts/contrast.mjs`, alle ≥ 4,5:1:
  *
  *            dunkel: weiß/Akzent  Text/Fläche  Text/soft    hell: weiß/Akzent  Text/Fläche  Text/soft
@@ -11,20 +11,23 @@
  *   orange          5,11          9,06         7,73               5,70         6,15         5,75
  *   green           5,00          9,67         7,89               5,33         5,60         5,28
  *
- * „blue“ steht als Standard in tokens.css. Das Format (ein Selektor pro Farbe, darin die vier
+ * „orange“ steht als Standard in tokens.css (Instrument-Look). Auf dunklem Grund trägt nur Orange
+ * dunklen Text, alle anderen weißen. Das Format (ein Selektor pro Farbe, darin die vier
  * Variablen) liest das Prüfskript.
  */
 
-[data-accent='teal'] { --accent: #0f7a80; --accent-text: #4fd1d9; --accent-soft: #10343a; }
-[data-accent='violet'] { --accent: #6d4ae0; --accent-text: #b29cff; --accent-soft: #2a2148; }
-[data-accent='pink'] { --accent: #c02f6a; --accent-text: #ff8fbf; --accent-soft: #43192c; }
-[data-accent='orange'] { --accent: #ad560c; --accent-text: #ffab66; --accent-soft: #3d2410; }
-[data-accent='green'] { --accent: #2b7f3b; --accent-text: #69db7c; --accent-soft: #15331d; }
+[data-accent='orange'] { --accent: #f4873a; --accent-on: #211209; --accent-text: #f7a062; --accent-soft: #382315; }
+[data-accent='blue'] { --accent: #2f6fe4; --accent-on: #ffffff; --accent-text: #7aa8ff; --accent-soft: #1b2a47; }
+[data-accent='teal'] { --accent: #0f7a80; --accent-on: #ffffff; --accent-text: #4fd1d9; --accent-soft: #10343a; }
+[data-accent='violet'] { --accent: #6d4ae0; --accent-on: #ffffff; --accent-text: #b29cff; --accent-soft: #2a2148; }
+[data-accent='pink'] { --accent: #c02f6a; --accent-on: #ffffff; --accent-text: #ff8fbf; --accent-soft: #43192c; }
+[data-accent='green'] { --accent: #2b7f3b; --accent-on: #ffffff; --accent-text: #69db7c; --accent-soft: #15331d; }
 
 @media (prefers-color-scheme: light) {
-  [data-accent='teal'] { --accent: #0b6f80; --accent-text: #0a6878; --accent-soft: #dcf3f5; }
-  [data-accent='violet'] { --accent: #6741d9; --accent-text: #5f3dc4; --accent-soft: #ece6fd; }
-  [data-accent='pink'] { --accent: #bf245a; --accent-text: #ad1f50; --accent-soft: #fbe4ee; }
-  [data-accent='orange'] { --accent: #a64d08; --accent-text: #954507; --accent-soft: #fbebdc; }
-  [data-accent='green'] { --accent: #2a7a3a; --accent-text: #237032; --accent-soft: #e1f3e5; }
+  [data-accent='orange'] { --accent: #b24b0a; --accent-on: #ffffff; --accent-text: #a84811; --accent-soft: #feeadb; }
+  [data-accent='blue'] { --accent: #2560d4; --accent-on: #ffffff; --accent-text: #1f57c3; --accent-soft: #e3ebfb; }
+  [data-accent='teal'] { --accent: #0b6f80; --accent-on: #ffffff; --accent-text: #0a6878; --accent-soft: #dcf3f5; }
+  [data-accent='violet'] { --accent: #6741d9; --accent-on: #ffffff; --accent-text: #5f3dc4; --accent-soft: #ece6fd; }
+  [data-accent='pink'] { --accent: #bf245a; --accent-on: #ffffff; --accent-text: #ad1f50; --accent-soft: #fbe4ee; }
+  [data-accent='green'] { --accent: #2a7a3a; --accent-on: #ffffff; --accent-text: #237032; --accent-soft: #e1f3e5; }
 }
