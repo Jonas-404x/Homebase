@@ -12,15 +12,20 @@ export interface ScrubContext {
 }
 
 const HEX = '[0-9A-Fa-f]{1,4}';
+const ipv6 = (m: string) => (m === '::' ? m : '[ip]'); // Ein einzelnes "::" ist keine Adresse.
 // Reihenfolge zählt: Zugangsdaten in URLs vor Mails, MACs vor IPv6 (sonst frisst IPv6 die MAC).
-const RULES: [RegExp, string][] = [
+// Grenzen ohne \b, weil "_" für \b ein Wortzeichen ist: peer_192.0.2.1 soll trotzdem erkannt werden.
+const RULES: [RegExp, string | ((m: string) => string)][] = [
   [/\b[a-z][a-z0-9+.-]*:\/\/[^\s/:@]+:[^\s/@]+@\S+/gi, '[url]'],
   [/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[email]'],
-  [/\b[0-9A-Fa-f]{2}([:-])(?:[0-9A-Fa-f]{2}\1){4}[0-9A-Fa-f]{2}\b/g, '[mac]'],
-  [/\b(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}\b/g, '[ip]'],
+  // Zugangsdaten als Zuweisung (password=…, "token": "…", Authorization: Bearer …)
+  [/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/g, '$1 [geheim]'],
+  [/\b(password|passwd|pwd|pass|secret|token|api[_-]?key|apikey|auth|authorization|username|user|login)(["']?\s*[=:]\s*["']?)(?!\[|Bearer\b|Basic\b)[^\s"',;&]+/gi, '$1$2[geheim]'],
+  [/(?<![0-9A-Fa-f])[0-9A-Fa-f]{2}([:-])(?:[0-9A-Fa-f]{2}\1){4}[0-9A-Fa-f]{2}(?![0-9A-Fa-f])/g, '[mac]'],
+  [/(?<![\d.])(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}(?!\.?\d)/g, '[ip]'],
   // IPv6 nur voll (8 Gruppen) oder mit "::" – so bleiben Uhrzeiten wie 14:02:33 stehen.
-  [new RegExp(`(?<![\\w:])(?:${HEX}:){7}${HEX}(?![\\w:])`, 'g'), '[ip]'],
-  [new RegExp(`(?<![\\w:])(?:${HEX}(?::${HEX})*)?::(?:${HEX}(?::${HEX})*)?(?![\\w:])`, 'g'), '[ip]'],
+  [new RegExp(`(?<![0-9A-Za-z:])(?:${HEX}:){7}${HEX}(?![0-9A-Za-z:])`, 'g'), ipv6],
+  [new RegExp(`(?<![0-9A-Za-z:])(?:${HEX}(?::${HEX})*)?::(?:${HEX}(?::${HEX})*)?(?![0-9A-Za-z:])`, 'g'), ipv6],
   [/([A-Za-z]:\\Users\\)[^\\\s]+/g, '$1[user]'],
   [/(\/(?:home|Users)\/)[^/\s]+/g, '$1[user]'],
   // Lange Zeichenketten mit Ziffern und Buchstaben sehen aus wie Schlüssel oder Tokens.
@@ -30,18 +35,14 @@ const RULES: [RegExp, string][] = [
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 function wordsRegex(words: string[]): RegExp | null {
-  const list = [...new Set(words.map((w) => w.trim()).filter((w) => w.length >= 3))].sort((a, b) => b.length - a.length);
+  const list = [...new Set(words.map((w) => w.trim()).filter((w) => w.length >= 2))].sort((a, b) => b.length - a.length);
   if (list.length === 0) return null;
   return new RegExp(`(?<![\\w-])(?:${list.map(escape).join('|')})(?![\\w-])`, 'gi');
 }
 
 export function scrubLine(line: string, ctx: ScrubContext): string {
   let out = line;
-  for (const [re, rep] of RULES) out = out.replace(re, (m, ...rest) => {
-    // Ein einzelnes "::" ist keine Adresse.
-    if (rep === '[ip]' && m === '::') return m;
-    return rep.replace('$1', typeof rest[0] === 'string' ? rest[0] : '');
-  });
+  for (const [re, rep] of RULES) out = typeof rep === 'string' ? out.replace(re, rep) : out.replace(re, rep);
   const devices = wordsRegex(ctx.blocklist);
   if (devices) out = out.replace(devices, '[gerät]');
   const players = wordsRegex(ctx.players);
@@ -87,3 +88,21 @@ export function minecraftPlayers(lines: string[]): string[] {
 
 /** Minecraft-Apps im Katalog erkennt man an der ID. */
 export const isMinecraft = (appId: string) => /minecraft/i.test(appId);
+
+/** Wie viele Spieler gerade online sind, aus den Logzeilen (nur die Zahl geht raus, nie die Namen). null = unbekannt. */
+export function minecraftOnline(lines: string[]): number | null {
+  const online = new Set<string>();
+  let seen = false;
+  for (const l of lines) {
+    const join = /:\s([A-Za-z0-9_]{3,16}) joined the game/.exec(l);
+    const leave = /:\s([A-Za-z0-9_]{3,16}) (?:left the game|lost connection)/.exec(l);
+    if (/Done \(\d/.test(l)) {
+      online.clear(); // Server neu gestartet
+      seen = true;
+    }
+    if (join) online.add(join[1]!);
+    if (leave) online.delete(leave[1]!);
+    if (join || leave) seen = true;
+  }
+  return seen ? online.size : null;
+}

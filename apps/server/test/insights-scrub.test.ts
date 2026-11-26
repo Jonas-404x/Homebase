@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DeviceInfo } from '@mainframe/shared';
-import { buildBlocklist, minecraftPlayers, scrubLine, scrubLogLines } from '../src/insights/scrub.ts';
+import { buildBlocklist, minecraftOnline, minecraftPlayers, scrubLine, scrubLogLines } from '../src/insights/scrub.ts';
 
 const none = { blocklist: [], players: [] };
 
@@ -15,7 +15,7 @@ describe('scrubLine', () => {
     expect(scrubLine('mac 00:00:5E:00:53:af and 00-00-5e-00-53-01', none)).toBe('mac [mac] and [mac]');
     expect(scrubLine('mail to someone@example.com', none)).toBe('mail to [email]');
     expect(scrubLine('db postgres://admin:hunter2@db.example.com/x', none)).toBe('db [url]');
-    expect(scrubLine('token=tok_A1b2C3d4E5f6G7h8I9j0K1l2', none)).toBe('token=[token]');
+    expect(scrubLine('token=tok_A1b2C3d4E5f6G7h8I9j0K1l2', none)).toBe('token=[geheim]');
   });
 
   it('ersetzt den Benutzernamen in Pfaden', () => {
@@ -66,5 +66,36 @@ describe('buildBlocklist', () => {
   it('nimmt Name, Hostname, IP und MAC jedes Geräts und den eigenen Hostnamen', () => {
     const d = { mac: '00:00:5E:00:53:01', ip: '192.0.2.5', hostname: 'nas.example.lan', name: 'Keller-NAS' } as DeviceInfo;
     expect(buildBlocklist([d], 'mainframe-box').sort()).toEqual(['00:00:5E:00:53:01', '192.0.2.5', 'Keller-NAS', 'mainframe-box', 'nas.example.lan'].sort());
+  });
+});
+
+describe('scrubLine – Zugangsdaten und Grenzen', () => {
+  it('ersetzt Zuweisungen von Passwörtern, Benutzern und Tokens', () => {
+    expect(scrubLine('ERROR username=maxmuster password=hunter2', none)).toBe('ERROR username=[geheim] password=[geheim]');
+    expect(scrubLine('{"api_key": "abc", "token":"x"}', none)).toBe('{"api_key": "[geheim]", "token":"[geheim]"}');
+    expect(scrubLine('Authorization: Bearer abc.def', none)).toBe('Authorization: Bearer [geheim]');
+  });
+
+  it('erkennt Adressen auch direkt neben einem Unterstrich', () => {
+    expect(scrubLine('peer_192.0.2.99_00:00:5E:00:53:66 and x_2001:db8::1', none)).toBe('peer_[ip]_[mac] and x_[ip]');
+    expect(scrubLine('version 1.2.3 at std::string', none)).toBe('version 1.2.3 at std::string');
+  });
+
+  it('nimmt auch kurze Gerätenamen wie "pi"', () => {
+    expect(scrubLine('cannot reach pi now; pipe ok', { blocklist: ['pi'], players: [] })).toBe('cannot reach [gerät] now; pipe ok');
+  });
+});
+
+describe('minecraftOnline', () => {
+  it('zählt, wer gerade online ist, und null, wenn das Log nichts dazu sagt', () => {
+    const log = [
+      '[03:00:00] [Server thread/INFO]: Done (3.1s)! For help, type "help"',
+      '[03:00:02] [Server thread/INFO]: Alex joined the game',
+      '[03:00:03] [Server thread/INFO]: Steve joined the game',
+      '[03:00:04] [Server thread/INFO]: Notch joined the game',
+      '[03:01:00] [Server thread/INFO]: Steve left the game',
+    ];
+    expect(minecraftOnline(log)).toBe(2);
+    expect(minecraftOnline(['[03:00:00] irgendwas'])).toBeNull();
   });
 });
