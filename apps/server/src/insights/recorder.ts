@@ -18,6 +18,10 @@ export interface Recorder {
   usageDue(): boolean;
   sampleUsage(usage: AppUsage[]): void;
   sampleDisks(stats: SystemStats): void;
+  /** Hast du die App gerade selbst gestartet, gestoppt oder neu gestartet? */
+  byUser(appId: string): boolean;
+  /** Vergisst den letzten Stand (z. B. wenn Docker weg war: danach ist jeder Container neu gestartet). */
+  reset(): void;
 }
 
 interface Seen {
@@ -69,6 +73,8 @@ export function createRecorder(opts: { store: InsightsStore; now?: () => number 
       store.addEvent({ at: now(), appId, kind: action === 'stop' ? 'stopped' : 'started', detail: null });
     },
     usageDue: () => now() - usageAt >= USAGE_EVERY_MS,
+    byUser,
+    reset: () => seen.clear(),
     sampleUsage(usage) {
       const at = now();
       if (at - usageAt < USAGE_EVERY_MS || usage.length === 0) return;

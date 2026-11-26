@@ -76,6 +76,8 @@ export interface AppDeps {
   aiProvider?: (apiKey: string, model: string) => AiProvider;
   /** Abwarten vor einer KI-Anfrage (Tests: 0). Standard 2 Minuten. */
   aiDebounceMs?: number;
+  /** Wie lange ein wichtiger Vorfall anstehen muss, bevor er zählt (Tests: 0). Standard 2 Minuten. */
+  incidentOpenAfterMs?: number;
   /** Weitere Routen (z. B. AdGuard), die Zugriff auf Engine und Hub brauchen. */
   plugins?: ((app: FastifyInstance) => void | Promise<void>)[];
 }
@@ -171,7 +173,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     onTexts: pushStatus,
     debounceMs: deps.aiDebounceMs,
   });
-  const insights = createInsights({ db: deps.db, store: insightsStore, sources: statusSources, engine: deps.engine, ai, config: aiConfig, push: pushStatus, intervalMs: deps.insightsIntervalMs ?? 30_000 });
+  const insights = createInsights({ db: deps.db, store: insightsStore, sources: statusSources, engine: deps.engine, ai, config: aiConfig, push: pushStatus, intervalMs: deps.insightsIntervalMs ?? 30_000, incidentOpenAfterMs: deps.incidentOpenAfterMs });
   onUserAction = insights.userAction;
   app.decorate('insights', insights);
   app.addHook('onClose', async () => insights.stop());

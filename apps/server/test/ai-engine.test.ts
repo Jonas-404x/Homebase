@@ -57,6 +57,16 @@ describe('AI engine', () => {
     expect(engine.statusTexts('base')).toBeNull();
   });
 
+  it('eine App, die eine Stunde lang zwischen zwei Fehlerbildern springt, kostet höchstens zwei Anfragen', async () => {
+    const { engine, config, calls } = setup();
+    config.setKey(KEY);
+    for (let i = 0; i < 20; i++) {
+      engine.observeStatus(snap(i % 2 === 0 ? 'restarting' : 'error'));
+      await vi.advanceTimersByTimeAsync(3 * MIN);
+    }
+    expect(calls).toHaveLength(2);
+  });
+
   it('fragt nicht, wenn alles läuft', async () => {
     const { engine, config, calls } = setup();
     config.setKey(KEY);

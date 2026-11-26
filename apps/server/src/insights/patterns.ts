@@ -1,5 +1,6 @@
 import type { HistoryPoint } from '@mainframe/shared';
 import type { AppEvent, DiskRow, Facts } from './store.ts';
+import { isDataMount } from './incidents.ts';
 import { dayKey, minuteOfDay, startOfDay, weekday } from './time.ts';
 
 export type HintKind = 'restart-pattern' | 'memory-rise' | 'disk-fill' | 'night-spike' | 'past-incident';
@@ -93,7 +94,7 @@ export function detectMemoryRise(days: { day: string; memory: number }[]): Hint[
 /** Wächst die Belegung im Tempo der letzten 7 Tage weiter, ist das Laufwerk in weniger als 14 Tagen voll. */
 export function detectDiskFill(rows: DiskRow[], now: number): Hint[] {
   const byMount = new Map<string, DiskRow[]>();
-  for (const r of rows) if (r.at >= now - 7 * DAY && r.at <= now) byMount.set(r.mount, [...(byMount.get(r.mount) ?? []), r]);
+  for (const r of rows) if (r.at >= now - 7 * DAY && r.at <= now && isDataMount(r.mount)) byMount.set(r.mount, [...(byMount.get(r.mount) ?? []), r]);
   const hints: Hint[] = [];
   byMount.forEach((list, mount) => {
     list.sort((x, y) => x.at - y.at);

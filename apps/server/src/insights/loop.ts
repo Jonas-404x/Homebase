@@ -9,7 +9,7 @@ import type { AiConfig } from '../ai/settings.ts';
 import { collectStatus } from '../status/collect.ts';
 import { gatherStatus, type StatusSources } from '../status/routes.ts';
 import { within } from '../util/within.ts';
-import { createIncidentTracker, evaluateIncidents, type IncidentKind } from './incidents.ts';
+import { createIncidentTracker, evaluateIncidents, pastIncidentTitle, type IncidentKind } from './incidents.ts';
 import { detectNightSpikes, nightWindow, NIGHT_END_HOUR } from './night.ts';
 import { dailyAverages, detectDiskFill, detectMemoryRise, detectRestartPatterns, type Hint, type HintKind } from './patterns.ts';
 import { createRecorder, type UserAction } from './recorder.ts';
@@ -67,6 +67,8 @@ export function createInsights(opts: {
   /** Neue Vorfälle, Hinweise oder KI-Texte: offene Browser bekommen die Übersicht neu. */
   push: () => void;
   intervalMs: number;
+  /** Wie lange ein Vorfall anstehen muss, bevor er zählt (Tests: 0). */
+  incidentOpenAfterMs?: number;
   hostname?: string;
   now?: () => number;
 }): Insights {
@@ -74,13 +76,18 @@ export function createInsights(opts: {
   const now = opts.now ?? Date.now;
   const hostname = opts.hostname ?? os.hostname();
   const recorder = createRecorder({ store, now });
-  const tracker = createIncidentTracker({ store, now });
+  const tracker = createIncidentTracker({ store, now, openAfterMs: opts.incidentOpenAfterMs });
   let patterns: Hint[] = [];
   let patternsAt = -Infinity;
   let prunedAt = -Infinity;
   let running = false;
 
-  const allHints = (): Hint[] => [...patterns, ...store.activeHints(now()).map(fromRow)];
+  const allHints = (): Hint[] => [...patterns, ...store.activeHints(now()).map((r) => {
+    const h = fromRow(r);
+    if (h.kind !== 'past-incident' || typeof r.facts.openedAt !== 'number') return h;
+    const f = { pastTitle: String(r.facts.pastTitle ?? ''), kind: String(r.facts.incident ?? ''), openedAt: r.facts.openedAt, minutes: Number(r.facts.minutes ?? 1) };
+    return { ...h, title: pastIncidentTitle(f, now()) };
+  })];
 
   const recomputePatterns = (names: Map<string, string>) => {
     const t = now();
@@ -121,6 +128,7 @@ export function createInsights(opts: {
       }
       // Ohne Docker sieht jede App abgestürzt aus; das ist ein Docker-Vorfall, kein Absturz jeder App.
       if (g.dockerOk) recorder.observeApps(g.apps, inspects);
+      else recorder.reset();
       if (engine && g.dockerOk && recorder.usageDue()) recorder.sampleUsage(await within(engine.usage().catch(() => []), [], INSPECT_TIMEOUT_MS));
       if (g.stats) recorder.sampleDisks(g.stats);
       if (t - prunedAt >= HOUR) {
@@ -128,7 +136,10 @@ export function createInsights(opts: {
         prunedAt = t;
       }
 
-      const { changed } = tracker.update(evaluateIncidents({ dockerOk: g.dockerOk, apps: g.apps, services: g.services, stats: g.stats, thresholds: g.input.thresholds }));
+      // Startest du AdGuard gerade selbst neu, ist das kein Vorfall.
+      const current = evaluateIncidents({ dockerOk: g.dockerOk, apps: g.apps, services: g.services, stats: g.stats, thresholds: g.input.thresholds })
+        .filter((c) => !(c.kind === 'adguard' && recorder.byUser('adguard')));
+      const { changed } = tracker.update(current);
       if (t - patternsAt >= HOUR) recomputePatterns(names);
       const night = checkNight(names);
 

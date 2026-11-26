@@ -83,8 +83,8 @@ export function buildStatusFacts(input: StatusFactsInput): StatusFacts {
       card.state = app.state;
       if (app.exitCode !== null) card.exitCode = app.exitCode;
       if (input.sendLogs && lines.length > 0) card.logLines = lines;
-      // Zahlen raus, sonst ändert jede neue Uhrzeit im Log den Fingerabdruck.
-      part += `|${app.state}|${app.exitCode ?? ''}|${(lines.at(-1) ?? '').replace(/\d+/g, '#')}`;
+      // Zahlen und Hex-IDs raus, sonst ändert jede neue Uhrzeit oder Request-ID im Log den Fingerabdruck.
+      part += `|${app.state}|${app.exitCode ?? ''}|${(lines.at(-1) ?? '').replace(/\b[0-9a-f]{6,}\b/gi, '#').replace(/\d+/g, '#')}`;
     }
     cards.push(card);
     parts.push(part);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { HistoryPoint, InstalledApp, ServiceStatus, SystemStats } from '@mainframe/shared';
 import { openDb } from '../src/db.ts';
-import { createIncidentTracker, evaluateIncidents, type IncidentInput } from '../src/insights/incidents.ts';
+import { createIncidentTracker, evaluateIncidents, pastIncidentTitle, type IncidentInput } from '../src/insights/incidents.ts';
 import { detectNightSpikes, nightWindow } from '../src/insights/night.ts';
 import { detectDiskFill, detectMemoryRise, detectRestartPatterns, dailyAverages } from '../src/insights/patterns.ts';
 import { createInsightsStore, type AppEvent } from '../src/insights/store.ts';
@@ -115,6 +115,9 @@ describe('evaluateIncidents', () => {
     expect(keys(input({ stats: stats({ disks: [{ mount: 'C:', usedBytes: 950, totalBytes: 1000 }] }) }))).toEqual(['disk:C:']);
     expect(keys(input({ stats: stats({ disks: [{ mount: 'C:', usedBytes: 949, totalBytes: 1000 }] }) }))).toEqual([]);
   });
+  it('ignoriert Snap-Abbilder, die unter Ubuntu immer voll sind', () => {
+    expect(keys(input({ stats: stats({ disks: [{ mount: '/snap/core22/1234', usedBytes: 100, totalBytes: 100 }] }) }))).toEqual([]);
+  });
   it('Temperatur ab Warnschwelle + 10 °C', () => {
     expect(keys(input({ stats: stats({ temperatureC: 90 }) }))).toEqual(['temperature']);
     expect(keys(input({ stats: stats({ temperatureC: 89 }) }))).toEqual([]);
@@ -130,10 +133,24 @@ describe('evaluateIncidents', () => {
 describe('createIncidentTracker', () => {
   const docker = { key: 'docker', kind: 'docker' as const, title: 'Docker läuft nicht', detail: 'x', pastTitle: 'Docker lief' };
 
-  it('öffnet einen Vorfall einmal und schließt ihn nach einer kurzen Pause', () => {
+  it('öffnet einen Vorfall erst, wenn er 2 Minuten ansteht, und nicht bei einem einzelnen Aussetzer', () => {
     const store = createInsightsStore(openDb(':memory:'));
     let now = local(26, 4, 10);
     const t = createIncidentTracker({ store, now: () => now });
+    expect(t.update([docker]).changed).toBe(false);
+    now += 30_000;
+    t.update([]); // war nur kurz
+    now += 30_000;
+    expect(t.update([docker]).changed).toBe(false);
+    now += 2 * MIN;
+    expect(t.update([docker]).changed).toBe(true);
+    expect(store.openIncidents().map((i) => i.openedAt)).toEqual([local(26, 4, 11)]);
+  });
+
+  it('öffnet einmal, schließt nach einer kurzen Pause und macht ungesehen einen Hinweis daraus', () => {
+    const store = createInsightsStore(openDb(':memory:'));
+    let now = local(26, 4, 10);
+    const t = createIncidentTracker({ store, now: () => now, openAfterMs: 0 });
     expect(t.update([docker]).changed).toBe(true);
     now = local(26, 4, 21) + 30_000;
     expect(t.update([docker]).changed).toBe(false);
@@ -143,18 +160,19 @@ describe('createIncidentTracker', () => {
     now += 3 * MIN;
     expect(t.update([]).changed).toBe(true);
     expect(store.openIncidents()).toEqual([]);
-    // Ungesehen vorbei: wird zum Hinweis.
     const hints = store.activeHints(now);
     expect(hints).toHaveLength(1);
     expect(hints[0]!.facts.title).toBe('Docker lief heute um 04:10 für 12 Minuten nicht');
+    // Am nächsten Morgen steht dort "gestern", nicht mehr "heute".
+    expect(pastIncidentTitle({ pastTitle: 'Docker lief', kind: 'docker', openedAt: local(26, 4, 10), minutes: 1 }, local(27, 6, 0))).toBe('Docker lief gestern um 04:10 für 1 Minute nicht');
   });
 
   it('macht aus einem gesehenen Vorfall keinen Hinweis und übernimmt offene Vorfälle nach einem Neustart', () => {
     const store = createInsightsStore(openDb(':memory:'));
     let now = local(26, 4, 10);
-    createIncidentTracker({ store, now: () => now }).update([docker]);
+    createIncidentTracker({ store, now: () => now, openAfterMs: 0 }).update([docker]);
     store.markSeen(store.openIncidents()[0]!.id);
-    const t2 = createIncidentTracker({ store, now: () => now });
+    const t2 = createIncidentTracker({ store, now: () => now, openAfterMs: 0 });
     expect(t2.update([docker]).changed).toBe(false);
     now += 10 * MIN;
     t2.update([]);

@@ -141,9 +141,11 @@ export function createAiEngine(opts: {
     }
   };
 
+  // Eine Zeile pro Fingerabdruck: springt eine App zwischen zwei Fehlerbildern hin und her, wird nicht jedes Mal neu gefragt.
+  const statusScope = (fingerprint: string) => `status:${fingerprint}`;
   const freshStatus = (s: StatusSnapshot) => {
-    const c = store.getCache('status');
-    return c !== null && c.fingerprint === s.fingerprint && now() - c.at < TEXT_TTL_MS;
+    const c = store.getCache(statusScope(s.fingerprint));
+    return c !== null && now() - c.at < TEXT_TTL_MS;
   };
 
   const clearPending = () => {
@@ -162,7 +164,8 @@ export function createAiEngine(opts: {
     }
     const texts = await ask(s.facts, s.idMap);
     if (!texts) return;
-    store.putCache('status', { fingerprint: s.fingerprint, at: now(), json: JSON.stringify({ base: s.base, texts } satisfies StatusCache) });
+    store.putCache(statusScope(s.fingerprint), { fingerprint: s.fingerprint, at: now(), json: JSON.stringify({ base: s.base, texts } satisfies StatusCache) });
+    store.pruneCache('status:', now() - TEXT_TTL_MS);
     opts.onTexts?.();
   };
 
@@ -205,8 +208,8 @@ export function createAiEngine(opts: {
 
     statusTexts(base) {
       if (!latest || !config.enabled()) return null;
-      const c = readCache<StatusCache>('status');
-      if (!c || c.fingerprint !== latest.fingerprint || c.value.base !== base || now() - c.at >= TEXT_TTL_MS) return null;
+      const c = readCache<StatusCache>(statusScope(latest.fingerprint));
+      if (!c || c.value.base !== base || now() - c.at >= TEXT_TTL_MS) return null;
       return c.value.texts;
     },
 

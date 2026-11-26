@@ -75,6 +75,8 @@ export interface InsightsStore {
   dismissHint(id: string): boolean;
   getCache(scope: string): CacheRow | null;
   putCache(scope: string, row: CacheRow): void;
+  /** Löscht Zwischenspeicher mit diesem Anfang, die älter sind als before. */
+  pruneCache(prefix: string, before: number): void;
 }
 
 const parseFacts = (raw: string): Facts => {
@@ -111,6 +113,7 @@ export function createInsightsStore(db: Db): InsightsStore {
     dismissHint: sql.prepare('UPDATE hints SET dismissed = 1 WHERE id = ?'),
     getCache: sql.prepare('SELECT fingerprint, at, json FROM ai_cache WHERE scope = ?'),
     putCache: sql.prepare('INSERT OR REPLACE INTO ai_cache (scope, fingerprint, at, json) VALUES (?, ?, ?, ?)'),
+    pruneCache: sql.prepare("DELETE FROM ai_cache WHERE scope LIKE ? || '%' AND at < ?"),
   };
   type IncidentDb = { id: number; key: string; kind: string; opened_at: number; closed_at: number | null; seen: number; facts: string };
   const toIncident = (r: IncidentDb): IncidentRow => ({
@@ -182,5 +185,6 @@ export function createInsightsStore(db: Db): InsightsStore {
       return r ? { fingerprint: r.fingerprint, at: Number(r.at), json: r.json } : null;
     },
     putCache: (scope, row) => void q.putCache.run(scope, row.fingerprint, row.at, row.json),
+    pruneCache: (prefix, before) => void q.pruneCache.run(prefix, before),
   };
 }
