@@ -53,7 +53,8 @@ Die KI bekommt diese fertigen Fakten und schreibt nur die Worte. Sie kann keine 
 
 ### 1. Kopfsatz
 - Gibt es Probleme oder Warnungen, schreibt die KI den Satz oben, zum Beispiel: „Home Assistant stürzt seit heute Nacht immer wieder ab, sonst läuft alles.“
-- Bei „Alles läuft“ bleibt der feste Text. Da gibt es nichts zu erklären, und es spart Anfragen.
+- Jonas (Nachtrag): Auch wenn nichts ist, soll die KI beim Öffnen der Übersicht einmal draufschauen und das sagen, etwa „Alles läuft super, kein Problem. Minecraft hat gerade 3 Spieler.“ Dafür bekommt sie zusätzlich ein paar harmlose Eckdaten: Laufzeit seit dem letzten Start, Zahl der laufenden Apps, Auslastung grob, Spielerzahl bei Minecraft.
+- Damit nicht jedes Öffnen eine Anfrage kostet: Beim Öffnen wird nur gefragt, wenn sich der Fingerabdruck geändert hat oder der letzte Kopfsatz älter als 1 Stunde ist. Sonst wird der gespeicherte Satz gezeigt. Bis die Antwort da ist, steht der feste Text („Alles läuft“).
 
 ### 2. Karten unter „Braucht dich“
 Jonas: Die KI darf den ganzen Text der Karte schreiben, zusammengefasst, nicht nur eine Zusatzzeile.
@@ -225,6 +226,7 @@ Jonas hat A gewählt („nimm wirklich gerne A, Gemini, das klingt gut“). Die 
 
 **Von Jonas:**
 - KI an den vier Stellen: Kopfsatz, Karten, Muster, Nacht-Spitzen. Nicht überall.
+- Der Kopfsatz kommt auch bei „Alles läuft“ von der KI (Nachtrag).
 - Die KI schreibt den ganzen Text der Karten (Titel und Text), nicht nur eine Zusatzzeile.
 - Nacht-Spitzen sollen morgens dastehen.
 - Pop-up nur für wirklich wichtige Dinge, mit der Liste oben.
