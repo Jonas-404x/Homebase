@@ -130,6 +130,20 @@ describe('Warnungen', () => {
     expect(events.list()).toHaveLength(2);
   });
 
+  it('meldet vollen Arbeitsspeicher einmal und erst nach Entwarnung wieder', () => {
+    const events = createEventLog();
+    const warn = createWarner(events);
+    const t = { memory: 90, disk: 90, temperature: 80 };
+    const ram = (used: number) => stats(1, { memory: { totalBytes: 100, usedBytes: used }, disks: [] });
+    warn(ram(95), t);
+    warn(ram(97), t);
+    expect(events.list()).toHaveLength(1);
+    expect(events.list()[0]).toMatchObject({ level: 'warn', text: 'Arbeitsspeicher zu 95 % belegt' });
+    warn(ram(80), t);
+    warn(ram(92), t);
+    expect(events.list()).toHaveLength(2);
+  });
+
   it('meldet zu hohe Temperatur', () => {
     const events = createEventLog();
     const warn = createWarner(events);

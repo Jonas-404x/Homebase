@@ -5,7 +5,7 @@ import type { EventLog } from './events.ts';
 const REARM = 2;
 
 /**
- * Schreibt ein Ereignis, wenn ein Laufwerk zu voll oder die Temperatur zu hoch wird.
+ * Schreibt ein Ereignis, wenn ein Laufwerk oder der Arbeitsspeicher zu voll oder die Temperatur zu hoch wird.
  * Pro Überschreitung genau einmal; erst wenn der Wert wieder deutlich darunter war, erneut.
  */
 export function createWarner(events: EventLog) {
@@ -25,6 +25,10 @@ export function createWarner(events: EventLog) {
       if (d.totalBytes <= 0) continue;
       const pct = (d.usedBytes / d.totalBytes) * 100;
       check(`disk:${d.mount}`, pct, t.disk, () => `Laufwerk ${d.mount} ist zu ${Math.round(pct)} % voll`);
+    }
+    if (s.memory.totalBytes > 0) {
+      const pct = (s.memory.usedBytes / s.memory.totalBytes) * 100;
+      check('memory', pct, t.memory, () => `Arbeitsspeicher zu ${Math.round(pct)} % belegt`);
     }
     if (s.temperatureC !== null) {
       const c = s.temperatureC;
