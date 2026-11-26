@@ -6,7 +6,13 @@ import type { AppEngine } from './engine.ts';
 
 type IdParams = { Params: { id: string } };
 
-export function registerAppRoutes(app: FastifyInstance, engine: AppEngine, hub: WsHub): void {
+/** onUserAction: du hast eine App gestartet/gestoppt – der Verlauf zählt das nicht als Absturz. */
+export function registerAppRoutes(
+  app: FastifyInstance,
+  engine: AppEngine,
+  hub: WsHub,
+  onUserAction?: (id: string, action: 'start' | 'stop' | 'restart' | 'install') => void,
+): void {
   const announce = async (req: FastifyRequest) => {
     try {
       hub.broadcast({ type: 'apps', data: await engine.list() });
@@ -40,6 +46,8 @@ export function registerAppRoutes(app: FastifyInstance, engine: AppEngine, hub: 
 
   const LABEL = { install: 'installiert', start: 'gestartet', stop: 'gestoppt', restart: 'neu gestartet', remove: 'entfernt' } as const;
   const logged = async <T>(id: string, action: keyof typeof LABEL, fn: () => Promise<T>): Promise<T> => {
+    // Schon vorher merken: während der Aktion wechselt der Container-Zustand.
+    if (action !== 'remove') onUserAction?.(id, action);
     try {
       const r = await fn();
       app.events?.add('info', 'App ' + id + ' ' + LABEL[action]);
