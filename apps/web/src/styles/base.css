@@ -497,7 +497,7 @@ a {
   border-radius: 16px;
   border: none;
   padding: 0;
-  background: var(--separator);
+  background: var(--track);
   cursor: pointer;
   transition: background 0.2s ease;
 }
@@ -2099,4 +2099,69 @@ select.input {
   color: var(--danger);
   font-size: var(--text-small);
   font-weight: 600;
+}
+
+/* ---------- Feinschliff: Druck-Feedback, weiches Erscheinen, Fehler sichtbar machen ---------- */
+
+:root {
+  interpolate-size: allow-keywords;
+}
+
+.field input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Knöpfe geben beim Drücken leicht nach, das fühlt sich an wie ein echter Knopf. */
+  .button {
+    transition: scale var(--dur-press) ease-out, background-color var(--dur-press) ease-out, filter var(--dur-press) ease-out;
+  }
+  .button:active:not(:disabled) {
+    scale: 0.97;
+  }
+
+  /* Dialoge erscheinen aus 97 % Größe statt aus dem Nichts. */
+  .overlay {
+    animation: fade-in var(--dur-enter) ease-out;
+  }
+  .dialog {
+    animation: pop-in var(--dur-enter) var(--ease-out);
+  }
+
+  /* Neue Einträge der Statusübersicht gleiten herein. */
+  .status-item {
+    animation: pop-in var(--dur-enter) var(--ease-out);
+  }
+
+  /* Falsche Anmeldung: kurzes Kopfschütteln. */
+  .shake {
+    animation: shake 360ms ease-out;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+@keyframes shake {
+  0%,
+  100% {
+    translate: 0;
+  }
+  17% {
+    translate: -10px;
+  }
+  33% {
+    translate: 10px;
+  }
+  50% {
+    translate: -6px;
+  }
+  67% {
+    translate: 6px;
+  }
+  83% {
+    translate: -3px;
+  }
 }

@@ -10,7 +10,9 @@
   --surface-raised: #1a1d23;
   --surface-sunken: #0b0d10;
   --surface-hover: #232730;
-  --separator: #2b3039;
+  /* Durchscheinende Linien passen sich jeder Fläche an. */
+  --separator: rgb(255 255 255 / 0.09);
+  --track: #2b3039;         /* Schiene ausgeschalteter Schalter */
 
   --text: #f1f3f6;
   --text-secondary: #a4abb6;
@@ -47,6 +49,11 @@
   --text-figure: 1.625rem;
 
   --tap: 44px;
+
+  /* Bewegung: kurz, mit weichem Auslaufen. */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-press: 150ms;
+  --dur-enter: 200ms;
   --nav-width: 232px;
 }
 
@@ -58,7 +65,8 @@
     --surface-raised: #ffffff;
     --surface-sunken: #e9ecf0;
     --surface-hover: #eceef2;
-    --separator: #dcdfe5;
+    --separator: rgb(20 30 50 / 0.13);
+    --track: #dcdfe5;
 
     --text: #15181d;
     --text-secondary: #555c67;

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.tsx';
@@ -57,6 +57,29 @@ describe('Anmelde-Ablauf', () => {
     await user.click(screen.getByRole('button', { name: 'Anmelden' }));
     expect(await screen.findByText('Benutzername oder Passwort stimmt nicht.')).toBeInTheDocument();
     expect(calls.find((c) => c.path === '/api/auth/login')?.body).toEqual({ username: 'jonas', password: 'falsch123', remember: false });
+  });
+
+  it('schüttelt das Formular bei falscher Anmeldung und markiert das Passwort', async () => {
+    mockApi({
+      'GET /api/auth/state': () => ({ json: { setupDone: true, loggedIn: false } }),
+      'POST /api/auth/login': () => ({ status: 401, json: { code: 'wrong_login', message: 'Benutzername oder Passwort stimmt nicht.' } }),
+    });
+    const user = userEvent.setup();
+    render(<App socketFactory={noSocket} />);
+    await user.type(await screen.findByLabelText('Benutzername'), 'jonas');
+    const password = screen.getByLabelText('Passwort');
+    expect(password).not.toHaveAttribute('aria-invalid');
+    await user.type(password, 'falsch123');
+    await user.click(screen.getByRole('button', { name: 'Anmelden' }));
+    await screen.findByText('Benutzername oder Passwort stimmt nicht.');
+    const form = password.closest('form')!;
+    expect(form).toHaveClass('shake');
+    expect(password).toHaveAttribute('aria-invalid', 'true');
+    fireEvent.animationEnd(form);
+    expect(form).not.toHaveClass('shake');
+    // Beim Tippen ist die Markierung wieder weg.
+    await user.type(password, 'x');
+    expect(password).not.toHaveAttribute('aria-invalid');
   });
 
   it('fragt bei eingeschalteter Zwei-Faktor-Anmeldung nach dem Code', async () => {
