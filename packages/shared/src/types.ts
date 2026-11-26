@@ -247,3 +247,26 @@ export interface StatusReport {
   summary: string;
   items: StatusItem[];
 }
+
+/** Was ein Knopf in der Diagnose tun kann. */
+export type DiagnoseAction = { kind: 'restart-app'; appId: string } | { kind: 'link'; to: string; label: string };
+
+/** Ein Prüfschritt der Diagnose. ok: true = gut, false = Problem, null = übersprungen. */
+export interface DiagnoseStep {
+  id: string;
+  label: string;
+  ok: boolean | null;
+  /** Ein Satz: was geprüft wurde und was dabei herauskam */
+  detail: string;
+  /** Ein Satz, wie man es behebt; null wenn ok oder übersprungen */
+  fix: string | null;
+  action: DiagnoseAction | null;
+}
+
+export interface DiagnoseReport {
+  /** App-ID oder "system" */
+  target: string;
+  /** true, wenn kein Schritt ein Problem gefunden hat */
+  ok: boolean;
+  steps: DiagnoseStep[];
+}
