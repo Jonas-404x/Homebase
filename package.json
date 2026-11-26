@@ -15,7 +15,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run typecheck && npm run build -w apps/web --if-present",
     "start": "node --env-file=dev.env apps/server/src/index.ts",
-    "preview": "npm run build && npm start"
+    "preview": "npm run build && npm start",
+    "desktop:dist": "npm run dist -w apps/desktop"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
