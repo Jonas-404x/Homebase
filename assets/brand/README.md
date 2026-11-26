@@ -1,6 +1,6 @@
 # Mainframe brand assets
 
-The Mainframe logo: a rounded black app icon with a white `>m` prompt and an ice-blue cursor. Raster files only (no SVG), with transparent corners.
+The Mainframe logo: a rounded warm-graphite app icon with a cream `>m` prompt and an orange cursor (recoloured for the "Instrument" look; the old black and ice-blue version is in Git history). Raster files only (no SVG), with transparent corners.
 
 | File | Size | Used for |
 | --- | --- | --- |

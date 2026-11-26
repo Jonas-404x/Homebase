@@ -179,7 +179,7 @@ function createWindow() {
     minWidth: 380,
     title: 'Mainframe',
     icon,
-    backgroundColor: '#0f1115',
+    backgroundColor: '#14110f',
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
