@@ -43,7 +43,7 @@ function containerProblem(a: InstalledApp): string | null {
 const percent = (s: { total: number; ok: number }) => (s.total === 0 ? null : Math.round((s.ok / s.total) * 1000) / 10);
 
 /** Dienste-Seite: installierte Apps und eigene Links, regelmäßig auf Erreichbarkeit geprüft. */
-export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; prefs: PrefsStore; events?: EventLog; engine?: AppEngine; intervalMs?: number }): void {
+export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; prefs: PrefsStore; events?: EventLog; engine?: AppEngine; intervalMs?: number }): { list: () => Promise<ServiceStatus[]> } {
   const store = createServiceStore(opts.db);
 
   const all = async (): Promise<(Target & { stopped: boolean })[]> => {
@@ -64,7 +64,7 @@ export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; pref
   };
   const checker = createChecker({ store, events: opts.events, targets: async () => (await all()).filter((t) => !t.stopped) });
 
-  app.get('/api/services', async (): Promise<ServiceStatus[]> => {
+  const list = async (): Promise<ServiceStatus[]> => {
     const now = Date.now();
     return (await all()).map((t) => {
       const last = t.stopped ? null : store.last(t.id);
@@ -84,7 +84,8 @@ export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; pref
         bars: store.bars(t.id, now - DAY, now, BARS),
       };
     });
-  });
+  };
+  app.get('/api/services', list);
 
   // Prüfen im Hintergrund; ein Fehler (z. B. Datenbank beim Beenden schon zu) darf den Server nicht beenden.
   const recheck = () => void checker.runOnce().catch(() => {});
@@ -139,4 +140,5 @@ export function registerServiceRoutes(app: FastifyInstance, opts: { db: Db; pref
   app.addHook('onClose', async () => {
     if (timer) clearInterval(timer);
   });
+  return { list };
 }

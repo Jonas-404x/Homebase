@@ -10,7 +10,7 @@ import { createDeviceStore } from './store.ts';
 const ipKey = (ip: string) => ip.split('.').reduce((n, p) => n * 256 + Number(p), 0);
 
 /** Geräte im Heimnetz: Scan per Knopf und automatisch, mit eigenem Namen und Notiz. */
-export function registerDeviceRoutes(app: FastifyInstance, opts: { db: Db; prefs: PrefsStore; events?: EventLog; deps: ScanDeps; intervalMs?: number }): void {
+export function registerDeviceRoutes(app: FastifyInstance, opts: { db: Db; prefs: PrefsStore; events?: EventLog; deps: ScanDeps; intervalMs?: number }): { list: () => DeviceInfo[] } {
   const store = createDeviceStore(opts.db);
   const scanner = createScanner({ store, events: opts.events, deps: opts.deps });
 
@@ -64,4 +64,5 @@ export function registerDeviceRoutes(app: FastifyInstance, opts: { db: Db; prefs
     if (timer) clearInterval(timer);
     if (first) clearTimeout(first);
   });
+  return { list };
 }

@@ -229,3 +229,21 @@ export interface InternetStatus {
   speedtests: SpeedtestResult[];
   running: boolean;
 }
+
+/** Ein Punkt der Statusübersicht: problem = rot, warn = gelb, info = grau (zählt nicht). */
+export interface StatusItem {
+  id: string;
+  level: 'problem' | 'warn' | 'info';
+  title: string;
+  detail: string;
+  /** Seite in Mainframe, auf der man es beheben kann */
+  to: string | null;
+  /** App-ID für die Diagnose oder "system"; null = keine Diagnose */
+  diagnose: string | null;
+}
+
+export interface StatusReport {
+  level: 'ok' | 'warn' | 'problem';
+  summary: string;
+  items: StatusItem[];
+}

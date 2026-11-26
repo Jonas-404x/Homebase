@@ -24,6 +24,7 @@ import { registerDeviceRoutes } from './network/routes.ts';
 import { realScanDeps, type ScanDeps } from './network/scanner.ts';
 import { registerInternetRoutes, type InternetDeps } from './internet/routes.ts';
 import { createPrefsStore, type PrefsStore } from './prefs/store.ts';
+import { registerStatusRoutes } from './status/routes.ts';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -108,7 +109,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     startedAt: Date.now(),
     onSessionsChanged,
   });
-  registerSystemRoutes(app, hub, deps.statsProvider ?? createStatsProvider(), prefs, {
+  const statsProvider = deps.statsProvider ?? createStatsProvider();
+  registerSystemRoutes(app, hub, statsProvider, prefs, {
     intervalMs: deps.statsIntervalMs,
     historySampleMs: deps.historySampleMs,
     db: deps.db,
@@ -116,9 +118,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     system: deps.system,
   });
   if (deps.engine) registerAppRoutes(app, deps.engine, hub);
-  registerServiceRoutes(app, { db: deps.db, prefs, events, engine: deps.engine, intervalMs: deps.checkIntervalMs });
-  registerInternetRoutes(app, { db: deps.db, prefs, events, deps: deps.internet, intervalMs: deps.internetIntervalMs });
-  registerDeviceRoutes(app, { db: deps.db, prefs, events, deps: deps.network ?? realScanDeps(deps.config.dataRoot), intervalMs: deps.scanIntervalMs });
+  const services = registerServiceRoutes(app, { db: deps.db, prefs, events, engine: deps.engine, intervalMs: deps.checkIntervalMs });
+  const internet = registerInternetRoutes(app, { db: deps.db, prefs, events, deps: deps.internet, intervalMs: deps.internetIntervalMs });
+  const devices = registerDeviceRoutes(app, { db: deps.db, prefs, events, deps: deps.network ?? realScanDeps(deps.config.dataRoot), intervalMs: deps.scanIntervalMs });
+  registerStatusRoutes(app, { db: deps.db, prefs, engine: deps.engine, stats: statsProvider, services: services.list, internetOnline: internet.online, devices: devices.list });
   for (const p of deps.plugins ?? []) await p(app);
 
   if (deps.config.webDistDir) {
