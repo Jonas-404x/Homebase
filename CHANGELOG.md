@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Polish
+
+- **Buttons give a little when pressed** (scale to 97 %), so clicks feel physical
+- **Dialogs and new status entries appear softly** from 97 % size instead of popping in; the backdrop fades in
+- **Wrong login is obvious**: the form shakes briefly and the password field turns red until you type again
+- **Lines blend in**: borders and dividers are now translucent, so they sit well on every surface in dark and light mode
+- Login page: dropped the sentence that only repeated the field labels
+- Everything respects "reduce motion" in the system settings
+
 ### Part 3.1: Status, diagnose and a Windows app
 
 - **Status overview** at the top of the overview page: "Everything is running" or how many things need you, with each problem, warning and hint, a link to where you fix it and a diagnose button; refreshes every 15 seconds

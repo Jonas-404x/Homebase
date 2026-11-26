@@ -10,6 +10,8 @@ export function AuthScreen({ mode, onDone }: { mode: 'setup' | 'login'; onDone: 
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [shake, setShake] = useState(false);
+  const [wrong, setWrong] = useState(false);
   const setup = mode === 'setup';
 
   async function submit(e: FormEvent) {
@@ -21,7 +23,14 @@ export function AuthScreen({ mode, onDone }: { mode: 'setup' | 'login'; onDone: 
       onDone();
     } catch (err) {
       if (err instanceof ApiErrorException && err.code === 'code_required') setNeedCode(true);
-      else setError(errorText(err));
+      else {
+        setError(errorText(err));
+        // Falsche Anmeldung soll man sehen, nicht nur lesen.
+        if (err instanceof ApiErrorException && err.code === 'wrong_login') {
+          setWrong(true);
+          setShake(true);
+        }
+      }
     } finally {
       setBusy(false);
     }
@@ -29,12 +38,10 @@ export function AuthScreen({ mode, onDone }: { mode: 'setup' | 'login'; onDone: 
 
   return (
     <div className="auth">
-      <form className="card auth-card" onSubmit={submit}>
+      <form className={`card auth-card${shake ? ' shake' : ''}`} onSubmit={submit} onAnimationEnd={(e) => e.target === e.currentTarget && setShake(false)}>
         <img className="auth-logo" src="/icon-192.png" alt="" width={64} height={64} />
         <h1>{setup ? 'Willkommen bei Mainframe' : 'Mainframe'}</h1>
-        <p className="secondary">
-          {setup ? 'Leg deinen Benutzernamen und ein Passwort fest. Damit meldest du dich künftig an.' : 'Melde dich mit deinem Benutzernamen und Passwort an.'}
-        </p>
+        {setup && <p className="secondary">Leg Benutzername und Passwort fest. Damit meldest du dich künftig an.</p>}
         <label className="field">
           <span>Benutzername</span>
           <input
@@ -56,7 +63,11 @@ export function AuthScreen({ mode, onDone }: { mode: 'setup' | 'login'; onDone: 
             name="password"
             autoComplete={setup ? 'new-password' : 'current-password'}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            aria-invalid={wrong || undefined}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setWrong(false);
+            }}
             required
           />
         </label>
