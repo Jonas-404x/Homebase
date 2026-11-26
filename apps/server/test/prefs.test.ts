@@ -19,7 +19,7 @@ describe('parsePrefs', () => {
   it('behält gültige Werte und ersetzt nur ungültige', () => {
     const p = parsePrefs({ accent: 'nope', deviceName: 'Server' });
     expect(p.deviceName).toBe('Server');
-    expect(p.accent).toBe('blue');
+    expect(p.accent).toBe('orange');
   });
 
   it('kleine Kurven zeigen standardmäßig 1 Minute, die Detailansicht 24 Stunden', () => {

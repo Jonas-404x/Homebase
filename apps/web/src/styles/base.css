@@ -1235,15 +1235,7 @@ select.input {
   height: 32px;
   border-radius: 50%;
   background: var(--accent);
-  color: #fff;
-}
-.swatch[data-accent="blue"] {
-  --accent: #2f6fe4;
-}
-@media (prefers-color-scheme: light) {
-  .swatch[data-accent="blue"] {
-    --accent: #2560d4;
-  }
+  color: var(--accent-on);
 }
 .swatch-option input:checked + .swatch {
   box-shadow: 0 0 0 2px var(--surface-raised), 0 0 0 4px var(--accent);

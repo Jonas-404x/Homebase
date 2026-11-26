@@ -6,18 +6,18 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
   <title>Mainframe</title>
   <style>
-    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0f1115; color: #eef0f5; }
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #14110f; color: #f1eeeb; }
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 28px; }
     main { width: 100%; max-width: 580px; }
-    h1 { font-size: clamp(24px, 5vw, 32px); line-height: 1.2; margin: 0 0 20px; }
-    p { color: #afb6c4; line-height: 1.6; overflow-wrap: anywhere; }
+    h1 { font-size: clamp(24px, 5vw, 34px); font-weight: 650; letter-spacing: -0.02em; line-height: 1.15; margin: 0 0 20px; text-wrap: balance; }
+    p { color: #a9a39e; line-height: 1.6; overflow-wrap: anywhere; }
     label { display: block; margin: 28px 0 8px; font-weight: 600; }
-    input { width: 100%; padding: 12px; border: 1px solid #485164; border-radius: 8px; background: #191d26; color: inherit; font: inherit; }
-    input:focus-visible, button:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 3px; }
+    input { width: 100%; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: #1e1b19; color: inherit; font: inherit; }
+    input:focus-visible, button:focus-visible { outline: 2px solid #f7a062; outline-offset: 3px; }
     .buttons { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
-    button { padding: 11px 15px; border: 1px solid #485164; border-radius: 8px; background: #242a37; color: inherit; font: inherit; cursor: pointer; }
-    button[type="submit"] { background: #b6c4ff; border-color: #b6c4ff; color: #131827; font-weight: 600; }
+    button { padding: 11px 15px; border: 1px solid transparent; border-radius: 10px; background: #282421; color: inherit; font: inherit; cursor: pointer; }
+    button[type="submit"] { background: #f4873a; border-color: #f4873a; color: #211209; font-weight: 600; }
     button:disabled { opacity: .6; cursor: wait; }
     #message { color: #ffb4b4; min-height: 1.6em; margin-bottom: 0; }
     .hint { font-size: 13px; }

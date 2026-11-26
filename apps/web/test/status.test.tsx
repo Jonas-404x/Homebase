@@ -62,6 +62,12 @@ describe('Statusübersicht', () => {
     expect(within(items[2]!).queryByRole('button', { name: 'Diagnose' })).not.toBeInTheDocument();
   });
 
+  it('zeigt, wann zuletzt geprüft wurde', async () => {
+    mockApi({ 'GET /api/status': () => ({ json: report }) });
+    renderAt(<StatusPanel apps={apps} />);
+    expect(await screen.findByText(/^Zuletzt geprüft um \d{2}:\d{2}$/)).toBeInTheDocument();
+  });
+
   it('sagt ehrlich, wenn der Status nicht abrufbar ist', async () => {
     mockApi({});
     renderAt(<StatusPanel apps={null} />);
@@ -86,6 +92,14 @@ describe('Statusübersicht', () => {
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Alles prüfen' }));
     expect(await screen.findByText('Alles in Ordnung.')).toBeInTheDocument();
     expect(calls.filter((c) => c.path === '/api/diagnose')).toHaveLength(1);
+  });
+
+  it('zeigt beim Laden und bei Fehler keinen grünen Status (Final-Review)', async () => {
+    mockApi({});
+    const { container } = render(<MemoryRouter><StatusPanel apps={null} /></MemoryRouter>);
+    expect(container.querySelector('.status-panel')).not.toHaveClass('status-ok');
+    expect(await screen.findByRole('heading', { name: 'Status gerade nicht abrufbar' })).toBeInTheDocument();
+    expect(container.querySelector('.status-panel')).toHaveClass('status-problem');
   });
 
   it('zeigt keinen alten Stand, wenn das Neuladen fehlschlägt (Final-Review)', async () => {

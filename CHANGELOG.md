@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### New look: "Instrument"
+
+- **Warm graphite palette** with depth from lighter surfaces instead of borders; light mode follows the system as a neutral warm white
+- **Orange is the new default accent**, used only where something is active or live (main buttons, the active page, focus, the selected range). If you kept the old blue, it stays blue; switch in Settings › Appearance
+- **Overview headline**: the status is now one large sentence with "Last checked at HH:MM" above it
+- **Metrics as an instrument panel**: the tiles share edges, numbers are bigger and tabular, the bars got a tick every 10 % and a small marker at your warning threshold (RAM, disks); "of" values like "/ 999 GB" are set smaller so they no longer wrap
+- **Refined detail view**: big live value, a taller chart with a dashed warning-threshold line (RAM, temperature) and min/average/max as one row
+- **Navigation rail**: the active page sits on a raised surface with a short accent bar
+- Windows app: the offline page uses the same colours
+
 ### Polish
 
 - **Buttons give a little when pressed** (scale to 97 %), so clicks feel physical

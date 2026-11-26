@@ -220,12 +220,13 @@ export function Details() {
   const from = to - minutes * 60_000;
   const noTemp = m === 'temperature' && details !== null && details.temperature.mainC === null && pts.every((p) => p.temp === null);
 
-  const config: Record<Metric, { series: BigSeries[]; format: (v: number) => string; max?: number; current: string | null }> = {
+  const config: Record<Metric, { series: BigSeries[]; format: (v: number) => string; max?: number; threshold?: number; current: string | null }> = {
     cpu: { series: [{ name: 'Last', tone: 'a', values: pts.map((p) => p.cpu) }], format: percent, max: 100, current: live && percent(live.cpu.loadPercent) },
     memory: {
       series: [{ name: 'Belegt', tone: 'a', values: pts.map((p) => p.memory) }],
       format: percent,
       max: 100,
+      threshold: prefs.thresholds.memory,
       current: live && usedOfTotal(live.memory.usedBytes, live.memory.totalBytes, prefs.sizeUnits),
     },
     network: {
@@ -236,7 +237,7 @@ export function Details() {
       format: (v) => rate(v, prefs.netUnits),
       current: live && `↓ ${rate(live.network.rxBytesPerSec, prefs.netUnits)}  ↑ ${rate(live.network.txBytesPerSec, prefs.netUnits)}`,
     },
-    temperature: { series: [{ name: 'Temperatur', tone: 'a', values: pts.map((p) => p.temp) }], format: celsius, current: live?.temperatureC != null ? celsius(live.temperatureC) : null },
+    temperature: { series: [{ name: 'Temperatur', tone: 'a', values: pts.map((p) => p.temp) }], format: celsius, threshold: prefs.thresholds.temperature, current: live?.temperatureC != null ? celsius(live.temperatureC) : null },
   };
   const c = config[m];
   const primary = c.series[0]!.values.filter((v): v is number => v !== null);
@@ -269,7 +270,7 @@ export function Details() {
           ) : primary.length === 0 ? (
             <p className="hint detail-empty">Noch keine Daten für diesen Zeitraum.</p>
           ) : (
-            <BigChart times={times} series={c.series} from={from} to={to} max={c.max} format={c.format} label={`${meta.title}-Verlauf der letzten ${rangeText(minutes)}`} timeZone={prefs.timeZone} />
+            <BigChart times={times} series={c.series} from={from} to={to} max={c.max} format={c.format} threshold={c.threshold} label={`${meta.title}-Verlauf der letzten ${rangeText(minutes)}`} timeZone={prefs.timeZone} />
           )}
           {m === 'network' && primary.length > 0 && (
             <div className="chart-legend">

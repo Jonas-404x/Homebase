@@ -1,26 +1,27 @@
 /*
- * Mainframe Design-Tokens. Rollen statt fester Werte.
+ * Mainframe Design-Tokens („Instrument“): warmes Graphit, Orange als einziger Akzent.
+ * Rollen statt fester Werte.
  * Dunkel ist die Basis, Hell folgt der Systemeinstellung (kein App-Schalter).
  * Kontrastwerte: siehe scripts/contrast.mjs.
  */
 :root {
   color-scheme: dark;
 
-  --surface: #111317;
-  --surface-raised: #1a1d23;
-  --surface-sunken: #0b0d10;
-  --surface-hover: #232730;
+  --surface: #14110f;
+  --surface-raised: #1e1b19;
+  --surface-sunken: #0d0b09;
+  --surface-hover: #282421;
   /* Durchscheinende Linien passen sich jeder Fläche an. */
-  --separator: rgb(255 255 255 / 0.09);
-  --track: #2b3039;         /* Schiene ausgeschalteter Schalter */
+  --separator: rgb(255 240 225 / 0.08);
+  --track: #3b3734;         /* Schiene ausgeschalteter Schalter */
 
-  --text: #f1f3f6;
-  --text-secondary: #a4abb6;
+  --text: #f1eeeb;
+  --text-secondary: #a9a39e;
 
-  --accent: #2f6fe4;        /* Flächen von Hauptknöpfen */
-  --accent-on: #ffffff;     /* Text auf --accent */
-  --accent-text: #7aa8ff;   /* Links, aktive Navigation auf dunklem Grund */
-  --accent-soft: #1b2a47;   /* Hintergrund aktiver Navigation */
+  --accent: #f4873a;        /* Flächen von Hauptknöpfen */
+  --accent-on: #211209;     /* Text auf --accent */
+  --accent-text: #f7a062;   /* Links, aktive Navigation auf dunklem Grund */
+  --accent-soft: #382315;   /* Hintergrund aktiver Navigation */
 
   --ok: #4cc77a;
   --warn: #e6b03c;
@@ -61,20 +62,20 @@
   :root {
     color-scheme: light;
 
-    --surface: #f4f5f7;
+    --surface: #f8f6f5;
     --surface-raised: #ffffff;
-    --surface-sunken: #e9ecf0;
-    --surface-hover: #eceef2;
-    --separator: rgb(20 30 50 / 0.13);
-    --track: #dcdfe5;
+    --surface-sunken: #edebe8;
+    --surface-hover: #f1eeeb;
+    --separator: rgb(60 40 20 / 0.12);
+    --track: #dad7d3;
 
-    --text: #15181d;
-    --text-secondary: #555c67;
+    --text: #1b1715;
+    --text-secondary: #635c57;
 
-    --accent: #2560d4;
+    --accent: #b24b0a;
     --accent-on: #ffffff;
-    --accent-text: #1f57c3;
-    --accent-soft: #e3ebfb;
+    --accent-text: #a84811;
+    --accent-soft: #feeadb;
 
     --ok: #1d7f44;
     --warn: #8a5d00;

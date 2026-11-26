@@ -57,7 +57,7 @@ describe('Übersicht', () => {
     const { socket } = renderOverview([]);
     act(() => socket.emit({ type: 'stats', data: stats() }));
     expect(await screen.findByText('12,5 %')).toBeInTheDocument();
-    expect(screen.getByText('3,2 / 7,8 GB')).toBeInTheDocument();
+    expect(screen.getAllByTestId('stat-card').some((c) => c.querySelector('.stat-value')?.textContent === '3,2 / 7,8 GB')).toBe(true);
     expect(screen.getByText('3 Tage, 4 Std.')).toBeInTheDocument();
     expect(screen.getByText('41 °C')).toBeInTheDocument();
   });
