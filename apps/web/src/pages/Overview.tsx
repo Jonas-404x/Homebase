@@ -1,4 +1,4 @@
-import { AlertCircle, Clock, Cpu, HardDrive, MemoryStick, Network, Shield, Thermometer } from 'lucide-react';
+import { Clock, Cpu, HardDrive, MemoryStick, Network, Shield, Thermometer } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { defaultPrefs, type CardId, type HistoryPoint, type SystemStats } from '@mainframe/shared';
 import { api } from '../api/client.ts';
@@ -6,6 +6,7 @@ import { useLive } from '../api/live.tsx';
 import { usePrefs } from '../api/prefs.tsx';
 import { useApps } from '../api/useApps.ts';
 import { AdGuardWidget } from '../components/AdGuardWidget.tsx';
+import { StatusPanel } from '../components/StatusPanel.tsx';
 import { StatCard, type StatStatus } from '../components/StatCard.tsx';
 import { percent, rate, uptime, usedOfTotal } from '../format.ts';
 
@@ -56,7 +57,8 @@ export function Overview() {
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [live, setLive] = useState<HistoryPoint[]>([]);
   const [timedOut, setTimedOut] = useState(false);
-  const [dockerMessage, setDockerMessage] = useState<string | null>(null);
+  // Hochzählen lädt die Statusübersicht sofort neu (z. B. wenn Docker fertig gestartet ist).
+  const [statusKey, setStatusKey] = useState(0);
   const [shape, setShape] = useState<Shape>(readShape);
   const { apps, reload } = useApps();
 
@@ -134,8 +136,10 @@ export function Overview() {
       api<{ ok: boolean; message: string | null }>('/api/system/docker')
         .then((d) => {
           if (stopped) return;
-          setDockerMessage(d.ok ? null : d.message);
-          if (d.ok && wasDown) void reload();
+          if (d.ok && wasDown) {
+            void reload();
+            setStatusKey((k) => k + 1);
+          }
           wasDown = !d.ok;
           if (!d.ok) timer = setTimeout(check, DOCKER_RETRY_MS);
         })
@@ -161,7 +165,6 @@ export function Overview() {
   const last = history.at(-1)?.at ?? 0;
   const points = [...history, ...live.filter((p) => p.at > last)];
   const series = (k: 'cpu' | 'memory' | 'rx') => points.map((p) => ({ at: p.at, v: p[k] }));
-  const fullDisks = (stats?.disks ?? []).filter((d) => d.totalBytes > 0 && (d.usedBytes / d.totalBytes) * 100 >= t.disk);
 
   const render = (id: CardId) => {
     switch (id) {
@@ -211,19 +214,7 @@ export function Overview() {
     <section className="page">
       <h1>Übersicht</h1>
 
-      {dockerMessage && (
-        <div className="notice" role="alert">
-          <AlertCircle aria-hidden="true" size={20} />
-          <p>{dockerMessage}</p>
-        </div>
-      )}
-
-      {fullDisks.map((d) => (
-        <div key={d.mount} className="notice notice-warn" role="alert">
-          <HardDrive aria-hidden="true" size={20} />
-          <p>{`Laufwerk ${d.mount} ist fast voll (${Math.round((d.usedBytes / d.totalBytes) * 100)} % belegt).`}</p>
-        </div>
-      ))}
+      <StatusPanel apps={apps} refreshKey={statusKey} />
 
       <div className="grid">{prefs.cards.filter((c) => c.visible).map((c) => render(c.id))}</div>
 

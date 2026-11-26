@@ -1,14 +1,18 @@
-import { CircleAlert, CircleCheck, CircleDot, CirclePause, ExternalLink, KeyRound, LoaderCircle, Play, RotateCw, ScrollText, Square, Trash2, type LucideIcon } from 'lucide-react';
+import { CircleAlert, CircleCheck, CircleDot, CirclePause, ExternalLink, KeyRound, LoaderCircle, Play, RotateCw, ScrollText, Square, Stethoscope, Trash2, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { AppState, CatalogApp, InstalledApp } from '@mainframe/shared';
+import { defaultPrefs, type AppState, type AppUsage, type CatalogApp, type InstalledApp } from '@mainframe/shared';
 import { api, errorText, post } from '../api/client.ts';
+import { usePrefs } from '../api/prefs.tsx';
+import { useAppUsage } from '../api/useAppUsage.ts';
 import { useApps } from '../api/useApps.ts';
 import { AppIcon } from '../components/AppIcon.tsx';
 import { CredentialsDialog } from '../components/CredentialsDialog.tsx';
+import { DiagnoseDialog } from '../components/DiagnoseDialog.tsx';
 import { Dialog } from '../components/Dialog.tsx';
 import { InstallSheet } from '../components/InstallSheet.tsx';
 import { LogDrawer } from '../components/LogDrawer.tsx';
 import { webUiHref } from '../api/webUi.ts';
+import { percent, size, type SizeUnits } from '../format.ts';
 
 const stateInfo: Record<AppState, { label: string; icon: LucideIcon; tone: string }> = {
   running: { label: 'Läuft', icon: CircleCheck, tone: 'ok' },
@@ -28,8 +32,20 @@ export function StatusBadge({ state }: { state: AppState }) {
   );
 }
 
+/** „CPU 1,5 % · RAM 50 MB · Speicher 1,2 GB“; CPU und RAM nur, solange die App läuft. */
+function UsageLine({ app, usage, units }: { app: InstalledApp; usage: AppUsage | undefined; units: SizeUnits }) {
+  if (!usage) return null;
+  const parts: string[] = [];
+  if (app.state === 'running' || app.state === 'restarting') parts.push(`CPU ${percent(usage.cpuPercent)}`, `RAM ${size(usage.memBytes, units)}`);
+  if (usage.diskBytes !== null) parts.push(`Speicher ${size(usage.diskBytes, units)}`);
+  return parts.length > 0 ? <p className="secondary small app-usage">{parts.join(' · ')}</p> : null;
+}
+
 export function Apps() {
   const { apps, reload } = useApps();
+  const usage = useAppUsage();
+  const units = (usePrefs().prefs ?? defaultPrefs).sizeUnits;
+  const [diagnoseFor, setDiagnoseFor] = useState<InstalledApp | null>(null);
   const [catalog, setCatalog] = useState<CatalogApp[]>([]);
   const [installing, setInstalling] = useState<CatalogApp | null>(null);
   const [removing, setRemoving] = useState<InstalledApp | null>(null);
@@ -83,6 +99,7 @@ export function Apps() {
                     <strong>{app.name}</strong>
                     <StatusBadge state={app.state} />
                   </div>
+                  <UsageLine app={app} usage={usage?.get(app.id)} units={units} />
                   {app.error && <p className="error small">{app.error}</p>}
                 </div>
                 <div className="toolbar" role="toolbar" aria-label={`Aktionen für ${app.name}`}>
@@ -108,6 +125,9 @@ export function Apps() {
                       <KeyRound aria-hidden="true" size={18} />
                     </button>
                   )}
+                  <button type="button" className="button icon-button" aria-label={`Diagnose von ${app.name}`} title="Diagnose" disabled={app.state === 'installing'} onClick={() => setDiagnoseFor(app)}>
+                    <Stethoscope aria-hidden="true" size={18} />
+                  </button>
                   <button type="button" className="button icon-button" aria-label={`Logs von ${app.name}`} title="Logs" onClick={() => setLogsFor(app)}>
                     <ScrollText aria-hidden="true" size={18} />
                   </button>
@@ -154,6 +174,16 @@ export function Apps() {
       {removing && <RemoveDialog app={removing} onClose={() => setRemoving(null)} onDone={() => { setRemoving(null); void reload(); }} />}
       {credsFor && <CredentialsDialog appId={credsFor.id} appName={credsFor.name} onClose={() => setCredsFor(null)} />}
       {logsFor && <LogDrawer appId={logsFor.id} appName={logsFor.name} onClose={() => setLogsFor(null)} />}
+      {diagnoseFor && (
+        <DiagnoseDialog
+          target={diagnoseFor.id}
+          title={`Diagnose: ${diagnoseFor.name}`}
+          onClose={() => {
+            setDiagnoseFor(null);
+            void reload();
+          }}
+        />
+      )}
     </section>
   );
 }

@@ -5,6 +5,8 @@ import { defaultPrefs, type HistoryPoint, type Prefs, type ProcessInfo, type Sys
 import { api } from '../api/client.ts';
 import { useLive } from '../api/live.tsx';
 import { usePrefs } from '../api/prefs.tsx';
+import { useAppUsage } from '../api/useAppUsage.ts';
+import { useApps } from '../api/useApps.ts';
 import { BigChart, type BigSeries } from '../components/BigChart.tsx';
 import { percent, rate, size, usedOfTotal } from '../format.ts';
 import { Choice } from './settings/Row.tsx';
@@ -96,6 +98,52 @@ function Processes({ sort, units }: { sort: 'cpu' | 'memory'; units: Prefs['size
                   </th>
                   <td>{`${p.cpuPercent.toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`}</td>
                   <td>{size(p.memBytes, units)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Verbrauch der installierten Apps, sortiert nach dem Wert dieser Seite. Ohne Apps unsichtbar. */
+function AppsUsage({ sort, units }: { sort: 'cpu' | 'memory'; units: Prefs['sizeUnits'] }) {
+  const { apps } = useApps();
+  const usage = useAppUsage();
+  if (!apps || apps.length === 0) return null;
+  const running = apps.filter((a) => a.state === 'running' || a.state === 'restarting');
+  const rows = running
+    .map((a) => ({ app: a, u: usage?.get(a.id) }))
+    .sort((x, y) => (sort === 'cpu' ? (y.u?.cpuPercent ?? 0) - (x.u?.cpuPercent ?? 0) : (y.u?.memBytes ?? 0) - (x.u?.memBytes ?? 0)));
+  return (
+    <section className="detail-block">
+      <h2>Apps</h2>
+      <div className="card setting-card">
+        {usage === null ? (
+          <div className="setting-row">
+            <span className="skeleton skeleton-line" />
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="setting-row">
+            <span className="secondary">Gerade läuft keine App.</span>
+          </div>
+        ) : (
+          <table className="usage-table process-table">
+            <thead>
+              <tr>
+                <th scope="col">App</th>
+                <th scope="col">CPU</th>
+                <th scope="col">RAM</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ app, u }) => (
+                <tr key={app.id}>
+                  <th scope="row">{app.name}</th>
+                  <td>{u ? percent(u.cpuPercent) : '–'}</td>
+                  <td>{u ? size(u.memBytes, units) : '–'}</td>
                 </tr>
               ))}
             </tbody>
@@ -261,6 +309,7 @@ export function Details() {
           </section>
         </>
       )}
+      {m === 'cpu' && <AppsUsage sort="cpu" units={prefs.sizeUnits} />}
       {m === 'cpu' && <Processes sort="cpu" units={prefs.sizeUnits} />}
 
       {m === 'memory' && details && (
@@ -277,6 +326,7 @@ export function Details() {
           />
         </section>
       )}
+      {m === 'memory' && <AppsUsage sort="memory" units={prefs.sizeUnits} />}
       {m === 'memory' && <Processes sort="memory" units={prefs.sizeUnits} />}
 
       {m === 'network' && details && (
