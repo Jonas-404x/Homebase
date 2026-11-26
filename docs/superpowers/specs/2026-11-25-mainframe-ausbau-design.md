@@ -34,6 +34,8 @@ Jonas: „Mir ist egal, womit du anfängst, du sollst eh alles machen.“ Die Re
 | **6** | Benachrichtigungen (Handy + Discord), automatische Sicherungen | teilweise |
 | **7** | Discord-Bot (Status, Dienste starten/stoppen, Warnungen) | ja (läuft dort 24/7) |
 | **8** | Mehr Apps im Katalog | nein |
+| **9** | Assistent: Claude beantwortet Fragen zum Server und richtet Dinge ein | ja |
+| **10** | KI-Farm: eigene Projekte, die KI-Agenten in Sandboxes selbstständig bearbeiten | ja |
 
 Teil 4 wird vorgezogen, sobald der OptiPlex da ist.
 
@@ -309,6 +311,21 @@ Wie im alten Design (Setup-Skript für Ubuntu, Docker, Tailscale, `ufw`, AdGuard
   - Umsetzung: eine feste Rollen-Anweisung („Du bist der Admin dieses Servers, lehne alles ohne Server-Bezug ab“), eine Werkzeug-Liste nur mit Shell und Dateien im Server-Bereich, kein Web-Zugriff außer Paketquellen, Arbeitsordner auf den Server beschränkt.
   - Ehrlich gesagt: Eine Anweisung kann ein Sprachmodell nicht zu 100 % festnageln. Die harte Grenze sind die Werkzeuge und Ordner, nicht der Text.
 - **RAM:** Claude Code braucht nur, während es arbeitet, grob einige hundert MB. Auf 8 GB passt das, nur nicht gleichzeitig mit einem voll ausgelasteten Minecraft-Server.
+
+## Teil 10 (Idee von Jonas, 2026-11-26): KI-Farm
+
+Etwas anderes als der Assistent aus Teil 9. Jonas: Es soll „ein richtiges AI-System“ werden, mit dem „extrem viel“ gesteuert werden kann und auf dem Projekte automatisiert laufen. Es wird **nicht** mit dem Assistenten vermischt, der Fragen zum Server beantwortet und dort Programme einrichtet.
+
+- **Eigener Bereich in Mainframe** (Arbeitstitel „KI-Farm“): Projekte anlegen, jedem Projekt einen Auftrag geben, und KI-Agenten (Claude Code, optional Codex) arbeiten daran selbstständig weiter.
+- **Jedes Projekt in seiner eigenen Sandbox:** ein eigener Container mit eigenem Ordner und eigenem Git-Verlauf. Die Agenten der Farm kommen **nicht** an den Server selbst, an Mainframe oder an andere Projekte. Das ist die harte Grenze zum Assistenten aus Teil 9.
+- **Steuerung:** Aufträge in eine Warteschlange stellen, zeitgesteuert starten (zum Beispiel nachts), pausieren, abbrechen. Live-Ausgabe jedes Agenten, Verlauf, Ergebnis als Git-Stand mit Zusammenfassung.
+- **Freigaben:** Alles, was nach außen geht (Veröffentlichen, etwas verschicken, Geld), braucht Jonas' Bestätigung in Mainframe oder am Handy.
+- **Grenzen der Hardware und des Abos:**
+  - Der OptiPlex hat 8 GB RAM. Realistisch laufen 1–2 Agenten gleichzeitig, und nicht neben einem voll ausgelasteten Minecraft-Server. Pro Projekt ein CPU- und RAM-Deckel.
+  - Läuft über Jonas' eigene Abos (Claude, ChatGPT). Deren Nutzungslimits gelten auch hier. Die Farm zeigt an, wenn ein Limit erreicht ist, und macht später weiter.
+- **Benachrichtigung,** wenn ein Auftrag fertig ist oder hängt (über Teil 6).
+- **Noch offen, mit Jonas klären, bevor es gebaut wird:** Welche Art Projekte sollen dort laufen (Programmieren, Texte, Recherche, etwas anderes)? Wie viel soll ohne Rückfrage passieren? Kommt eine Erweiterung der Hardware infrage, falls 8 GB nicht reichen?
+- Kommt nach Teil 9, weil es auf derselben Grundlage aufbaut (Claude Code auf dem Server, Kopf-loser Modus).
 
 ## Nicht-Ziele
 
