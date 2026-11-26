@@ -143,7 +143,7 @@ describe('Datenbank-Umstellung', () => {
     const db = openDb(file);
     expect(db.getSession('alt')).not.toBeNull();
     expect(db.listSessions()[0]).toMatchObject({ id: 'alt', userAgent: '', ip: '' });
-    expect(db.getSetting('schema_version')).toBe('4');
+    expect(db.getSetting('schema_version')).toBe('5');
     db.close();
   });
 });
