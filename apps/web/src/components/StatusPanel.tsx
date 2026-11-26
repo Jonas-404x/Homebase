@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import type { InstalledApp, StatusItem, StatusReport } from '@mainframe/shared';
 import { api } from '../api/client.ts';
 import { DiagnoseDialog } from './DiagnoseDialog.tsx';
+import { stagger } from '../stagger.ts';
 
 const POLL_MS = 15_000;
 
@@ -67,10 +68,10 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
       </div>
       {shown.length > 0 && (
         <ul className="status-items">
-          {shown.map((item) => {
+          {shown.map((item, index) => {
             const Icon = ICON[item.level];
             return (
-              <li key={item.id} className={`status-item status-item-${item.level}`}>
+              <li key={item.id} className={`status-item status-item-${item.level} stagger`} style={stagger(index)}>
                 <Icon className="status-item-icon" aria-label={LEVEL_TEXT[item.level]} size={18} />
                 <div className="status-item-text">
                   <strong>{item.title}</strong>

@@ -10,6 +10,8 @@
 - **Lines blend in**: borders and dividers are now translucent, so they sit well on every surface in dark and light mode
 - Login page: dropped the sentence that only repeated the field labels
 - Everything respects "reduce motion" in the system settings
+- **Lists appear row by row** (30 ms apart) the first time you open the Apps page or the status overview
+- Catalog: "Install" buttons are now neutral, so the blue accent stays reserved for the one main action on a screen
 
 ### Part 3.1: Status, diagnose and a Windows app
 

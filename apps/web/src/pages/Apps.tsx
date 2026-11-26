@@ -12,6 +12,7 @@ import { Dialog } from '../components/Dialog.tsx';
 import { InstallSheet } from '../components/InstallSheet.tsx';
 import { LogDrawer } from '../components/LogDrawer.tsx';
 import { webUiHref } from '../api/webUi.ts';
+import { stagger } from '../stagger.ts';
 import { percent, size, type SizeUnits } from '../format.ts';
 
 const stateInfo: Record<AppState, { label: string; icon: LucideIcon; tone: string }> = {
@@ -89,10 +90,10 @@ export function Apps() {
         <h2 id="installed-title">Installiert</h2>
         {apps && apps.length === 0 && <p className="secondary">Noch nichts installiert. Such dir unten was aus.</p>}
         <ul className="list">
-          {(apps ?? []).map((app) => {
+          {(apps ?? []).map((app, index) => {
             const running = app.state === 'running' || app.state === 'restarting';
             return (
-              <li key={app.id} className="card app-row">
+              <li key={app.id} className="card app-row stagger" style={stagger(index)}>
                 <AppIcon name={iconOf(app.id)} />
                 <div className="app-row-main">
                   <div className="app-row-title">
@@ -145,12 +146,12 @@ export function Apps() {
         <h2 id="catalog-title">Katalog</h2>
         {available.length === 0 && catalog.length > 0 && <p className="secondary">Alles aus dem Katalog ist schon installiert.</p>}
         <div className="grid">
-          {available.map((c) => (
-            <div key={c.id} className="card catalog-card">
+          {available.map((c, index) => (
+            <div key={c.id} className="card catalog-card stagger" style={stagger(index)}>
               <AppIcon name={c.icon} size={28} />
               <strong>{c.name}</strong>
               <p className="secondary">{c.description}</p>
-              <button type="button" className="button button-primary" aria-label={`${c.name} installieren`} onClick={() => setInstalling(c)}>
+              <button type="button" className="button" aria-label={`${c.name} installieren`} onClick={() => setInstalling(c)}>
                 Installieren
               </button>
             </div>

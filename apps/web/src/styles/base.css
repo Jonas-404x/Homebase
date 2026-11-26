@@ -2128,9 +2128,9 @@ select.input {
     animation: pop-in var(--dur-enter) var(--ease-out);
   }
 
-  /* Neue Einträge der Statusübersicht gleiten herein. */
-  .status-item {
-    animation: pop-in var(--dur-enter) var(--ease-out);
+  /* Listen erscheinen Zeile für Zeile, nur beim ersten Anzeigen. */
+  .stagger {
+    animation: pop-in var(--dur-enter) var(--ease-out) var(--stagger, 0ms) backwards;
   }
 
   /* Falsche Anmeldung: kurzes Kopfschütteln. */
