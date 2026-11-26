@@ -207,10 +207,9 @@ p,
   box-shadow: none;
 }
 @media (prefers-color-scheme: light) {
-  .grid:has(> .stat) {
-    gap: 1px;
-    background: var(--separator);
-    box-shadow: 0 0 0 1px var(--separator);
+  /* Jedes Feld zeichnet seine eigene Haarlinie, damit leere Rasterplätze nicht grau werden. */
+  .grid > .stat {
+    box-shadow: inset 0 0 0 1px var(--separator);
   }
 }
 .stat {
