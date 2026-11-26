@@ -49,7 +49,8 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
       title: item.diagnose === 'system' ? 'Diagnose: ganzes System' : `Diagnose: ${apps?.find((a) => a.id === item.diagnose)?.name ?? 'App'}`,
     });
 
-  const level = report?.level ?? 'ok';
+  // Ohne Bericht kein grüner Punkt: beim Laden neutral, nach einem Fehler als Problem.
+  const level = report?.level ?? (failed ? 'problem' : 'unknown');
   // Hinweise (grau) brauchen nichts von dir: zugeklappt, damit die Werte darunter sichtbar bleiben.
   const important = report?.items.filter((i) => i.level !== 'info') ?? [];
   const hints = report?.items.filter((i) => i.level === 'info') ?? [];

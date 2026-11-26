@@ -94,6 +94,14 @@ describe('Statusübersicht', () => {
     expect(calls.filter((c) => c.path === '/api/diagnose')).toHaveLength(1);
   });
 
+  it('zeigt beim Laden und bei Fehler keinen grünen Status (Final-Review)', async () => {
+    mockApi({});
+    const { container } = render(<MemoryRouter><StatusPanel apps={null} /></MemoryRouter>);
+    expect(container.querySelector('.status-panel')).not.toHaveClass('status-ok');
+    expect(await screen.findByRole('heading', { name: 'Status gerade nicht abrufbar' })).toBeInTheDocument();
+    expect(container.querySelector('.status-panel')).toHaveClass('status-problem');
+  });
+
   it('zeigt keinen alten Stand, wenn das Neuladen fehlschlägt (Final-Review)', async () => {
     let fail = false;
     mockApi({ 'GET /api/status': () => (fail ? { status: 500, json: { code: 'x', message: 'kaputt' } } : { json: { level: 'ok', summary: 'Alles läuft', items: [] } }) });
