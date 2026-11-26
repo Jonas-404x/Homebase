@@ -155,4 +155,23 @@ describe('/api/status', () => {
     expect(res.json().items[0]).toMatchObject({ id: 'docker', level: 'problem' });
     await server.close();
   });
+
+  it('nimmt den letzten Messwert, statt auf eine langsame neue Messung zu warten', async () => {
+    let calls = 0;
+    const full = stats({ disks: [{ mount: 'C:', usedBytes: 950, totalBytes: 1000 }] } as Partial<SystemStats>);
+    const statsProvider = () => (++calls === 1 ? Promise.resolve(full) : new Promise<SystemStats>(() => {}));
+    const ok = async () => ({ ok: true, ms: 1, reason: null });
+    const diagnose = { probe: ok, checkUrl: ok, lookup: async () => {} };
+    const server = await buildApp(testDeps({ checkIntervalMs: 0, historySampleMs: 0, statsProvider, diagnose }));
+    const cookie = await setupAndLogin(server);
+    // Live-Werte oder Verlauf haben gerade gemessen.
+    expect((await server.inject({ method: 'GET', url: '/api/system/stats', headers: { cookie } })).statusCode).toBe(200);
+    const t = Date.now();
+    const res = await server.inject({ method: 'GET', url: '/api/status', headers: { cookie } });
+    expect(Date.now() - t).toBeLessThan(1000);
+    expect(res.json().items.map((i: { id: string }) => i.id)).toContain('disk:C:');
+    const diag = await server.inject({ method: 'POST', url: '/api/diagnose', headers: { cookie } , payload: {} });
+    expect(diag.json().steps.find((x: { id: string }) => x.id === 'disk')).toMatchObject({ ok: false });
+    await server.close();
+  });
 });

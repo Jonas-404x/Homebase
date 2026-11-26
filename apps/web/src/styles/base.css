@@ -1990,6 +1990,9 @@ select.input {
 .status-item-text p {
   margin: 2px 0 0;
 }
+.status-item-actions .button {
+  text-decoration: none;
+}
 .status-item-actions {
   display: flex;
   gap: var(--space-2);
