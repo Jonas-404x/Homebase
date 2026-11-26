@@ -357,3 +357,148 @@ p,
   color: var(--text-secondary);
   white-space: nowrap;
 }
+
+/* ---------- Anmelden: Formular vor der Skala eines Messgeräts ---------- */
+
+.auth {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  grid-template-rows: 1fr auto;
+  background: radial-gradient(closest-side, var(--surface-raised), var(--surface) 140%);
+}
+.auth-card {
+  align-self: center;
+  justify-self: center;
+  padding: var(--space-6);
+  border-radius: 20px;
+  gap: var(--space-4);
+  box-shadow: 0 0 0 1px var(--separator), 0 30px 80px rgb(0 0 0 / 0.35);
+}
+.auth-card h1 {
+  font-size: 1.75rem;
+  margin-bottom: var(--space-1);
+}
+.auth-logo {
+  width: 52px;
+  height: 52px;
+}
+.auth-card .button-primary {
+  min-height: 44px;
+  margin-top: var(--space-1);
+}
+.auth-deco {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+/* Punktraster, das nur aus der oberen linken und unteren rechten Ecke kommt. */
+.auth-deco::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, color-mix(in oklab, var(--text) 30%, transparent) 1px, transparent 1.6px);
+  background-size: 20px 20px;
+  -webkit-mask-image: radial-gradient(circle at 0 0, #000, transparent 55%), radial-gradient(circle at 100% 100%, #000, transparent 55%);
+  mask-image: radial-gradient(circle at 0 0, #000, transparent 55%), radial-gradient(circle at 100% 100%, #000, transparent 55%);
+}
+.auth-ruler {
+  position: absolute;
+  width: clamp(220px, 34vmin, 340px);
+  height: clamp(220px, 34vmin, 340px);
+  overflow: visible;
+}
+.auth-ruler-start {
+  top: max(20px, env(safe-area-inset-top));
+  left: max(20px, env(safe-area-inset-left));
+}
+.auth-ruler-end {
+  bottom: max(20px, env(safe-area-inset-bottom));
+  right: max(20px, env(safe-area-inset-right));
+  rotate: 180deg;
+}
+.auth-ruler-base {
+  fill: none;
+  stroke: var(--text);
+  stroke-opacity: 0.35;
+}
+.auth-tick {
+  stroke: var(--text);
+  stroke-opacity: 0.3;
+  stroke-width: 1;
+}
+.auth-tick-major .auth-tick {
+  stroke-opacity: 0.55;
+}
+.auth-ruler-label {
+  fill: var(--text-secondary);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+/* Unten rechts steht das Lineal auf dem Kopf; die Zahlen dort weglassen statt kopfüber. */
+.auth-ruler-end .auth-ruler-label {
+  display: none;
+}
+.auth-mark {
+  fill: var(--accent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .auth-ruler {
+    animation: auth-ruler-in 700ms var(--ease-out) both;
+  }
+  .auth-ruler-end {
+    animation-name: auth-ruler-in-end;
+    animation-delay: 120ms;
+  }
+  .auth-mark {
+    animation: auth-mark-in 900ms var(--ease-out) 300ms both;
+  }
+}
+@keyframes auth-ruler-in {
+  from {
+    opacity: 0;
+    translate: -12px -12px;
+  }
+}
+@keyframes auth-ruler-in-end {
+  from {
+    opacity: 0;
+    translate: 12px 12px;
+  }
+}
+@keyframes auth-mark-in {
+  from {
+    opacity: 0;
+    translate: -40px 0;
+  }
+}
+.auth-clock {
+  justify-self: center;
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  margin: 0 0 var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+}
+.auth-clock-time {
+  color: var(--text);
+  font-weight: 600;
+}
+@media (prefers-color-scheme: light) {
+  .auth-card {
+    box-shadow: 0 0 0 1px var(--separator), 0 20px 50px rgb(60 40 20 / 0.12);
+  }
+}
+@media (max-width: 767px) {
+  .auth-ruler {
+    width: 140px;
+    height: 140px;
+  }
+  .auth-ruler-label {
+    display: none;
+  }
+}
