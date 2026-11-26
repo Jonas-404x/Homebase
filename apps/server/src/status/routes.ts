@@ -4,26 +4,10 @@ import type { AppEngine } from '../apps/engine.ts';
 import type { Db } from '../db.ts';
 import type { PrefsStore } from '../prefs/store.ts';
 import { collectStatus } from './collect.ts';
+import { within } from '../util/within.ts';
 
 /** Höchstens so lange wartet die Übersicht auf eine Quelle, dann gilt sie als unbekannt. */
 const SOURCE_TIMEOUT_MS = 4000;
-
-function within<T>(p: Promise<T>, fallback: T): Promise<T> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(fallback), SOURCE_TIMEOUT_MS);
-    timer.unref();
-    p.then(
-      (v) => {
-        clearTimeout(timer);
-        resolve(v);
-      },
-      () => {
-        clearTimeout(timer);
-        resolve(fallback);
-      },
-    );
-  });
-}
 
 /** Statusübersicht: alles, worum man sich gerade kümmern muss, aus allen Bereichen zusammen. */
 export function registerStatusRoutes(
@@ -42,10 +26,10 @@ export function registerStatusRoutes(
     const engine = opts.engine;
     // Alles gleichzeitig; eine hängende Quelle (z. B. Docker) darf die Übersicht nicht aufhalten.
     const [docker, apps, services, stats] = await Promise.all([
-      engine ? within(engine.dockerStatus(), { ok: false, message: null }) : Promise.resolve({ ok: true, message: null }),
-      engine ? within(engine.list(), []) : Promise.resolve([]),
-      within(opts.services(), []),
-      within(opts.stats(), null),
+      engine ? within(engine.dockerStatus(), { ok: false, message: null }, SOURCE_TIMEOUT_MS) : Promise.resolve({ ok: true, message: null }),
+      engine ? within(engine.list(), [], SOURCE_TIMEOUT_MS) : Promise.resolve([]),
+      within(opts.services(), [], SOURCE_TIMEOUT_MS),
+      within(opts.stats(), null, SOURCE_TIMEOUT_MS),
     ]);
     return collectStatus({
       dockerOk: docker.ok,

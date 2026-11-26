@@ -25,6 +25,8 @@ import { realScanDeps, type ScanDeps } from './network/scanner.ts';
 import { registerInternetRoutes, type InternetDeps } from './internet/routes.ts';
 import { createPrefsStore, type PrefsStore } from './prefs/store.ts';
 import { registerStatusRoutes } from './status/routes.ts';
+import { registerDiagnoseRoutes } from './diagnose/routes.ts';
+import { realDiagnoseDeps, type DiagnoseDeps } from './diagnose/facts.ts';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -56,6 +58,8 @@ export interface AppDeps {
   internetIntervalMs?: number;
   /** Probe und Speedtest (Tests). */
   internet?: InternetDeps;
+  /** Werkzeuge für die Diagnose (Tests). */
+  diagnose?: DiagnoseDeps;
   /** Quelle für Detailansicht und Prozess-Liste (Tests). */
   system?: SystemSource;
   /** Weitere Routen (z. B. AdGuard), die Zugriff auf Engine und Hub brauchen. */
@@ -122,6 +126,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const internet = registerInternetRoutes(app, { db: deps.db, prefs, events, deps: deps.internet, intervalMs: deps.internetIntervalMs });
   const devices = registerDeviceRoutes(app, { db: deps.db, prefs, events, deps: deps.network ?? realScanDeps(deps.config.dataRoot), intervalMs: deps.scanIntervalMs });
   registerStatusRoutes(app, { db: deps.db, prefs, engine: deps.engine, stats: statsProvider, services: services.list, internetOnline: internet.online, devices: devices.list });
+  registerDiagnoseRoutes(app, { stats: statsProvider, services: services.list, prefs, engine: deps.engine, deps: deps.diagnose ?? realDiagnoseDeps });
   for (const p of deps.plugins ?? []) await p(app);
 
   if (deps.config.webDistDir) {
