@@ -310,3 +310,30 @@ export interface DiagnoseReport {
   ok: boolean;
   steps: DiagnoseStep[];
 }
+
+/** Was der Server-Monitor alle paar Sekunden holt (ohne Geheimnisse). */
+export interface KioskSnapshot {
+  host: { hostname: string; os: string; ip: string | null; version: string };
+  stats: SystemStats | null;
+  /** Last pro Kern in Prozent; leer, wenn unbekannt */
+  perCore: number[];
+  swap: { totalBytes: number; usedBytes: number } | null;
+  tempMaxTodayC: number | null;
+  internet: { online: boolean | null; ms: number | null };
+  services: { up: number; total: number; down: { id: string; name: string; reason: string | null }[] };
+  apps: InstalledApp[];
+  /** false, wenn Docker nicht rechtzeitig geantwortet hat (apps ist dann leer, aber nicht „keine Apps“) */
+  appsKnown: boolean;
+  usage: AppUsage[];
+  /** Neueste zuerst, höchstens 12 */
+  events: MainframeEvent[];
+  /** Letzte 10 Minuten, höchstens 60 Punkte */
+  history: { cpu: number[]; rx: number[] };
+  /** Zuletzt verschickte Statusübersicht (wird nicht pro Abfrage neu gebaut) */
+  status: StatusReport | null;
+  thresholds: { memory: number; disk: number; temperature: number };
+  liveIntervalSec: number;
+}
+
+/** Fehlertext jeder App, solange Docker nicht antwortet. */
+export const DOCKER_DOWN_MESSAGE = 'Docker läuft gerade nicht oder startet noch. Mainframe prüft das alle paar Sekunden von selbst.';

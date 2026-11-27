@@ -1,0 +1,199 @@
+/*
+ * Server-Monitor: Terminal-Look auf reinem Schwarz. Eigene Farben statt der Tokens: der
+ * Kiosk-Browser meldet evtl. „hell“, der Monitor bleibt trotzdem dunkel.
+ * Bewegung nur über visibility/opacity, nichts, was den Server beschäftigt.
+ */
+.monitor {
+  color-scheme: dark;
+  --m-bg: #000;
+  --m-line: #2a3a2e;
+  --m-text: #d7e6d9;
+  --m-dim: #7a887c; /* ≥ 4,5:1 auch auf dem rot getönten Fehler-Band */
+  --m-faint: #2c332d;
+  --m-green: #4cc77a;
+  --m-orange: #f4873a;
+  --m-amber: #e6b03c;
+  --m-red: #f06a6a;
+  position: fixed;
+  inset: 0;
+  background: var(--m-bg);
+  color: var(--m-text);
+  font-family: 'Cascadia Mono', 'DejaVu Sans Mono', ui-monospace, Consolas, monospace;
+  font-size: 1vw;
+  cursor: none;
+  overflow: hidden;
+  user-select: none;
+}
+.monitor * {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+.monitor .g { color: var(--m-green); }
+.monitor .o { color: var(--m-orange); }
+.monitor .a { color: var(--m-amber); }
+.monitor .r { color: var(--m-red); }
+.monitor .d { color: var(--m-dim); }
+.monitor .f { color: var(--m-faint); }
+.monitor .blink { animation: mon-blink 1s steps(2, start) infinite; }
+@keyframes mon-blink {
+  to { visibility: hidden; }
+}
+
+.mon-term {
+  position: absolute;
+  inset: 0;
+  padding: 1.4em 1.6em;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr;
+  grid-template-rows: auto auto 1fr 1fr auto;
+  gap: 1.1em 1em;
+}
+
+.mon-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: 1.6em;
+  font-size: 1.05em;
+}
+.mon-clock {
+  margin-left: auto;
+  font-size: 2.1em;
+  font-weight: 600;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.mon-sline {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 1.2em;
+  padding: 0.7em 1em;
+  border: 1px solid var(--m-green);
+  font-size: 1.15em;
+}
+.mon-sline .tag {
+  padding: 0.1em 0.6em;
+  background: var(--m-green);
+  color: #000;
+  font-weight: 700;
+}
+.mon-sline.bad {
+  border-color: var(--m-red);
+  background: rgb(240 106 106 / 0.1);
+}
+.mon-sline.bad .tag { background: var(--m-red); }
+.mon-sline.warn { border-color: var(--m-amber); }
+.mon-sline.warn .tag { background: var(--m-amber); }
+.mon-sline .hb { color: var(--m-green); }
+.mon-sline .hb.dim { color: #14361f; }
+
+.mon-box {
+  position: relative;
+  border: 1px solid var(--m-line);
+  padding: 1.1em 1em 0.8em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
+  min-height: 0;
+  min-width: 0;
+}
+.mon-title {
+  position: absolute;
+  top: -0.75em;
+  left: 0.8em;
+  padding: 0 0.5em;
+  background: var(--m-bg);
+  color: var(--m-orange);
+  font-size: 1em;
+  font-weight: 400;
+  line-height: 1.4;
+}
+.mon-title::before { content: '┤ '; color: var(--m-line); }
+.mon-title::after { content: ' ├'; color: var(--m-line); }
+
+.mon-big {
+  font-size: 3em;
+  font-weight: 600;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.mon-big small {
+  font-size: 0.38em;
+  font-weight: 400;
+  color: var(--m-dim);
+  margin-left: 0.3em;
+}
+.mon-bar { white-space: pre; letter-spacing: -0.02em; }
+.mon-cores { display: flex; flex-wrap: wrap; gap: 0.3em 1.2em; }
+.mon-row { display: flex; justify-content: space-between; gap: 1em; white-space: pre; }
+.mon-spark { width: 100%; height: 2.6em; flex: none; }
+
+.mon-tbl { width: 100%; border-collapse: collapse; font-size: inherit; }
+.mon-tbl th { text-align: left; color: var(--m-dim); font-weight: 400; padding-bottom: 0.3em; }
+.mon-tbl td { padding: 0.22em 0.4em 0.22em 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 12em; }
+.mon-tbl .n { text-align: right; }
+.mon-tbl tr.bad td { background: rgb(240 106 106 / 0.14); }
+.monitor .mon-act.dim { color: #1d4a2b; }
+
+.mon-disks { display: flex; flex-direction: column; gap: 0.3em; margin-top: 0.4em; }
+.mon-disk { display: grid; grid-template-columns: 5em auto 1fr; gap: 0.6em; align-items: center; white-space: nowrap; }
+.mon-disk > span:last-child { text-align: right; }
+
+.mon-log { display: flex; flex-direction: column; overflow: hidden; }
+.mon-log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.55; }
+
+.mon-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 2em;
+  color: var(--m-dim);
+  border-top: 1px solid var(--m-line);
+  padding-top: 0.6em;
+}
+.mon-cursor { margin-left: auto; }
+
+/* Roter Blitz bei einem neuen Fehler: 3 Pulse in 2,4 s, danach bleibt das normale Fehler-Bild. */
+.mon-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  background: #e02424;
+  display: grid;
+  place-items: center;
+}
+.mon-flash.go {
+  visibility: visible;
+  animation: mon-flash 2.4s linear 1 forwards;
+}
+.mon-flash span {
+  color: #fff;
+  font-size: 6em;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+@keyframes mon-flash {
+  0%, 16% { opacity: 0.85; }
+  17%, 32% { opacity: 0; }
+  33%, 49% { opacity: 0.85; }
+  50%, 65% { opacity: 0; }
+  66%, 82% { opacity: 0.85; }
+  83%, 100% { opacity: 0; }
+}
+
+.mon-auth {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2em;
+  font-size: 1.4em;
+}
+.mon-auth .mon-sline { grid-column: auto; }

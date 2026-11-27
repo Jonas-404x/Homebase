@@ -37,7 +37,9 @@ export const UNEXPECTED_EXIT_MESSAGE = 'Die App ist unerwartet beendet.';
 /** Wie lange eine Docker-Abfrage höchstens dauern darf, bevor Docker als hängend gilt. */
 const DOCKER_TIMEOUT_MS = 4000;
 
-export const DOCKER_DOWN_MESSAGE = 'Docker läuft gerade nicht oder startet noch. Mainframe prüft das alle paar Sekunden von selbst.';
+/** Steht bei jeder App, solange Docker nicht antwortet (der Server-Monitor erkennt daran „Docker weg“). */
+export { DOCKER_DOWN_MESSAGE } from '@mainframe/shared';
+import { DOCKER_DOWN_MESSAGE } from '@mainframe/shared';
 
 /** Übersetzt typische docker-compose-Fehler in verständliche Sätze. */
 export function explainComposeError(raw: string): string {

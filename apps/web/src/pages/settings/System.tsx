@@ -5,6 +5,7 @@ import { api } from '../../api/client.ts';
 import { useLive } from '../../api/live.tsx';
 import { usePrefs } from '../../api/prefs.tsx';
 import { dateTime, uptime } from '../../format.ts';
+import { MonitorKeyRow } from './MonitorKeyRow.tsx';
 import { Group, Row, SERVER_ONLY, useSettings } from './Row.tsx';
 
 const LEVEL_ICON = { info: Info, warn: AlertTriangle, error: XCircle };
@@ -57,6 +58,7 @@ export function System() {
       </Group>
 
       <Group title="Gerät">
+        <MonitorKeyRow />
         <Row label="Neu starten" hint="Startet den ganzen Server neu." disabledReason={power}>
           <button type="button" className="button" disabled>
             Neu starten

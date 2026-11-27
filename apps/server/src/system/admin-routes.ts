@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { DOCKER_DOWN_MESSAGE } from '../apps/engine.ts';
-import { verifyPassword } from '../auth/passwords.ts';
+import { requireAdminPassword } from '../auth/passwords.ts';
 import { TOTP_KEYS, requireSecondFactorIfOn } from '../auth/routes.ts';
 import { SESSION_COOKIE } from '../auth/sessions.ts';
 import type { Config } from '../config.ts';
@@ -27,12 +27,7 @@ const limited = {
 };
 
 export function registerAdminRoutes(app: FastifyInstance, d: AdminDeps): void {
-  const requirePassword = async (pw: unknown) => {
-    const stored = d.db.getSetting('admin_password');
-    if (!stored || typeof pw !== 'string' || !(await verifyPassword(pw, stored))) {
-      throw new MainframeError('wrong_password', 'Das Passwort stimmt nicht.', 401);
-    }
-  };
+  const requirePassword = (pw: unknown) => requireAdminPassword(d.db, pw);
 
   app.get('/api/system/info', async () => systemInfo(d.config, d.startedAt));
 

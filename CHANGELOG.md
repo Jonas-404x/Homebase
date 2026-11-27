@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Server monitor (screen on the server)
+
+- **New full-screen view `/monitor`** for a screen plugged into the server: terminal look on pure black, htop-style boxes with character bars for CPU (total and per core), RAM, temperature and disks, a `docker ps`-like app table with live LEDs, network with sparkline, internet status and a journal-like log. The clock is white, everything else green, orange and red
+- **Loud when something breaks**: a new app crash, failed healthcheck or unreachable service flashes the whole screen red three times (about 2.4 s), then `[ FAIL ]` blinks with the name and reason. Problems that were already there when the monitor starts do not flash, and a short Docker hiccup does not flash again
+- **Alive when all is fine**: a green heartbeat dot before `[ OK ]` blinks once per second while live values arrive, and running apps flicker like disk LEDs
+- **Watch only**: a random key in `<data>/kiosk-key` (root only, only its hash in the database) gives the monitor its own cookie that opens only `/api/kiosk/snapshot` and the live connection; settings, app logs and every admin action stay closed. A new key can be made in Settings › System (asks for your password, shows the new link once)
+- **Install with one command** on Ubuntu Server 24.04: `sudo ./scripts/linux/mainframe-monitor.sh` sets up Ubuntu Frame and Chromium to show the monitor after every boot. See `docs/server-monitor.md`
+- The AI headline is no longer fetched just because a monitor is open; only open admin views count
+
 ### AI hints in the status overview (web part)
 
 - **New settings area "KI"**: enter or remove your Gemini API key (a password field that is cleared right after saving; the key is never shown again), turn the AI hints on or off, send log lines or not, model name, daily cap or "ohne Grenze" (with the warning that this is only safe without a billing account), today's request count, last answer or error, and a "Jetzt testen" button. A short guide links to Google AI Studio and says not to link a billing account

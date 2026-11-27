@@ -8,6 +8,8 @@ import type { EventLog } from './events.ts';
 import { createHistory } from './history.ts';
 import { createWarner } from './warnings.ts';
 import type { StatsProvider } from './stats.ts';
+import type { History } from './history.ts';
+import type { SystemDetails } from '@mainframe/shared';
 
 export interface SystemRouteOptions {
   /** Fester Takt für Live-Werte (Tests). Ohne Angabe gilt die Einstellung liveIntervalSec. */
@@ -23,7 +25,7 @@ const HISTORY_MINUTES = new Set([1, 15, 60, 360, 1440, 4320, 10080]);
 const TOP_PROCESSES = 15;
 
 /** Stats per HTTP, Live-Schleife (nur solange jemand zuschaut) und Verlauf (läuft immer). */
-export function registerSystemRoutes(app: FastifyInstance, hub: WsHub, stats: StatsProvider, prefs: PrefsStore, opts: SystemRouteOptions): void {
+export function registerSystemRoutes(app: FastifyInstance, hub: WsHub, stats: StatsProvider, prefs: PrefsStore, opts: SystemRouteOptions): { details: () => Promise<SystemDetails>; history: History } {
   const history = createHistory(opts.db);
   const source = opts.system ?? createSystemSource();
   const processes = cached(() => source.processes(), 3000);
@@ -88,4 +90,5 @@ export function registerSystemRoutes(app: FastifyInstance, hub: WsHub, stats: St
     if (timer) clearInterval(timer);
     if (sampler) clearInterval(sampler);
   });
+  return { details, history };
 }

@@ -17,7 +17,7 @@ export interface InternetDeps {
 }
 
 /** Internet-Wächter: Ausfälle und Speedtests. */
-export function registerInternetRoutes(app: FastifyInstance, opts: { db: Db; prefs: PrefsStore; events?: EventLog; deps?: InternetDeps; intervalMs?: number }): { online: () => boolean | null } {
+export function registerInternetRoutes(app: FastifyInstance, opts: { db: Db; prefs: PrefsStore; events?: EventLog; deps?: InternetDeps; intervalMs?: number }): { online: () => boolean | null; last: () => { ok: boolean; ms: number | null } | null } {
   const store = createNetStore(opts.db);
   const watcher = createWatcher({ store, events: opts.events, probe: opts.deps?.probe ?? probe, runSpeedtest: opts.deps?.speedtest ?? (() => speedtest()) });
 
@@ -67,5 +67,9 @@ export function registerInternetRoutes(app: FastifyInstance, opts: { db: Db; pre
   return {
     // Nur eine frische Probe zählt: ist der Wächter aus, weiß Mainframe nichts über das Internet.
     online: () => store.probes(Date.now() - 10 * 60_000).at(-1)?.ok ?? null,
+    last: () => {
+      const p = store.probes(Date.now() - 10 * 60_000).at(-1);
+      return p ? { ok: p.ok, ms: p.ms } : null;
+    },
   };
 }

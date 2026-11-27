@@ -13,7 +13,7 @@ describe('insights store', () => {
     const fresh = openDb(':memory:');
     const tables = (fresh.sql.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((r) => r.name);
     for (const t of ['app_events', 'app_usage', 'disk_history', 'incidents', 'hints', 'ai_cache']) expect(tables).toContain(t);
-    expect(fresh.getSetting('schema_version')).toBe('5');
+    expect(fresh.getSetting('schema_version')).toBe('6');
   });
 
   it('übernimmt eine bestehende Datenbank von Version 4', () => {
@@ -22,7 +22,7 @@ describe('insights store', () => {
     v4.sql.exec("UPDATE settings SET value = '4' WHERE key = 'schema_version'; DROP TABLE app_events;");
     v4.close();
     const db = openDb(file);
-    expect(db.getSetting('schema_version')).toBe('5');
+    expect(db.getSetting('schema_version')).toBe('6');
     expect(() => db.sql.prepare('SELECT * FROM app_events').all()).not.toThrow();
     db.close();
     fs.rmSync(file, { force: true });

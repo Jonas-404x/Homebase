@@ -18,7 +18,7 @@ describe('Schema 4', () => {
     raw.exec("DROP TABLE IF EXISTS service_links; DROP TABLE IF EXISTS service_checks; DROP TABLE IF EXISTS devices; DROP TABLE IF EXISTS net_probes; DROP TABLE IF EXISTS speedtests; UPDATE settings SET value = '3' WHERE key = 'schema_version';");
     raw.close();
     const db = openDb(file);
-    expect(db.getSetting('schema_version')).toBe('5');
+    expect(db.getSetting('schema_version')).toBe('6');
     expect(db.queryStats(0, 2000, 10)).toHaveLength(1);
     expect(createServiceStore(db).listLinks()).toEqual([]);
     db.close();

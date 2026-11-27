@@ -113,6 +113,7 @@ describe('Statusübersicht mit KI', () => {
   it('schreibt auch einen Kopfsatz, wenn alles läuft, mit harmlosen Eckdaten', async () => {
     const hub = createWsHub();
     hub.clientCount = () => 1;
+    hub.adminCount = () => 1;
     hub.broadcast = () => {};
     const { calls, factory } = fakeProvider();
     const apps: InstalledApp[] = [{ id: 'jellyfin', name: 'Jellyfin', state: 'running', error: null, webUiUrl: null, installedAt: '' }];
