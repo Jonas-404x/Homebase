@@ -26,6 +26,8 @@ Rules still decide what exists, how urgent it is and which buttons a card has; t
 - **Refined detail view**: big live value, a taller chart with a dashed warning-threshold line (RAM, temperature) and min/average/max as one row
 - **Navigation rail**: the active page sits on a raised surface with a short accent bar
 - Windows app: the offline page uses the same colours
+- **Logo recoloured**: warm graphite tile, cream `>m` and an orange cursor, everywhere (browser tab, home-screen icon, Windows app); in the interface it gets a fine edge so it stands out from the graphite background
+- **New login and setup screen**: a fine dot grid and instrument rulers come in from two corners (with one orange mark each), the card is roomier, the time and date sit quietly underneath; nothing about the system is shown before you sign in. The setup heading is now "Mainframe einrichten"
 
 ### Polish
 

@@ -26,7 +26,7 @@ describe('Anmelde-Ablauf', () => {
     const user = userEvent.setup();
     render(<App socketFactory={noSocket} />);
 
-    expect(await screen.findByText('Willkommen bei Mainframe')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Mainframe einrichten' })).toBeInTheDocument();
     await user.type(screen.getByLabelText('Benutzername'), 'jonas');
     const field = screen.getByLabelText('Passwort');
     await user.type(field, 'kurz');
