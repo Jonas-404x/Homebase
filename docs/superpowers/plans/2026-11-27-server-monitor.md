@@ -68,7 +68,7 @@
   - `WsHub.add(socket, sessionId?: string, opts?: { kiosk?: boolean })`, `WsHub.adminCount(): number`, `WsHub.closeKiosk(): void`
   - `registerKioskRoutes(app, deps: { kiosk: KioskStore; hub: WsHub; snapshot: () => Promise<KioskSnapshot>; requirePassword: (pw: unknown) => Promise<void> })`
   - Routes: `POST /api/kiosk/session` body `{ key: string }` → 204 + cookie, 401 `{code:'invalid_key'}`; rate limit 10/min. `GET /api/kiosk/snapshot` (kiosk only) → `KioskSnapshot`. `GET /api/kiosk/ws` (kiosk cookie, else close 4401). `POST /api/kiosk/rotate` (admin only) body `{ password }` → `{ url: string }` where url = `/monitor#key=<new key>` (the web prepends origin).
-  - `AppDeps.kiosk?: KioskStore` (default `createKioskStore(db, config.dataRoot, app.log.warn)` + `ensureKey()` at build).
+  - `AppDeps.kiosk?: KioskStore` (default `createKioskStore(db, config.dataRoot, app.log.warn)`; `ensureKey()` is called from `index.ts` after the DB opens, never inside `buildApp`, so tests don't share a key file). Kiosk session rows older than 365 days are pruned in `ensureKey()`.
 
 - [ ] **Step 1: Write failing tests**
   - kiosk login with the right key → 204 and `mf_kiosk` cookie; wrong key → 401; 11th attempt in a minute → 429.
@@ -105,7 +105,7 @@ export interface KioskSnapshot {
   usage: AppUsage[];
   events: MainframeEvent[];          // newest first, max 12
   history: { cpu: number[]; rx: number[] }; // last 10 min, max 60 points each
-  status: StatusReport | null;
+  status: StatusReport | null;      // latest pushed report, cached; never rebuilt per poll (AI budget)
   thresholds: { memory: number; disk: number; temperature: number };
   liveIntervalSec: number;
 }
@@ -127,12 +127,12 @@ export interface KioskSnapshot {
 - Produces:
   - `type Problem = { key: string; name: string; reason: string }`
   - `findProblems(apps: InstalledApp[], down: KioskSnapshot['services']['down'], status: StatusReport | null): Problem[]` – keys `app:<id>` (state `error` or health `unhealthy`), `service:<id>`, `status` (level `problem` and no other problem).
-  - `createFlashDetector(): { next(problems: Problem[]): Problem[] | null }` – first call returns null and records; later calls return the new problems (not seen before) or null; disappeared keys are forgotten.
+  - `createFlashDetector(forgetAfterMs = 120_000): { next(problems: Problem[], now: number): Problem[] | null }` – first call returns null and records; later calls return the new problems (not seen before) or null. A key is forgotten only after it has been absent for `forgetAfterMs` (Docker timeouts that briefly return `apps: []` must not re-flash). The `status` fallback key never flashes (it only shows `[ FAIL ]`), so a lagging status report after a recovery cannot flash red.
   - `barCells(pct: number, warnAt: number, redAt: number, width: number): ('g' | 'o' | 'r' | 'off')[]`
   - `levels(kind: 'cpu' | 'memory' | 'disk' | 'temperature', t: KioskSnapshot['thresholds']): { warnAt: number; redAt: number }`
   - `fmtBytes(n: number): string` (`62M`, `2.9G`, `1.3T`), `fmtUptime(sec: number): string` (`3d 04:12`), `fmtRate(bytesPerSec: number): string` (`2.4`, MB/s)
   - `countWarnings(snapshot, live: SystemStats | null): number`
-- [ ] **Step 1: Write failing tests** with exact values: `barCells(50, 70, 90, 10)` → 5×`g` + 5×`off`; `barCells(95, 70, 90, 10)` → 7 g, 2 o, 1 r; `levels('memory', {memory: 90, disk: 90, temperature: 80})` → `{warnAt: 90, redAt: 97}`; `levels('memory', {memory: 95, …})` → redAt 98; `levels('temperature', …)` → `{warnAt: 80, redAt: 88}`; `levels('cpu', …)` → `{70, 90}`; flash detector: `[]` then `[a]` → `[a]`, again `[a]` → null, `[]` then `[a]` → `[a]`; first call `[a]` → null; `findProblems` with an unhealthy app, a down service, status `problem` alone; `fmtBytes(62*2**20)` → `'62M'`, `fmtUptime(3*86400+4*3600+12*60)` → `'3d 04:12'`.
+- [ ] **Step 1: Write failing tests** with exact values: `barCells(50, 70, 90, 10)` → 5×`g` + 5×`off`; `barCells(95, 70, 90, 10)` → 7 g, 2 o, 1 r; `levels('memory', {memory: 90, disk: 90, temperature: 80})` → `{warnAt: 90, redAt: 97}`; `levels('memory', {memory: 95, …})` → redAt 98; `levels('temperature', …)` → `{warnAt: 80, redAt: 88}`; `levels('cpu', …)` → `{70, 90}`; flash detector: `[]` then `[a]` → `[a]`, again `[a]` → null; `[a]` absent for 30 s then back → null; absent 3 min then back → `[a]`; first call `[a]` → null; new `status` key → null; `findProblems` with an unhealthy app, a down service, status `problem` alone; `fmtBytes(62*2**20)` → `'62M'`, `fmtUptime(3*86400+4*3600+12*60)` → `'3d 04:12'`.
 - [ ] **Step 2: Run** `npm test -w apps/web -- monitor-model` → FAIL.
 - [ ] **Step 3: Implement.**
 - [ ] **Step 4: Run** → PASS.
@@ -156,12 +156,13 @@ export interface KioskSnapshot {
   - renders `[ OK ]`, `alle systeme laufen`, cpu value from a `stats` message, app rows with `up`/`stopped`, `n/a` for `temperatureC: null`.
   - an app switching to `error` via an `apps` message → `[ FAIL ]`, `FEHLER` in its row, element `data-testid="flash"` gets class `go` with text `FEHLER · <name>`; the same error in the next message → no new flash; error present in the first snapshot → no flash.
   - two new problems at once → flash text ends with `+1`.
+  - heartbeat pulses only while the last `stats` message is younger than 3 × `liveIntervalSec`; no stats for longer → heartbeat stops.
   - socket status `reconnecting` → `verbindung verloren`, heartbeat element hidden; back to `open` with the same problem → no flash (Review Focus 3).
   - snapshot `'unauthorized'` → `[ AUTH ] schlüssel ungültig` and the hint `sudo mainframe-monitor`.
   - `document.hidden = true` + `visibilitychange` → no snapshot fetch while hidden (spy), resumes after.
   - `kioskLogin('#key=abc')` posts `{key:'abc'}` and calls `replaceState` without the fragment; no fragment → `'none'` without a request.
 - [ ] **Step 2: Run** → FAIL.
-- [ ] **Step 3: Implement** to match the mockup layout (see spec sketch): header prompt `mainframe@<hostname>:~$ monitor --live`, meta line `<os> · <ip> · up <uptime>`, white clock (1 s); status line with heartbeat `●` (1 s, dims 140 ms) and tag; boxes cpu (value, bar 34 wide, per-core bars 8 wide, sparkline SVG polyline), mem, temp, apps table, net + disk, log; footer `mainframe v<version> · aktualisiert alle <n> s` + warnings + blinking `█`. Flash overlay with CSS keyframes (3 pulses / 2.4 s, opacity 0.85, `#e02424`). LED flicker: one 400 ms interval toggling a `dim` class on running app LEDs. Snapshot poll every 10 s. Sizes in `vw` (`font-size: 1vw` root of the page). Only `visibility`/`opacity` animations.
+- [ ] **Step 3: Implement** to match the mockup layout (see spec sketch): header prompt `mainframe@<hostname>:~$ monitor --live`, meta line `<os> · <ip> · up <uptime>`, white clock (1 s); status line with heartbeat `●` (1 s, dims 140 ms) and tag; boxes cpu (value, bar 34 wide, per-core bars 8 wide, sparkline SVG polyline), mem, temp, apps table, net + disk, log; footer `mainframe v<version> · aktualisiert alle <n> s` + warnings + blinking `█`. Flash overlay with CSS keyframes (3 pulses / 2.4 s, opacity 0.85, `#e02424`). LED flicker: one 400 ms interval toggling a `dim` class on running app LEDs. Snapshot poll every 10 s. Sizes in `vw` (`font-size: 1vw` root of the page). Only `visibility`/`opacity` animations. `monitor.css` hardcodes its palette (never the shared tokens) and sets `color-scheme: dark` on the page root, because Chromium under Ubuntu Frame may report light mode; the manual check also emulates light mode.
 - [ ] **Step 4: Run** tests → PASS; `npm run typecheck -w apps/web` → PASS.
 - [ ] **Step 5: Manual check** with the dev server: open `/monitor#key=<dev key from .data/kiosk-key>` in the browser pane, compare with mockup v5, screenshot ok and error state.
 - [ ] **Step 6: Commit** `feat(web): server monitor page`
@@ -188,6 +189,8 @@ export interface KioskSnapshot {
 - [ ] **Step 2: Check** `bash -n scripts/linux/mainframe-monitor.sh` → no output; `shellcheck` if available.
 - [ ] **Step 3: Docs** `docs/server-monitor.md`: what it is, security model (watch-only key, `Strg+Alt+F2` for the Linux console), install (one command), rotate key, change port, troubleshooting (`snap logs chromium`, `snap logs ubuntu-frame`, fallback `cage`), RAM/CPU note. README: feature line + link. CHANGELOG: entry under Unreleased.
 - [ ] **Step 4: Commit** `docs: server monitor install and usage`
+
+Order under the deadline: Tasks 1→2→3→4→5→7 first; Task 6 last (may slip to a follow-up).
 
 ### Task 8: Final checks
 
