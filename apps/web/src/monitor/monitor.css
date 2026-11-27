@@ -8,7 +8,7 @@
   --m-bg: #000;
   --m-line: #2a3a2e;
   --m-text: #d7e6d9;
-  --m-dim: #6f7d72;
+  --m-dim: #7a887c; /* ≥ 4,5:1 auch auf dem rot getönten Fehler-Band */
   --m-faint: #2c332d;
   --m-green: #4cc77a;
   --m-orange: #f4873a;
