@@ -57,6 +57,7 @@ Until you do, the monitor shows `[ AUTH ] schlüssel ungültig` and tries again 
 | `[ AUTH ] schlüssel ungültig` | `sudo mainframe-monitor` (re-reads the key file) |
 | `verbindung verloren – versuche neu` | Mainframe is not running or restarting: `systemctl status mainframe` |
 | Wrong port | `sudo mainframe-monitor --port <port>` |
+| Chromium shows an error page after boot (it started before Mainframe was ready) | `sudo snap restart chromium` |
 | Change what is shown | `sudo snap set chromium url="http://localhost:<port>/monitor#key=…"` and `sudo snap restart chromium` (the script does this for you) |
 | Ubuntu Frame causes trouble | Fallback: `sudo apt install cage`, then run `cage -- chromium --kiosk "http://localhost:<port>/monitor#key=…"` from an autologin on tty1 |
 
