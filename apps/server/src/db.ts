@@ -127,6 +127,13 @@ export function openDb(filePath: string): Db {
       UPDATE settings SET value = '5' WHERE key = 'schema_version';
     `);
   }
+  // Version 6: Sitzungen des Server-Monitors (nur anschauen), getrennt von den Admin-Sitzungen.
+  if (version < 6) {
+    migrate(`
+      CREATE TABLE IF NOT EXISTS kiosk_sessions (id_hash TEXT PRIMARY KEY, created_at INTEGER NOT NULL, last_seen INTEGER NOT NULL);
+      UPDATE settings SET value = '6' WHERE key = 'schema_version';
+    `);
+  }
   const addStat = db.prepare('INSERT OR REPLACE INTO stats_history (at, cpu, memory, rx, tx, temp) VALUES (?, ?, ?, ?, ?, ?)');
   const queryStat = db.prepare(`
     SELECT CAST((at - :from) * :n / :span AS INTEGER) AS b, AVG(at) AS at, AVG(cpu) AS cpu, AVG(memory) AS memory,
