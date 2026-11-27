@@ -310,3 +310,25 @@ export interface DiagnoseReport {
   ok: boolean;
   steps: DiagnoseStep[];
 }
+
+/** Was der Server-Monitor alle paar Sekunden holt (ohne Geheimnisse). */
+export interface KioskSnapshot {
+  host: { hostname: string; os: string; ip: string | null; version: string };
+  stats: SystemStats | null;
+  /** Last pro Kern in Prozent; leer, wenn unbekannt */
+  perCore: number[];
+  swap: { totalBytes: number; usedBytes: number } | null;
+  tempMaxTodayC: number | null;
+  internet: { online: boolean | null; ms: number | null };
+  services: { up: number; total: number; down: { id: string; name: string; reason: string | null }[] };
+  apps: InstalledApp[];
+  usage: AppUsage[];
+  /** Neueste zuerst, höchstens 12 */
+  events: MainframeEvent[];
+  /** Letzte 10 Minuten, höchstens 60 Punkte */
+  history: { cpu: number[]; rx: number[] };
+  /** Zuletzt verschickte Statusübersicht (wird nicht pro Abfrage neu gebaut) */
+  status: StatusReport | null;
+  thresholds: { memory: number; disk: number; temperature: number };
+  liveIntervalSec: number;
+}

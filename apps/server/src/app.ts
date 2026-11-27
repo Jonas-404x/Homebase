@@ -34,6 +34,9 @@ import { createInsights, type Insights } from './insights/loop.ts';
 import { createInsightsStore } from './insights/store.ts';
 import { registerDiagnoseRoutes } from './diagnose/routes.ts';
 import { realDiagnoseDeps, type DiagnoseDeps } from './diagnose/facts.ts';
+import { requireAdminPassword } from './auth/passwords.ts';
+import { registerKioskRoutes } from './kiosk/routes.ts';
+import { createKioskStore, type KioskStore } from './kiosk/store.ts';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -78,6 +81,8 @@ export interface AppDeps {
   aiDebounceMs?: number;
   /** Wie lange ein wichtiger Vorfall anstehen muss, bevor er zählt (Tests: 0). Standard 2 Minuten. */
   incidentOpenAfterMs?: number;
+  /** Schlüssel und Sitzungen des Server-Monitors (Tests). ensureKey() ruft index.ts auf, nicht buildApp. */
+  kiosk?: KioskStore;
   /** Weitere Routen (z. B. AdGuard), die Zugriff auf Engine und Hub brauchen. */
   plugins?: ((app: FastifyInstance) => void | Promise<void>)[];
 }
@@ -107,7 +112,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const events = deps.events ?? createEventLog();
   app.decorate('events', events);
   events.onAdd((data) => hub.broadcast({ type: 'event', data }));
-  registerAuthGuard(app, deps.db);
+  const kiosk = deps.kiosk ?? createKioskStore(deps.db, deps.config.dataRoot, (m) => app.log.warn(m));
+  registerAuthGuard(app, deps.db, kiosk);
   // Nach Abmelden/Passwortwechsel offene Live-Verbindungen ohne gültige Session trennen.
   const onSessionsChanged = () => hub.closeInvalidSessions((sid) => deps.db.getSession(sid) !== null);
   registerAuthRoutes(app, deps.db, onSessionsChanged);
@@ -173,7 +179,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     onTexts: pushStatus,
     debounceMs: deps.aiDebounceMs,
     // Den Kopfsatz für „alles läuft“ nur holen, wenn jemand die Übersicht offen hat.
-    isWatched: () => hub.clientCount() > 0,
+    // Der Server-Monitor zählt nicht: er zeigt keine KI-Texte.
+    isWatched: () => hub.adminCount() > 0,
   });
   const insights = createInsights({ db: deps.db, store: insightsStore, sources: statusSources, engine: deps.engine, ai, config: aiConfig, push: pushStatus, intervalMs: deps.insightsIntervalMs ?? 30_000, incidentOpenAfterMs: deps.incidentOpenAfterMs });
   onUserAction = insights.userAction;
@@ -184,6 +191,13 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerStatusRoutes(app, { ...statusSources, insights });
   registerAiRoutes(app, { config: aiConfig, ai, onChange: pushStatus });
   registerDiagnoseRoutes(app, { stats: recentStats, services: services.list, prefs, engine: deps.engine, deps: deps.diagnose ?? realDiagnoseDeps });
+  registerKioskRoutes(app, {
+    kiosk,
+    hub,
+    // TODO(Task 3): echter Snapshot.
+    snapshot: async () => ({}) as never,
+    requirePassword: (pw) => requireAdminPassword(deps.db, pw),
+  });
   for (const p of deps.plugins ?? []) await p(app);
 
   if (deps.config.webDistDir) {
