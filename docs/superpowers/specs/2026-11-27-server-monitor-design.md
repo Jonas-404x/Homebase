@@ -72,7 +72,7 @@ Warnings (orange, never flash): status level `warn`, RAM/CPU/temp/disk over the 
 
 ### Bar colours *(Claude's call)*
 
-- Memory, disk, temperature: orange from the pref threshold (`thresholds.memoryPercent`, `diskPercent`, `temperatureC`), red from threshold + 7 points (memory/disk, capped at 98 %) or + 8 °C (temperature). Temperature bar scale 0–100 °C.
+- Memory, disk, temperature: orange from the pref threshold (`thresholds.memory`, `disk`, `temperature`), red from threshold + 7 points (memory/disk, capped at 98 %) or + 8 °C (temperature). Temperature bar scale 0–100 °C.
 - CPU total and per core: no pref exists; orange from 70 %, red from 90 %.
 
 ### Missing data *(Claude's call)*
