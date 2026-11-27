@@ -1,8 +1,10 @@
 import { ChevronDown, CircleAlert, Info, Stethoscope, TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import type { InstalledApp, StatusItem, StatusReport } from '@mainframe/shared';
-import { api } from '../api/client.ts';
+import type { InstalledApp, StatusIncident, StatusItem, StatusReport, WsMessage } from '@mainframe/shared';
+import { api, post } from '../api/client.ts';
+import { useLiveIfAvailable } from '../api/live.tsx';
+import { Dialog } from './Dialog.tsx';
 import { DiagnoseDialog } from './DiagnoseDialog.tsx';
 import { stagger } from '../stagger.ts';
 
@@ -10,6 +12,15 @@ const POLL_MS = 15_000;
 
 const ICON = { problem: CircleAlert, warn: TriangleAlert, info: Info } as const;
 const LEVEL_TEXT = { problem: 'Problem', warn: 'Warnung', info: 'Hinweis' } as const;
+
+/** Kennzeichen für Texte, die von der KI stammen. KI-Texte immer nur als reinen Text einsetzen. */
+function AiMark() {
+  return (
+    <span className="ai-mark" role="img" aria-label="Von der KI" title="Von der KI geschrieben">
+      ✦
+    </span>
+  );
+}
 
 /** Oben auf der Übersicht: läuft alles, und wo muss ich mich kümmern? */
 export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | null; refreshKey?: number }) {
@@ -37,6 +48,36 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
     }
   }, []);
 
+  // Neue KI-Texte schickt der Server sofort; eine ältere, noch laufende Abfrage wird damit verworfen.
+  const onLive = useCallback((msg: Extract<WsMessage, { type: 'status' }>) => {
+    generation.current++;
+    setReport(msg.data);
+    setFailed(false);
+    setCheckedAt(new Date());
+  }, []);
+  useLiveIfAvailable('status', onLive);
+
+  // Ein Pop-up pro Vorfall: weggeklickte merken wir uns, bis der Server sie nicht mehr meldet.
+  const [closedIncidents, setClosedIncidents] = useState<number[]>([]);
+  // Nie zwei Fenster übereinander: Während die Diagnose offen ist, wartet das Pop-up.
+  const incident: StatusIncident | undefined = diagnose ? undefined : report?.incidents?.find((i) => !closedIncidents.includes(i.id));
+  const closeIncident = (id: number) => {
+    setClosedIncidents((ids) => [...ids, id]);
+    post(`/api/status/incidents/${id}/seen`).catch(() => {});
+  };
+
+  const [hiddenHints, setHiddenHints] = useState<string[]>([]);
+  const dismiss = async (id: string) => {
+    setHiddenHints((ids) => [...ids, id]);
+    try {
+      await post(`/api/status/hints/${encodeURIComponent(id)}/dismiss`);
+    } catch {
+      // Nicht geklappt: wieder zeigen, damit man es noch mal versuchen kann.
+      setHiddenHints((ids) => ids.filter((x) => x !== id));
+    }
+    void load();
+  };
+
   useEffect(() => {
     void load();
     const t = setInterval(() => void load(), POLL_MS);
@@ -52,8 +93,9 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
   // Ohne Bericht kein grüner Punkt: beim Laden neutral, nach einem Fehler als Problem.
   const level = report?.level ?? (failed ? 'problem' : 'unknown');
   // Hinweise (grau) brauchen nichts von dir: zugeklappt, damit die Werte darunter sichtbar bleiben.
-  const important = report?.items.filter((i) => i.level !== 'info') ?? [];
-  const hints = report?.items.filter((i) => i.level === 'info') ?? [];
+  const visible = report?.items.filter((i) => !hiddenHints.includes(i.id)) ?? [];
+  const important = visible.filter((i) => i.level !== 'info');
+  const hints = visible.filter((i) => i.level === 'info');
   const shown = showHints ? [...important, ...hints] : important;
 
   return (
@@ -65,7 +107,17 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
             {checkedAt ? `Zuletzt geprüft um ${checkedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : 'Wird geprüft'}
           </p>
           <h2 id="status-title" className="status-summary">
-            {report ? report.summary : failed ? 'Status gerade nicht abrufbar' : 'Prüft …'}
+            {report?.aiSummary ? (
+              <>
+                <AiMark /> <span>{report.aiSummary}</span>
+              </>
+            ) : report ? (
+              report.summary
+            ) : failed ? (
+              'Status gerade nicht abrufbar'
+            ) : (
+              'Prüft …'
+            )}
           </h2>
         </div>
         <button type="button" className="button" onClick={() => setDiagnose({ target: 'system', title: 'Diagnose: ganzes System' })}>
@@ -81,8 +133,15 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
               <li key={item.id} className={`status-item status-item-${item.level} stagger`} style={stagger(index)}>
                 <Icon className="status-item-icon" aria-label={LEVEL_TEXT[item.level]} size={18} />
                 <div className="status-item-text">
-                  <strong>{item.title}</strong>
-                  <p className="secondary">{item.detail}</p>
+                  <strong>
+                    {item.ai && (
+                      <>
+                        <AiMark />{' '}
+                      </>
+                    )}
+                    <span>{item.ai?.title ?? item.title}</span>
+                  </strong>
+                  <p className="secondary">{item.ai?.detail ?? item.detail}</p>
                 </div>
                 <div className="status-item-actions">
                   {item.diagnose && item.level !== 'info' && (
@@ -95,6 +154,11 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
                       Ansehen
                     </Link>
                   )}
+                  {item.dismissible && (
+                    <button type="button" className="button" onClick={() => void dismiss(item.id)}>
+                      Ausblenden
+                    </button>
+                  )}
                 </div>
               </li>
             );
@@ -106,6 +170,26 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
           <ChevronDown aria-hidden="true" size={16} className={showHints ? 'chevron-open' : undefined} />
           {showHints ? 'Hinweise ausblenden' : hints.length === 1 ? '1 Hinweis' : `${hints.length} Hinweise`}
         </button>
+      )}
+      {incident && (
+        <Dialog title={incident.title} onClose={() => closeIncident(incident.id)}>
+          <div className="stack">
+            <p className="incident-text">
+              {incident.ai ? (
+                <>
+                  <AiMark /> <span>{incident.ai}</span>
+                </>
+              ) : (
+                incident.detail
+              )}
+            </p>
+            <div className="dialog-actions">
+              <button type="button" className="button button-primary" onClick={() => closeIncident(incident.id)}>
+                Verstanden
+              </button>
+            </div>
+          </div>
+        </Dialog>
       )}
       {diagnose && (
         <DiagnoseDialog

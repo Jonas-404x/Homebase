@@ -1,4 +1,4 @@
-import { Archive, Box, Info, LayoutDashboard, Network, Palette, Server, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react';
+import { Archive, Box, Info, LayoutDashboard, Network, Palette, Server, SlidersHorizontal, Sparkles, UserRound, type LucideIcon } from 'lucide-react';
 
 export interface PaneRow {
   label: string;
@@ -86,6 +86,21 @@ export const PANES: Pane[] = [
       { label: 'Automatischer Scan', keywords: ['geräte', 'scan', 'wlan', 'neu'] },
       { label: 'Speedtest', keywords: ['internet', 'geschwindigkeit', 'download', 'upload'] },
       { label: 'Netzwerkfreigabe', keywords: ['smb', 'explorer', 'laufwerk', 'samba'] },
+    ],
+  },
+  {
+    id: 'ai',
+    title: 'KI',
+    summary: 'Schlüssel, Hinweise, Anfragen',
+    icon: Sparkles,
+    keywords: ['ki', 'ai', 'gemini', 'google', 'künstliche intelligenz'],
+    rows: [
+      { label: 'API-Schlüssel', keywords: ['key', 'schlüssel', 'token', 'ai studio'] },
+      { label: 'KI-Hinweise', keywords: ['an', 'aus', 'zusammenfassung'] },
+      { label: 'Logzeilen mitschicken', keywords: ['log', 'datenschutz'] },
+      { label: 'Modell', keywords: ['flash', 'lite'] },
+      { label: 'Anfragen', keywords: ['grenze', 'limit', 'kosten', 'kostenlos'] },
+      { label: 'Verbindung', keywords: ['testen', 'prüfen'] },
     ],
   },
   {

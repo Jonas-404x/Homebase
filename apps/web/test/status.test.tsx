@@ -184,3 +184,99 @@ describe('Diagnose-Dialog', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Zu viele Versuche, warte kurz.');
   });
 });
+
+describe('KI-Hinweise in der Statusübersicht', () => {
+  const aiReport: StatusReport = {
+    level: 'problem',
+    summary: '1 Sache braucht dich',
+    aiSummary: 'Home Assistant stürzt seit heute Nacht ab, sonst läuft alles.',
+    items: [
+      {
+        id: 'app:homeassistant',
+        level: 'problem',
+        title: 'Home Assistant startet ständig neu',
+        detail: 'Der Container stürzt immer wieder ab.',
+        to: '/apps',
+        diagnose: 'homeassistant',
+        ai: { title: 'Home Assistant stürzt ständig ab', detail: 'Vermutlich fehlt die Konfigurationsdatei.' },
+      },
+      { id: 'night:cpu', level: 'info', title: 'Nacht-Spitze', detail: 'Prozessor war hoch.', to: null, diagnose: null, source: 'night', dismissible: true, ai: null },
+    ],
+    incidents: [],
+  };
+
+  it('zeigt Kopfsatz und Kartentext von der KI mit ✦-Kennzeichen', async () => {
+    mockApi({ 'GET /api/status': () => ({ json: aiReport }) });
+    renderAt(<StatusPanel apps={null} />);
+    const heading = await screen.findByRole('heading', { name: /Home Assistant stürzt seit heute Nacht ab/ });
+    expect(within(heading).getByLabelText('Von der KI')).toBeInTheDocument();
+    expect(screen.getByText('Home Assistant stürzt ständig ab')).toBeInTheDocument();
+    expect(screen.getByText('Vermutlich fehlt die Konfigurationsdatei.')).toBeInTheDocument();
+    expect(screen.queryByText('Home Assistant startet ständig neu')).not.toBeInTheDocument();
+  });
+
+  it('zeigt ohne KI-Text die festen Texte ohne Kennzeichen', async () => {
+    mockApi({ 'GET /api/status': () => ({ json: report }) });
+    renderAt(<StatusPanel apps={apps} />);
+    await screen.findByRole('heading', { name: '2 Sachen brauchen dich' });
+    expect(screen.queryByLabelText('Von der KI')).not.toBeInTheDocument();
+  });
+
+  it('zeigt KI-Text nur als reinen Text, nie als HTML', async () => {
+    const evil = { ...aiReport, aiSummary: '<img src=x onerror=alert(1)>' };
+    mockApi({ 'GET /api/status': () => ({ json: evil }) });
+    const { container } = render(<MemoryRouter><StatusPanel apps={null} /></MemoryRouter>);
+    expect(await screen.findByText('<img src=x onerror=alert(1)>')).toBeInTheDocument();
+    expect(container.querySelector('img')).toBeNull();
+  });
+
+  it('lässt wegklickbare Hinweise ausblenden', async () => {
+    let dismissed = false;
+    const calls = mockApi({
+      'GET /api/status': () => ({ json: dismissed ? { ...aiReport, items: [aiReport.items[0]!] } : aiReport }),
+      'POST /api/status/hints/night%3Acpu/dismiss': () => {
+        dismissed = true;
+        return { status: 204 };
+      },
+    });
+    renderAt(<StatusPanel apps={null} />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: '1 Hinweis' }));
+    await user.click(screen.getByRole('button', { name: 'Ausblenden' }));
+    await waitFor(() => expect(screen.queryByText('Nacht-Spitze')).not.toBeInTheDocument());
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/api/status/hints/night%3Acpu/dismiss')).toBe(true);
+  });
+
+  it('zeigt einen Hinweis wieder, wenn das Ausblenden nicht klappt (Review)', async () => {
+    mockApi({
+      'GET /api/status': () => ({ json: aiReport }),
+      'POST /api/status/hints/night%3Acpu/dismiss': () => ({ status: 500, json: { code: 'x', message: 'kaputt' } }),
+    });
+    renderAt(<StatusPanel apps={null} />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: '1 Hinweis' }));
+    await user.click(screen.getByRole('button', { name: 'Ausblenden' }));
+    expect(await screen.findByText('Nacht-Spitze')).toBeInTheDocument();
+  });
+
+  it('zeigt einen wichtigen Vorfall als Pop-up und meldet ihn als gesehen', async () => {
+    let seen = false;
+    const withIncident: StatusReport = {
+      ...aiReport,
+      incidents: [{ id: 7, kind: 'docker', title: 'Docker läuft nicht', detail: 'Ohne Docker laufen keine Apps.', ai: 'Docker ist aus, deshalb laufen gerade keine Apps.', openedAt: 1 }],
+    };
+    const calls = mockApi({
+      'GET /api/status': () => ({ json: seen ? aiReport : withIncident }),
+      'POST /api/status/incidents/7/seen': () => {
+        seen = true;
+        return { status: 204 };
+      },
+    });
+    renderAt(<StatusPanel apps={null} />);
+    const dialog = await screen.findByRole('dialog', { name: 'Docker läuft nicht' });
+    expect(within(dialog).getByText('Docker ist aus, deshalb laufen gerade keine Apps.')).toBeInTheDocument();
+    await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Verstanden' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(calls.some((c) => c.path === '/api/status/incidents/7/seen')).toBe(true);
+  });
+});

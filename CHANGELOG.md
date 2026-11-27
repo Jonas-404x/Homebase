@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### AI hints in the status overview (web part)
+
+- **New settings area "KI"**: enter or remove your Gemini API key (a password field that is cleared right after saving; the key is never shown again), turn the AI hints on or off, send log lines or not, model name, daily cap or "ohne Grenze" (with the warning that this is only safe without a billing account), today's request count, last answer or error, and a "Jetzt testen" button. A short guide links to Google AI Studio and says not to link a billing account
+- **Overview**: the AI headline and card texts replace the fixed ones when they are there, marked with a small orange ✦; without them the fixed texts stay. AI texts are always rendered as plain text
+- **Hints** from night spikes and past incidents get an "Ausblenden" button
+- **Pop-up** for critical incidents (Docker, full drive, temperature, AdGuard), once per incident; "Verstanden" marks it as seen
+- New texts arrive live over the WebSocket, no reload needed
+
 ### AI hints in the status overview (server part)
 
 Rules still decide what exists, how urgent it is and which buttons a card has; the optional AI (Google Gemini, free tier) only phrases the text. Without a key, without internet or over the daily cap everything looks exactly like before. The UI for this comes in a later step.

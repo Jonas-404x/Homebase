@@ -21,6 +21,12 @@ export function useSocketStatus(): SocketStatus {
   return status;
 }
 
+/** Wie useLive, aber ohne LiveProvider (z. B. in Tests) passiert einfach nichts. */
+export function useLiveIfAvailable<T extends WsMessage['type']>(type: T, cb: (msg: Extract<WsMessage, { type: T }>) => void): void {
+  const s = useContext(LiveContext);
+  useEffect(() => (s ? s.on(type, cb) : undefined), [s, type, cb]);
+}
+
 /** Abonniert einen Nachrichtentyp, solange die Komponente lebt. */
 export function useLive<T extends WsMessage['type']>(type: T, cb: (msg: Extract<WsMessage, { type: T }>) => void): void {
   const s = useLiveSocket();

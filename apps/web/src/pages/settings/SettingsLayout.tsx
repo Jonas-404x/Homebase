@@ -4,6 +4,7 @@ import { Link, Navigate, NavLink, useLocation } from 'react-router';
 import type { SystemInfo } from '@mainframe/shared';
 import { api } from '../../api/client.ts';
 import { About } from './About.tsx';
+import { AiPane } from './AiPane.tsx';
 import { Account } from './Account.tsx';
 import { Appearance } from './Appearance.tsx';
 import { Backup } from './Backup.tsx';
@@ -24,6 +25,7 @@ const CONTENT: Record<string, ComponentType> = {
   appearance: Appearance,
   overview: OverviewPane,
   network: NetworkPane,
+  ai: AiPane,
   docker: Docker,
   system: System,
   backup: Backup,
