@@ -111,7 +111,13 @@ describe('Kiosk-Cookie öffnet nur die Kiosk-Routen', () => {
     const admin = await setupAndLogin(app);
     expect((await app.inject({ method: 'GET', url: '/api/kiosk/snapshot', headers: { cookie: admin } })).statusCode).toBe(401);
     const kiosk = await kioskLogin(app, key);
-    expect((await app.inject({ method: 'GET', url: '/api/kiosk/snapshot', headers: { cookie: kiosk } })).statusCode).toBe(200);
+    const res = await app.inject({ method: 'GET', url: '/api/kiosk/snapshot', headers: { cookie: kiosk } });
+    expect(res.statusCode).toBe(200);
+    const snap = res.json();
+    expect(snap.stats).toEqual(sample);
+    expect(snap.status.level).toBeDefined();
+    expect(snap.host.version).toMatch(/\d/);
+    expect(Array.isArray(snap.events)).toBe(true);
     await app.close();
   });
 });

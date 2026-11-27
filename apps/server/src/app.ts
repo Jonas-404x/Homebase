@@ -37,6 +37,11 @@ import { realDiagnoseDeps, type DiagnoseDeps } from './diagnose/facts.ts';
 import { requireAdminPassword } from './auth/passwords.ts';
 import { registerKioskRoutes } from './kiosk/routes.ts';
 import { createKioskStore, type KioskStore } from './kiosk/store.ts';
+import { buildKioskSnapshot, osLine } from './kiosk/snapshot.ts';
+import { mainframeVersion, systemInfo } from './system/info.ts';
+import { readFileSync } from 'node:fs';
+import os from 'node:os';
+import type { AppUsage, StatusReport } from '@mainframe/shared';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -145,7 +150,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     return value;
   };
   const recentStats = () => (lastStats && Date.now() - lastStats.at < 30_000 ? Promise.resolve(lastStats.value) : statsProvider());
-  registerSystemRoutes(app, hub, statsProvider, prefs, {
+  const system = registerSystemRoutes(app, hub, statsProvider, prefs, {
     intervalMs: deps.statsIntervalMs,
     historySampleMs: deps.historySampleMs,
     db: deps.db,
@@ -154,7 +159,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   // Erst Insights anlegen, damit die App-Routen deine Starts und Stopps melden können.
   let onUserAction: ((id: string, action: 'start' | 'stop' | 'restart' | 'install') => void) | undefined;
-  if (deps.engine) registerAppRoutes(app, deps.engine, hub, (id, action) => onUserAction?.(id, action));
+  const appRoutes = deps.engine ? registerAppRoutes(app, deps.engine, hub, (id, action) => onUserAction?.(id, action)) : null;
   const services = registerServiceRoutes(app, { db: deps.db, prefs, events, engine: deps.engine, intervalMs: deps.checkIntervalMs });
   const internet = registerInternetRoutes(app, { db: deps.db, prefs, events, deps: deps.internet, intervalMs: deps.internetIntervalMs });
   const devices = registerDeviceRoutes(app, { db: deps.db, prefs, events, deps: deps.network ?? realScanDeps(deps.config.dataRoot), intervalMs: deps.scanIntervalMs });
@@ -163,11 +168,16 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const insightsStore = createInsightsStore(deps.db);
   // Offene Browser bekommen die Übersicht neu, sobald es KI-Texte, Vorfälle oder Hinweise gibt.
   let pushing = false;
+  // Letzte Übersicht für den Server-Monitor: der fragt alle 10 s, gebaut wird sie trotzdem nur bei Änderungen.
+  let lastStatus: StatusReport | null = null;
   const pushStatus = () => {
     if (pushing || hub.clientCount() === 0) return;
     pushing = true;
     void buildStatusReport(statusSources, insights)
-      .then((data) => hub.broadcast({ type: 'status', data }))
+      .then((data) => {
+        lastStatus = data;
+        hub.broadcast({ type: 'status', data });
+      })
       .catch((err: unknown) => app.log.warn({ err }, 'Statusübersicht konnte nicht verschickt werden'))
       .finally(() => (pushing = false));
   };
@@ -191,11 +201,38 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerStatusRoutes(app, { ...statusSources, insights });
   registerAiRoutes(app, { config: aiConfig, ai, onChange: pushStatus });
   registerDiagnoseRoutes(app, { stats: recentStats, services: services.list, prefs, engine: deps.engine, deps: deps.diagnose ?? realDiagnoseDeps });
+  let osRelease: string | null = null;
+  try {
+    osRelease = readFileSync('/etc/os-release', 'utf8');
+  } catch {
+    // Windows oder ohne os-release: dann steht dort die Plattform.
+  }
+  const osText = osLine(osRelease, process.platform);
   registerKioskRoutes(app, {
     kiosk,
     hub,
-    // TODO(Task 3): echter Snapshot.
-    snapshot: async () => ({}) as never,
+    snapshot: () =>
+      buildKioskSnapshot({
+        stats: recentStats,
+        details: system.details,
+        history: system.history,
+        internetLast: internet.last,
+        services: services.list,
+        apps: async () => (deps.engine ? deps.engine.list() : []),
+        usage: async () => (appRoutes ? appRoutes.usage() : ([] as AppUsage[])),
+        events: () => events.list(),
+        status: async () => (lastStatus ??= await buildStatusReport(statusSources, insights)),
+        prefs: () => {
+          const p = prefs.get();
+          return { thresholds: p.thresholds, liveIntervalSec: p.liveIntervalSec };
+        },
+        info: () => ({
+          hostname: os.hostname(),
+          os: osText,
+          ip: systemInfo(deps.config, 0).addresses[0]?.ip ?? null,
+          version: mainframeVersion(),
+        }),
+      }),
     requirePassword: (pw) => requireAdminPassword(deps.db, pw),
   });
   for (const p of deps.plugins ?? []) await p(app);

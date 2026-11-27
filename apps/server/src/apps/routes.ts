@@ -12,7 +12,7 @@ export function registerAppRoutes(
   engine: AppEngine,
   hub: WsHub,
   onUserAction?: (id: string, action: 'start' | 'stop' | 'restart' | 'install') => void,
-): void {
+): { usage: () => Promise<AppUsage[]> } {
   const announce = async (req: FastifyRequest) => {
     try {
       hub.broadcast({ type: 'apps', data: await engine.list() });
@@ -27,12 +27,15 @@ export function registerAppRoutes(
 
   // `docker stats` braucht pro Abfrage gut eine Sekunde: mehrere offene Fenster teilen sich eine Messung.
   let usage: { at: number; value: Promise<AppUsage[]> } | null = null;
-  app.get('/api/apps/usage', async () => {
+  const sharedUsage = () => {
     if (!usage || Date.now() - usage.at > 3000) {
       const value = engine.usage().catch(() => [] as AppUsage[]);
       usage = { at: Date.now(), value };
     }
     return usage.value;
+  };
+  app.get('/api/apps/usage', async () => {
+    return sharedUsage();
   });
 
   // Zugangsdaten (z. B. das von Mainframe erzeugte AdGuard-Passwort) – nur mit Session (Auth-Guard).
@@ -118,4 +121,5 @@ export function registerAppRoutes(
     for (const fn of subs.get(socket)?.values() ?? []) fn();
     subs.delete(socket);
   });
+  return { usage: sharedUsage };
 }

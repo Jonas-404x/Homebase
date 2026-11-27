@@ -322,6 +322,8 @@ export interface KioskSnapshot {
   internet: { online: boolean | null; ms: number | null };
   services: { up: number; total: number; down: { id: string; name: string; reason: string | null }[] };
   apps: InstalledApp[];
+  /** false, wenn Docker nicht rechtzeitig geantwortet hat (apps ist dann leer, aber nicht „keine Apps“) */
+  appsKnown: boolean;
   usage: AppUsage[];
   /** Neueste zuerst, höchstens 12 */
   events: MainframeEvent[];
