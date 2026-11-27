@@ -108,6 +108,25 @@ export function openDb(filePath: string): Db {
       UPDATE settings SET value = '4' WHERE key = 'schema_version';
     `);
   }
+  // Version 5: Verläufe für Muster und Nacht-Spitzen, Vorfälle, Hinweise und KI-Zwischenspeicher.
+  if (version < 5) {
+    migrate(`
+      CREATE TABLE IF NOT EXISTS app_events (at INTEGER NOT NULL, app_id TEXT NOT NULL, kind TEXT NOT NULL, detail TEXT);
+      CREATE INDEX IF NOT EXISTS app_events_at ON app_events (at);
+      CREATE TABLE IF NOT EXISTS app_usage (at INTEGER NOT NULL, app_id TEXT NOT NULL, cpu REAL NOT NULL, mem INTEGER NOT NULL, PRIMARY KEY (at, app_id));
+      CREATE TABLE IF NOT EXISTS disk_history (at INTEGER NOT NULL, mount TEXT NOT NULL, used INTEGER NOT NULL, total INTEGER NOT NULL, PRIMARY KEY (at, mount));
+      CREATE TABLE IF NOT EXISTS incidents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT NOT NULL, kind TEXT NOT NULL,
+        opened_at INTEGER NOT NULL, closed_at INTEGER, seen INTEGER NOT NULL DEFAULT 0, facts TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS hints (
+        id TEXT PRIMARY KEY, kind TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+        dismissed INTEGER NOT NULL DEFAULT 0, facts TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS ai_cache (scope TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, at INTEGER NOT NULL, json TEXT NOT NULL);
+      UPDATE settings SET value = '5' WHERE key = 'schema_version';
+    `);
+  }
   const addStat = db.prepare('INSERT OR REPLACE INTO stats_history (at, cpu, memory, rx, tx, temp) VALUES (?, ?, ?, ?, ?, ?)');
   const queryStat = db.prepare(`
     SELECT CAST((at - :from) * :n / :span AS INTEGER) AS b, AVG(at) AS at, AVG(cpu) AS cpu, AVG(memory) AS memory,

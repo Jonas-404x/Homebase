@@ -154,7 +154,9 @@ export type WsMessage =
   | { type: 'apps'; data: InstalledApp[] }
   | { type: 'log'; appId: string; line: string }
   | { type: 'prefs'; data: Prefs }
-  | { type: 'event'; data: MainframeEvent };
+  | { type: 'event'; data: MainframeEvent }
+  /** Neue KI-Texte, Vorfälle oder Hinweise: die ganze Statusübersicht noch mal. */
+  | { type: 'status'; data: StatusReport };
 
 export interface ApiError {
   code: string;
@@ -240,12 +242,50 @@ export interface StatusItem {
   to: string | null;
   /** App-ID für die Diagnose oder "system"; null = keine Diagnose */
   diagnose: string | null;
+  /** Woher der Eintrag kommt: feste Regel (Standard), Muster, Nacht-Spitze oder vorbeigegangener Vorfall */
+  source?: 'rule' | 'pattern' | 'night' | 'incident';
+  /** Text von der KI (✦), nur als reiner Text anzeigen; fehlt oder null = feste Texte zeigen */
+  ai?: { title: string; detail: string } | null;
+  /** Lässt sich wegklicken (POST /api/status/hints/:id/dismiss) */
+  dismissible?: boolean;
+}
+
+/** Ein wirklich wichtiger Vorfall, den du noch nicht gesehen hast (Pop-up). */
+export interface StatusIncident {
+  id: number;
+  kind: 'docker' | 'disk' | 'temperature' | 'adguard';
+  title: string;
+  detail: string;
+  /** Text von der KI; null = festen Text zeigen. Das Pop-up wartet nie darauf. */
+  ai: string | null;
+  openedAt: number;
+}
+
+/** Einstellungen → KI, wie der Browser sie sieht. Der Schlüssel selbst kommt nie mit. */
+export interface AiSettingsView {
+  /** Wirksam an (Schalter an und Schlüssel gesetzt) */
+  enabled: boolean;
+  /** Dein Schalter; null = nie geschaltet (dann an, sobald ein Schlüssel da ist) */
+  enabledSetting: boolean | null;
+  model: string;
+  sendLogs: boolean;
+  /** null = ohne Grenze */
+  dailyLimit: number | null;
+  hasKey: boolean;
+  usedToday: number;
+  lastOkAt: number | null;
+  lastError: string | null;
+  lastErrorAt: number | null;
 }
 
 export interface StatusReport {
   level: 'ok' | 'warn' | 'problem';
   summary: string;
   items: StatusItem[];
+  /** Kopfsatz von der KI, nur wenn etwas ansteht; sonst gilt summary */
+  aiSummary?: string | null;
+  /** Offene Vorfälle, die du noch nicht gesehen hast */
+  incidents?: StatusIncident[];
 }
 
 /** Was ein Knopf in der Diagnose tun kann. */
