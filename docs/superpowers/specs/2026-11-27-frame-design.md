@@ -430,6 +430,13 @@ when it is running. That only changes which encoder ffmpeg uses.
 - **Pairing a phone:** The admin reads the family code in Mainframe › Einstellungen › Frame and types
   it once on the TV. On the TV, "Handy verbinden" (on the profile picker) shows a QR code plus the
   code. A phone scans the QR code or types the code. Family members never need Mainframe.
+- **First start without profiles:** after the family code is entered on the TV and no profile
+  exists yet, the TV shows a large centered QR code ("Mit dem Handy loslegen") plus the code as
+  text. The phone scans it, gets paired and creates the first profile, which then appears on the
+  TV at once. As soon as one profile exists, the picker shows the profiles and the "Handy
+  verbinden" button at the bottom (styled as a normal, available button).
+- **Picker focus:** Down from a profile goes to "Handy verbinden", Up comes back to the same
+  profile.
 - **Profile picker greeting:** the heading is typed and deleted like someone typing, with an
   accent cursor `_`. The phrases are shuffled each time the picker opens, never start with the
   same phrase twice in a row, and stay about 7 s each. One phrase depends on the time of day.
