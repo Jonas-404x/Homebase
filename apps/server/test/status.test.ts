@@ -147,7 +147,8 @@ describe('/api/status', () => {
   it('antwortet auch dann zügig, wenn Docker hängt (Review Focus 1)', async () => {
     const never = () => new Promise<never>(() => {});
     const engine = { list: never, dockerStatus: never, usage: never } as unknown as AppEngine;
-    const server = await buildApp(testDeps({ checkIntervalMs: 0, engine }));
+    // Feste Messwerte: der Test prüft das hängende Docker, nicht wie schnell Windows misst.
+    const server = await buildApp(testDeps({ checkIntervalMs: 0, engine, statsProvider: async () => stats() }));
     const cookie = await setupAndLogin(server);
     const t = Date.now();
     const res = await server.inject({ method: 'GET', url: '/api/status', headers: { cookie } });
