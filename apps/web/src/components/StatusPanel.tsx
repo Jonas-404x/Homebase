@@ -59,7 +59,8 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
 
   // Ein Pop-up pro Vorfall: weggeklickte merken wir uns, bis der Server sie nicht mehr meldet.
   const [closedIncidents, setClosedIncidents] = useState<number[]>([]);
-  const incident: StatusIncident | undefined = report?.incidents?.find((i) => !closedIncidents.includes(i.id));
+  // Nie zwei Fenster übereinander: Während die Diagnose offen ist, wartet das Pop-up.
+  const incident: StatusIncident | undefined = diagnose ? undefined : report?.incidents?.find((i) => !closedIncidents.includes(i.id));
   const closeIncident = (id: number) => {
     setClosedIncidents((ids) => [...ids, id]);
     post(`/api/status/incidents/${id}/seen`).catch(() => {});
@@ -68,7 +69,12 @@ export function StatusPanel({ apps, refreshKey = 0 }: { apps: InstalledApp[] | n
   const [hiddenHints, setHiddenHints] = useState<string[]>([]);
   const dismiss = async (id: string) => {
     setHiddenHints((ids) => [...ids, id]);
-    await post(`/api/status/hints/${encodeURIComponent(id)}/dismiss`).catch(() => {});
+    try {
+      await post(`/api/status/hints/${encodeURIComponent(id)}/dismiss`);
+    } catch {
+      // Nicht geklappt: wieder zeigen, damit man es noch mal versuchen kann.
+      setHiddenHints((ids) => ids.filter((x) => x !== id));
+    }
     void load();
   };
 

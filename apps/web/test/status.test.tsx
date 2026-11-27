@@ -247,6 +247,18 @@ describe('KI-Hinweise in der Statusübersicht', () => {
     expect(calls.some((c) => c.method === 'POST' && c.path === '/api/status/hints/night%3Acpu/dismiss')).toBe(true);
   });
 
+  it('zeigt einen Hinweis wieder, wenn das Ausblenden nicht klappt (Review)', async () => {
+    mockApi({
+      'GET /api/status': () => ({ json: aiReport }),
+      'POST /api/status/hints/night%3Acpu/dismiss': () => ({ status: 500, json: { code: 'x', message: 'kaputt' } }),
+    });
+    renderAt(<StatusPanel apps={null} />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: '1 Hinweis' }));
+    await user.click(screen.getByRole('button', { name: 'Ausblenden' }));
+    expect(await screen.findByText('Nacht-Spitze')).toBeInTheDocument();
+  });
+
   it('zeigt einen wichtigen Vorfall als Pop-up und meldet ihn als gesehen', async () => {
     let seen = false;
     const withIncident: StatusReport = {
