@@ -16,6 +16,7 @@
 - **Network-wide ad blocking** with AdGuard Home, preconfigured out of the box
 - **Minecraft panel like a paid host** *(planned)*: players with skins, stats, live console with commands, troll buttons, world uploads, plugins, backups, plus a public address your friends can join via playit.gg
 - **Knows when something is wrong**: a status overview shows at a glance whether everything runs and what needs you, and a diagnose button explains in plain words why an app or the whole system has a problem and how to fix it
+- **Optional AI hints** (Google Gemini, free tier): a plain-language headline, a guess why an app keeps crashing, patterns like "restarts every night at 3" and what happened overnight; scrubbed of IPs and device names, capped per day, and without a key everything works as before
 - **CPU, RAM and disk per app**, so you see which app eats your server
 - **Windows app**: Mainframe in its own window with the logo in the taskbar (the phone keeps the web app)
 - **Command palette**: hit `Ctrl+K` and do anything in a second
