@@ -5,11 +5,23 @@
 #   sudo ./scripts/linux/mainframe-monitor.sh [--port 80] [--data /srv/mainframe]
 #
 # Run it again after "Neuen Schlüssel erzeugen" in Settings, or when the monitor shows
-# "[ AUTH ] schlüssel ungültig". It never prints the key.
+# "[ AUTH ] schlüssel ungültig". It never prints the key. --port and --data are remembered in
+# /etc/default/mainframe-monitor, so a later plain "sudo mainframe-monitor" uses them again.
 set -euo pipefail
 
+DEFAULTS=/etc/default/mainframe-monitor
 PORT=80
 DATA=/srv/mainframe
+
+# Saved options from an earlier run. Read line by line instead of sourcing the file.
+if [[ -r "$DEFAULTS" ]]; then
+  while IFS='=' read -r name value; do
+    case "$name" in
+      PORT) PORT="$value" ;;
+      DATA) DATA="$value" ;;
+    esac
+  done < "$DEFAULTS"
+fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -26,6 +38,10 @@ if [[ $EUID -ne 0 ]]; then
 fi
 if ! [[ "$PORT" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
   echo "Invalid port: $PORT" >&2
+  exit 2
+fi
+if [[ "$DATA" != /* || "$DATA" == *$'\n'* ]]; then
+  echo "Invalid data folder (must be an absolute path): $DATA" >&2
   exit 2
 fi
 
@@ -56,10 +72,15 @@ snap set chromium url="http://localhost:${PORT}/monitor#key=${KEY}" daemon=true
 unset KEY
 snap restart chromium
 
+# Remember the options for the next plain "sudo mainframe-monitor".
+printf 'PORT=%s\nDATA=%s\n' "$PORT" "$DATA" > "$DEFAULTS"
+chmod 644 "$DEFAULTS"
+
 # Make "sudo mainframe-monitor" work from anywhere (the hint on the monitor uses it).
+# A root-owned copy, not a link: root must never run a file another user can change.
 SELF="$(readlink -f "$0")"
 if [[ "$SELF" != /usr/local/bin/mainframe-monitor ]]; then
-  ln -sf "$SELF" /usr/local/bin/mainframe-monitor
+  install -o root -g root -m 755 "$SELF" /usr/local/bin/mainframe-monitor
 fi
 
 echo "==> Done. The monitor shows Mainframe now and after every boot."

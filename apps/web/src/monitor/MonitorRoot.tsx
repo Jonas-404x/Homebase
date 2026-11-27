@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createLiveSocket } from '../api/ws.ts';
 import { MonitorPage } from './MonitorPage.tsx';
 import { fetchKioskSnapshot, kioskLogin, kioskSocketUrl } from './kiosk.ts';
@@ -24,8 +24,12 @@ function Connected() {
   useEffect(() => () => socket.close(), [socket]);
   const fetchSnapshot = useCallback(() => fetchKioskSnapshot(), []);
   // Schlüssel ungültig: in einer Minute die Seite neu laden (der Kiosk-Browser startet mit dem aktuellen Link).
+  const retry = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onAuthLost = useCallback(() => {
-    setTimeout(() => location.reload(), AUTH_RETRY_MS);
+    retry.current ??= setTimeout(() => location.reload(), AUTH_RETRY_MS);
+  }, []);
+  useEffect(() => () => {
+    if (retry.current) clearTimeout(retry.current);
   }, []);
   return <MonitorPage socket={socket} fetchSnapshot={fetchSnapshot} onAuthLost={onAuthLost} />;
 }

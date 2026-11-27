@@ -25,7 +25,7 @@ The script:
 1. installs **Ubuntu Frame** (Canonical's display server for kiosks) and **Chromium** as snaps, if they are missing,
 2. makes both start at every boot and restart by themselves,
 3. points Chromium at `http://localhost:<port>/monitor#key=<key>`,
-4. links itself to `/usr/local/bin/mainframe-monitor`, so later `sudo mainframe-monitor` is enough.
+4. copies itself to `/usr/local/bin/mainframe-monitor` and remembers `--port`/`--data` in `/etc/default/mainframe-monitor`, so later a plain `sudo mainframe-monitor` is enough.
 
 It never prints the key. Expect roughly 150–300 MB RAM and a few percent CPU for the browser.
 

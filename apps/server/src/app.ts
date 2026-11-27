@@ -38,6 +38,7 @@ import { requireAdminPassword } from './auth/passwords.ts';
 import { registerKioskRoutes } from './kiosk/routes.ts';
 import { createKioskStore, type KioskStore } from './kiosk/store.ts';
 import { buildKioskSnapshot, osLine } from './kiosk/snapshot.ts';
+import { createStatusCache } from './kiosk/status.ts';
 import { mainframeVersion, systemInfo } from './system/info.ts';
 import { readFileSync } from 'node:fs';
 import os from 'node:os';
@@ -168,14 +169,14 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const insightsStore = createInsightsStore(deps.db);
   // Offene Browser bekommen die Übersicht neu, sobald es KI-Texte, Vorfälle oder Hinweise gibt.
   let pushing = false;
-  // Letzte Übersicht für den Server-Monitor: der fragt alle 10 s, gebaut wird sie trotzdem nur bei Änderungen.
-  let lastStatus: StatusReport | null = null;
+  // Letzte Übersicht für den Server-Monitor: der fragt alle 10 s, neu gebaut wird sie höchstens alle 30 s.
+  const kioskStatusCache = createStatusCache(() => buildStatusReport(statusSources, insights), 30_000);
   const pushStatus = () => {
     if (pushing || hub.clientCount() === 0) return;
     pushing = true;
     void buildStatusReport(statusSources, insights)
       .then((data) => {
-        lastStatus = data;
+        kioskStatusCache.set(data);
         hub.broadcast({ type: 'status', data });
       })
       .catch((err: unknown) => app.log.warn({ err }, 'Statusübersicht konnte nicht verschickt werden'))
@@ -221,7 +222,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         apps: async () => (deps.engine ? deps.engine.list() : []),
         usage: async () => (appRoutes ? appRoutes.usage() : ([] as AppUsage[])),
         events: () => events.list(),
-        status: async () => (lastStatus ??= await buildStatusReport(statusSources, insights)),
+        status: () => kioskStatusCache.get(),
         prefs: () => {
           const p = prefs.get();
           return { thresholds: p.thresholds, liveIntervalSec: p.liveIntervalSec };

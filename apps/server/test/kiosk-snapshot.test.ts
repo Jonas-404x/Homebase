@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { HistoryPoint, InstalledApp, MainframeEvent, ServiceStatus, StatusReport, SystemDetails, SystemStats } from '@mainframe/shared';
 import { buildKioskSnapshot, osLine, type KioskSources } from '../src/kiosk/snapshot.ts';
+import { createStatusCache, kioskStatus } from '../src/kiosk/status.ts';
 
 const stats: SystemStats = {
   cpu: { model: 'x', cores: 4, loadPercent: 23 },
@@ -110,5 +111,44 @@ describe('osLine', () => {
   });
   it('ohne os-release: Plattform', () => {
     expect(osLine(null, 'win32')).toBe('win32');
+  });
+});
+
+describe('kioskStatus', () => {
+  it('ohne KI-Texte und Vorfälle (die können aus App-Logs stammen)', () => {
+    const full: StatusReport = {
+      level: 'problem',
+      summary: 'Minecraft ist abgestürzt',
+      aiSummary: 'Log sagt: geheim',
+      items: [{ id: 'app:mc', level: 'problem', title: 'Minecraft', detail: 'exit 137', to: '/apps', diagnose: 'mc', ai: { title: 'KI', detail: 'aus dem Log' } }],
+      incidents: [{ id: 1, kind: 'docker', title: 'x', detail: 'y', ai: 'aus dem Log', openedAt: 1 }],
+    };
+    const k = kioskStatus(full);
+    expect(k).toEqual({ level: 'problem', summary: 'Minecraft ist abgestürzt', items: [{ id: 'app:mc', level: 'problem', title: 'Minecraft', detail: 'exit 137', to: '/apps', diagnose: 'mc' }] });
+    expect(JSON.stringify(k)).not.toMatch(/Log/);
+  });
+  it('Snapshot schickt nur die gekürzte Übersicht', async () => {
+    const s = await buildKioskSnapshot(sources({ status: async () => ({ ...status, aiSummary: 'KI-Satz' }) }));
+    expect(s.status).toEqual(status);
+  });
+});
+
+describe('createStatusCache', () => {
+  it('baut neu, wenn die letzte Übersicht älter als die Frist ist', async () => {
+    let now = 0;
+    let n = 0;
+    const cache = createStatusCache(async () => ({ ...status, summary: `v${++n}` }), 30_000, () => now);
+    expect((await cache.get()).summary).toBe('v1');
+    now = 10_000;
+    expect((await cache.get()).summary).toBe('v1');
+    now = 40_001;
+    expect((await cache.get()).summary).toBe('v2');
+  });
+  it('eine verschickte Übersicht gilt als frisch', async () => {
+    let now = 0;
+    const cache = createStatusCache(async () => ({ ...status, summary: 'gebaut' }), 30_000, () => now);
+    cache.set({ ...status, summary: 'gepusht' });
+    now = 5_000;
+    expect((await cache.get()).summary).toBe('gepusht');
   });
 });

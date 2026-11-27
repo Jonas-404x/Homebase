@@ -104,6 +104,8 @@ export function MonitorPage({ socket, fetchSnapshot, onAuthLost }: MonitorPagePr
   const [flash, setFlash] = useState<{ text: string; n: number } | null>(null);
   const detector = useRef(createFlashDetector());
   const seeded = useRef(false);
+  // Erst blitzen, wenn eine echte App-Liste da war (sonst blitzen alte Fehler, sobald Docker antwortet).
+  const [appsSeen, setAppsSeen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -118,7 +120,10 @@ export function MonitorPage({ socket, fetchSnapshot, onAuthLost }: MonitorPagePr
       setSnap(s);
       setLastData(Date.now());
       // Docker hat nicht geantwortet: die alte Liste behalten statt „keine Apps“ zu zeigen.
-      if (s.appsKnown) setApps(s.apps);
+      if (s.appsKnown) {
+        setApps(s.apps);
+        setAppsSeen(true);
+      }
       setStatus((old) => s.status ?? old);
       setEvents(s.events);
       if (!seeded.current) {
@@ -149,7 +154,10 @@ export function MonitorPage({ socket, fetchSnapshot, onAuthLost }: MonitorPagePr
     setCpuHist((h) => pushCapped(h, m.data.cpu.loadPercent));
     setRxHist((h) => pushCapped(h, m.data.network.rxBytesPerSec));
   }), [socket]);
-  useEffect(() => socket.on('apps', (m) => setApps(m.data)), [socket]);
+  useEffect(() => socket.on('apps', (m) => {
+    setApps(m.data);
+    setAppsSeen(true);
+  }), [socket]);
   useEffect(() => socket.on('status', (m) => setStatus(m.data)), [socket]);
   useEffect(() => socket.on('event', (m) => setEvents((list) => [m.data, ...list].slice(0, MAX_EVENTS))), [socket]);
 
@@ -173,14 +181,14 @@ export function MonitorPage({ socket, fetchSnapshot, onAuthLost }: MonitorPagePr
   const appList = apps ?? snap?.apps ?? [];
   const problems: Problem[] = useMemo(() => findProblems(appList, snap?.services.down ?? [], status), [appList, snap, status]);
 
-  // Neue Probleme: der ganze Bildschirm blitzt rot (erst, wenn der erste Snapshot da ist).
+  // Neue Probleme: der ganze Bildschirm blitzt rot (erst mit Snapshot und App-Liste; versteckt erst nach dem Zurückkommen).
   useEffect(() => {
-    if (!snap) return;
+    if (!snap || !appsSeen || !visible) return;
     const fresh = detector.current.next(problems, Date.now());
     if (!fresh) return;
     const text = `FEHLER · ${fresh[0]!.name}${fresh.length > 1 ? ` +${fresh.length - 1}` : ''}`;
     setFlash((f) => ({ text, n: (f?.n ?? 0) + 1 }));
-  }, [problems, snap]);
+  }, [problems, snap, appsSeen, visible]);
   useEffect(() => {
     if (!flash) return;
     const id = setTimeout(() => setFlash(null), FLASH_MS);

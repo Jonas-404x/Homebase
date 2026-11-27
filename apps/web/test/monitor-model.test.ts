@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { InstalledApp, StatusReport } from '@mainframe/shared';
-import { barCells, createFlashDetector, findProblems, fmtBytes, fmtRate, fmtUptime, levels, type Problem } from '../src/monitor/model.ts';
+import { DOCKER_DOWN_MESSAGE, type InstalledApp, type KioskSnapshot, type StatusReport, type SystemStats } from '@mainframe/shared';
+import { barCells, countWarnings, createFlashDetector, findProblems, fmtBytes, fmtRate, fmtUptime, levels, type Problem } from '../src/monitor/model.ts';
 
 const t = { memory: 90, disk: 90, temperature: 80 };
 const app = (id: string, over: Partial<InstalledApp> = {}): InstalledApp => ({
@@ -61,6 +61,19 @@ describe('findProblems', () => {
   it('gestoppte Apps sind kein Problem', () => {
     expect(findProblems([app('a', { state: 'stopped' })], [], null)).toEqual([]);
   });
+  it('Docker weg: ein Problem „Docker“ statt einer pro App', () => {
+    const down = { state: 'error' as const, error: DOCKER_DOWN_MESSAGE };
+    const list = findProblems([app('a', down), app('b', down)], [{ id: 'app:a', name: 'A', reason: null }, { id: 'router', name: 'Router', reason: null }], null);
+    expect(list.map((x) => x.key)).toEqual(['docker', 'service:router']);
+  });
+  it('Docker laut Übersicht weg: auch ohne App-Liste ein Problem „Docker“', () => {
+    const status: StatusReport = { level: 'problem', summary: 'x', items: [{ id: 'docker', level: 'problem', title: 'Docker läuft nicht', detail: '', to: null, diagnose: null }] };
+    expect(findProblems([], [], status).map((x) => x.key)).toEqual(['docker']);
+  });
+  it('App kaputt und ihr Dienst antwortet nicht: nur einmal', () => {
+    const list = findProblems([app('mc', { state: 'error' })], [{ id: 'app:mc', name: 'mc', reason: null }], null);
+    expect(list.map((x) => x.key)).toEqual(['app:mc']);
+  });
 });
 
 describe('createFlashDetector', () => {
@@ -90,6 +103,12 @@ describe('createFlashDetector', () => {
     f.next([], 200_000);
     expect(f.next([p('app:a')], 200_001)).toEqual([p('app:a')]);
   });
+  it('dasselbe Problem nach langer Pause (Seite versteckt): kein neuer Blitz', () => {
+    const f = createFlashDetector();
+    f.next([], 0);
+    f.next([p('app:a')], 1000);
+    expect(f.next([p('app:a')], 181_000)).toBeNull();
+  });
   it('der Ersatz-Schlüssel „status“ blitzt nie', () => {
     const f = createFlashDetector();
     f.next([], 0);
@@ -111,5 +130,24 @@ describe('Formate', () => {
   it('fmtRate in MB/s mit einer Nachkommastelle', () => {
     expect(fmtRate(2.4 * 1024 * 1024)).toBe('2.4');
     expect(fmtRate(0)).toBe('0.0');
+  });
+});
+
+describe('countWarnings', () => {
+  const live: SystemStats = {
+    cpu: { model: 'x', cores: 4, loadPercent: 10 },
+    memory: { totalBytes: 100, usedBytes: 95 },
+    disks: [{ mount: '/', totalBytes: 100, usedBytes: 95 }],
+    temperatureC: 85,
+    uptimeSeconds: 1,
+    network: { rxBytesPerSec: 0, txBytesPerSec: 0 },
+  };
+  const warn = (id: string) => ({ id, level: 'warn' as const, title: id, detail: '', to: null, diagnose: null });
+  const snap = (items: StatusReport['items']) => ({ thresholds: t, stats: live, status: { level: 'warn', summary: '', items } }) as unknown as KioskSnapshot;
+  it('zählt einen Wert über der Grenze nicht doppelt, wenn die Übersicht ihn schon meldet', () => {
+    expect(countWarnings(snap([warn('memory'), warn('disk:/'), warn('temperature')]), live)).toBe(3);
+  });
+  it('ohne Übersicht-Eintrag zählt der Live-Wert', () => {
+    expect(countWarnings(snap([]), live)).toBe(3);
   });
 });

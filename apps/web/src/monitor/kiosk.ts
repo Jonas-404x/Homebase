@@ -7,14 +7,16 @@ import type { KioskSnapshot } from '@mainframe/shared';
 export async function kioskLogin(hash: string, fetchFn: typeof fetch = fetch): Promise<'ok' | 'invalid' | 'none'> {
   const key = new URLSearchParams(hash.replace(/^#/, '')).get('key');
   if (!key) return 'none';
-  history.replaceState(null, '', '/monitor');
   const res = await fetchFn('/api/kiosk/session', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ key }),
     credentials: 'same-origin',
   });
-  return res.status === 204 ? 'ok' : 'invalid';
+  if (res.status !== 204) return 'invalid';
+  // Erst nach dem Anmelden entfernen: ist der Server beim Start noch nicht da, braucht das Neuladen den Schlüssel.
+  history.replaceState(null, '', '/monitor');
+  return 'ok';
 }
 
 export async function fetchKioskSnapshot(fetchFn: typeof fetch = fetch): Promise<KioskSnapshot | 'unauthorized'> {

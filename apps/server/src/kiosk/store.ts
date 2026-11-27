@@ -57,7 +57,11 @@ export function createKioskStore(db: Db, dataRoot: string, log: (msg: string) =>
       try {
         prune.run(Date.now() - maxAgeMs);
         const key = readKey();
-        if (key && db.getSetting(HASH_SETTING) === sha256(key)) return;
+        if (key && db.getSetting(HASH_SETTING) === sha256(key)) {
+          // Zurückgespielt oder kopiert mit 0644? Nur root darf den Schlüssel lesen.
+          chmodSync(file, 0o600);
+          return;
+        }
         writeKey();
       } catch (err) {
         // Ohne Schlüssel-Datei startet Mainframe trotzdem, nur der Monitor kommt nicht rein.

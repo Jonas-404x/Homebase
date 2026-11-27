@@ -12,6 +12,7 @@ export function MonitorKeyRow() {
   const [asking, setAsking] = useState(false);
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   async function rotate(password: string) {
     const res = await api<{ url: string }>('/api/kiosk/rotate', { method: 'POST', body: JSON.stringify({ password }) });
@@ -23,14 +24,18 @@ export function MonitorKeyRow() {
     try {
       await navigator.clipboard.writeText(link);
       setCopied(true);
+      setCopyFailed(false);
     } catch {
+      // Ohne https gibt es oft keine Zwischenablage.
       setCopied(false);
+      setCopyFailed(true);
     }
   }
 
   const close = () => {
     setLink(null);
     setCopied(false);
+    setCopyFailed(false);
   };
 
   return (
@@ -51,6 +56,11 @@ export function MonitorKeyRow() {
             <p className="secondary">Gilt ab sofort. Am Server danach: sudo mainframe-monitor</p>
             <code className="mono monitor-link">{link}</code>
             <p className="hint">Wird nicht noch einmal angezeigt. Nicht weitergeben: wer den Link hat, kann zuschauen.</p>
+            {copyFailed && (
+              <p className="hint" role="status">
+                Kopieren geht hier nicht. Link markieren und kopieren.
+              </p>
+            )}
             <div className="dialog-actions">
               <button type="button" className="button" onClick={() => void copy()}>
                 {copied ? 'Kopiert' : 'Kopieren'}

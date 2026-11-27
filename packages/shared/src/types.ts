@@ -334,3 +334,6 @@ export interface KioskSnapshot {
   thresholds: { memory: number; disk: number; temperature: number };
   liveIntervalSec: number;
 }
+
+/** Fehlertext jeder App, solange Docker nicht antwortet. */
+export const DOCKER_DOWN_MESSAGE = 'Docker läuft gerade nicht oder startet noch. Mainframe prüft das alle paar Sekunden von selbst.';

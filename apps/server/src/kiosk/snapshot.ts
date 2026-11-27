@@ -1,6 +1,7 @@
 import type { AppUsage, InstalledApp, KioskSnapshot, MainframeEvent, ServiceStatus, StatusReport, SystemDetails, SystemStats } from '@mainframe/shared';
 import type { History } from '../system/history.ts';
 import { within } from '../util/within.ts';
+import { kioskStatus } from './status.ts';
 
 /** Höchstens so lange wartet der Snapshot auf eine Quelle (z. B. ein hängendes Docker). */
 const SOURCE_TIMEOUT_MS = 4000;
@@ -69,7 +70,7 @@ export async function buildKioskSnapshot(src: KioskSources, timeoutMs = SOURCE_T
     usage,
     events: src.events().slice(0, MAX_EVENTS),
     history: { cpu: recent.map((p) => p.cpu), rx: recent.map((p) => p.rx) },
-    status,
+    status: status ? kioskStatus(status) : null,
     thresholds,
     liveIntervalSec,
   };

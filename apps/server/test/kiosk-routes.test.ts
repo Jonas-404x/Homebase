@@ -144,16 +144,21 @@ describe('Kiosk-WebSocket', () => {
     const cookie = await kioskLogin(app, key);
     const ws = await app.injectWS('/api/kiosk/ws', { headers: { cookie } });
     const types = new Set<string>();
-    ws.on('message', (raw) => types.add(JSON.parse(String(raw)).type));
+    const raws: string[] = [];
+    ws.on('message', (raw) => {
+      raws.push(String(raw));
+      types.add(JSON.parse(String(raw)).type);
+    });
     ws.send(JSON.stringify({ type: 'subscribe-logs', appId: 'x' }));
     app.hub.broadcast({ type: 'prefs', data: app.prefs.get() });
     app.hub.broadcast({ type: 'log', appId: 'x', line: 'geheim' });
-    app.hub.broadcast({ type: 'status', data: { level: 'ok', summary: 'ok', items: [] } });
+    app.hub.broadcast({ type: 'status', data: { level: 'ok', summary: 'ok', aiSummary: 'KI aus dem Log', items: [] } });
     await new Promise((r) => setTimeout(r, 120));
     expect(types.has('stats')).toBe(true);
     expect(types.has('status')).toBe(true);
     expect(types.has('prefs')).toBe(false);
     expect(types.has('log')).toBe(false);
+    expect(raws.join(' ')).not.toMatch(/KI aus dem Log|geheim/);
     expect(followed).toBe(0);
     expect(app.hub.adminCount()).toBe(0);
     expect(app.hub.clientCount()).toBe(1);

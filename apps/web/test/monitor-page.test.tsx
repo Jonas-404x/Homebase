@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { InstalledApp, KioskSnapshot, SystemStats } from '@mainframe/shared';
+import { DOCKER_DOWN_MESSAGE, type InstalledApp, type KioskSnapshot, type SystemStats } from '@mainframe/shared';
 import { MonitorPage } from '../src/monitor/MonitorPage.tsx';
 import { kioskLogin } from '../src/monitor/kiosk.ts';
 import { fakeSocket } from './fake-socket.ts';
@@ -96,6 +96,20 @@ describe('MonitorPage', () => {
     expect(screen.getByTestId('flash')).not.toHaveClass('go');
   });
 
+  it('erste App-Liste kommt erst nach dem Laden (Docker war langsam): alte Fehler blitzen nicht', async () => {
+    const { socket } = await mount(snapshot({ apps: [], appsKnown: false }));
+    act(() => socket.emit({ type: 'apps', data: [app('minecraft', { state: 'error' })] }));
+    expect(screen.getByText('[ FAIL ]')).toBeInTheDocument();
+    expect(screen.getByTestId('flash')).not.toHaveClass('go');
+  });
+
+  it('Docker weg: ein Blitz „Docker“, nicht einer pro App', async () => {
+    const { socket } = await mount();
+    const down = { state: 'error' as const, error: DOCKER_DOWN_MESSAGE };
+    act(() => socket.emit({ type: 'apps', data: [app('adguard', down), app('minecraft', down)] }));
+    expect(screen.getByTestId('flash')).toHaveTextContent(/^FEHLER · Docker$/);
+  });
+
   it('zwei neue Probleme auf einmal: „+1“', async () => {
     const { socket } = await mount();
     act(() => socket.emit({ type: 'apps', data: [app('a', { state: 'error' }), app('b', { state: 'error' })] }));
@@ -155,6 +169,15 @@ describe('kioskLogin', () => {
   it('falscher Schlüssel: invalid', async () => {
     const fetchFn = vi.fn(async () => new Response('{}', { status: 401 }));
     expect(await kioskLogin('#key=x', fetchFn as unknown as typeof fetch)).toBe('invalid');
+  });
+  it('Server noch nicht da: Schlüssel bleibt in der Adresse für den nächsten Versuch', async () => {
+    const replace = vi.spyOn(history, 'replaceState');
+    replace.mockClear();
+    const fetchFn = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    await expect(kioskLogin('#key=x', fetchFn as unknown as typeof fetch)).rejects.toThrow();
+    expect(replace).not.toHaveBeenCalled();
   });
   it('ohne Fragment: keine Anfrage', async () => {
     const fetchFn = vi.fn();

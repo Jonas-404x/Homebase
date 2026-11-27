@@ -1,5 +1,6 @@
 import type { WebSocket } from 'ws';
 import type { WsMessage } from '@mainframe/shared';
+import { kioskStatus } from '../kiosk/status.ts';
 
 /** Was ein Server-Monitor (nur anschauen) bekommt. Einstellungen und App-Logs nie. */
 const KIOSK_TYPES = new Set<WsMessage['type']>(['stats', 'apps', 'status', 'event']);
@@ -57,11 +58,12 @@ export function createWsHub(): WsHub {
     },
     broadcast(msg) {
       const data = JSON.stringify(msg);
-      const forKiosk = KIOSK_TYPES.has(msg.type);
+      // Monitore bekommen die Übersicht ohne KI-Texte (siehe kioskStatus).
+      const kioskData = !KIOSK_TYPES.has(msg.type) ? null : msg.type === 'status' ? JSON.stringify({ type: 'status', data: kioskStatus(msg.data) }) : data;
       for (const c of clients) {
         if (c.readyState !== c.OPEN) continue;
-        if (kiosks.has(c) && !forKiosk) continue;
-        c.send(data);
+        if (!kiosks.has(c)) c.send(data);
+        else if (kioskData) c.send(kioskData);
       }
     },
     clientCount: () => clients.size,

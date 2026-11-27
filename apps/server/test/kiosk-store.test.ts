@@ -28,6 +28,16 @@ describe('Kiosk-Schlüssel', () => {
     if (process.platform !== 'win32') expect(statSync(keyFilePath(dir)).mode & 0o777).toBe(0o600);
   });
 
+  it.skipIf(process.platform === 'win32')('zieht zu lockere Rechte einer vorhandenen Schlüssel-Datei wieder auf 0600', () => {
+    const dir = tempDir();
+    const db = openDb(':memory:');
+    const store = createKioskStore(db, dir);
+    store.ensureKey();
+    chmodSync(keyFilePath(dir), 0o644);
+    store.ensureKey();
+    expect(statSync(keyFilePath(dir)).mode & 0o777).toBe(0o600);
+  });
+
   it('behält den Schlüssel beim nächsten Start', () => {
     const dir = tempDir();
     const db = openDb(':memory:');
