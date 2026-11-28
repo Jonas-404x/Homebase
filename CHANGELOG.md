@@ -4,7 +4,7 @@
 
 ### Network share (server move, part 1)
 
-- **The server's disk in the Windows Explorer**: Settings › Netzwerk › Netzwerkfreigabe shares one folder, `/mnt/hdd/Mainframe`, as `\<server>\Mainframe`. Your other folders on the disk stay invisible
+- **The server's disk in the Windows Explorer**: Settings › Netzwerk › Netzwerkfreigabe shares one folder, `/mnt/hdd/Mainframe`, as `\\<server>\Mainframe`. Your other folders on the disk stay invisible
 - **Switched on with a small wizard** and its own share password (only handed to Samba, never stored or logged); the done screen shows the `net use M: …` command for the PC. Changing the password uses the same wizard
 - **Hard to switch off by accident**: turning it off asks for your Mainframe password (and the 2FA code if on). Files stay on the disk
 - **Safe defaults**: own `mainframe-share` account without login or sudo, SMB 3 only, no guests, only the LAN subnet and Tailscale, no connection while the disk is not mounted, symlinks not followed
