@@ -1,0 +1,198 @@
+/* ---------- Minecraft-Tab ---------- */
+
+.mc-setup {
+  max-width: 640px;
+}
+.mc-setup h2 {
+  margin: 0 0 var(--space-1);
+}
+.mc-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-3);
+}
+
+/* Paper/Fabric als zwei Auswahlkarten (bewusst kein Segment-Schalter) */
+.mc-types {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-3);
+}
+.mc-types legend {
+  margin-bottom: var(--space-2);
+}
+.mc-type {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: var(--radius-m);
+  border: 1px solid var(--separator);
+  background: var(--surface-sunken);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-press) var(--ease-out),
+    background-color var(--dur-press) var(--ease-out),
+    scale var(--dur-press) var(--ease-out);
+}
+.mc-type:active {
+  scale: 0.98;
+}
+.mc-type[data-selected='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.mc-type input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.mc-type:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.check-top {
+  align-items: flex-start;
+}
+.check-top input {
+  margin-top: 2px;
+}
+.hint.block {
+  display: block;
+}
+.notice-warn {
+  background: var(--warn-soft);
+}
+.notice-warn p {
+  margin: 0;
+}
+
+/* Verbinden */
+.mc-connect {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+}
+.mc-connect-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.mc-address {
+  font-size: var(--text-figure);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+.mc-connect-note {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* Konsole */
+.mc-console h2 {
+  margin: 0;
+}
+.mc-console .log {
+  height: min(50dvh, 440px);
+}
+.mc-command {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-left: var(--space-3);
+  border-radius: var(--radius-s);
+  border: 1px solid var(--separator);
+  background: var(--surface-sunken);
+}
+.mc-command:focus-within {
+  border-color: var(--accent);
+}
+.mc-prompt {
+  color: var(--text-secondary);
+}
+.mc-command input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-small);
+  outline: none;
+}
+.mc-command .button {
+  border: 0;
+  background: transparent;
+}
+
+/* Mods */
+.mc-drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-radius: var(--radius-m);
+  border: 1.5px dashed var(--separator);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  text-align: center;
+  transition:
+    border-color var(--dur-press) var(--ease-out),
+    background-color var(--dur-press) var(--ease-out);
+}
+.mc-drop[data-over='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.mc-restart-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-radius: var(--radius-m);
+  background: var(--warn-soft);
+  font-size: var(--text-small);
+}
+.mc-mods {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mc-mods li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+}
+.mc-mods li + li {
+  border-top: 1px solid var(--separator);
+}
+.mc-mod-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-type,
+  .mc-drop {
+    transition: none;
+  }
+  .mc-type:active {
+    scale: none;
+  }
+}

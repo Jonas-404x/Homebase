@@ -64,7 +64,7 @@ describe('Startseite und alte Adressen', () => {
     expect(await screen.findByRole('heading', { name: 'Apps', level: 1 })).toBeInTheDocument();
   });
 
-  it('zeigt unter /minecraft, dass der Minecraft-Server mit einem späteren Update kommt', async () => {
+  it('zeigt unter /minecraft das Einrichten des Servers', async () => {
     window.history.replaceState(null, '', '/minecraft');
     mockApi({
       'GET /api/auth/state': () => ({ json: { setupDone: true, loggedIn: true, username: 'jonas' } }),
@@ -73,8 +73,7 @@ describe('Startseite und alte Adressen', () => {
     });
     render(<App socketFactory={noSocket} />);
     expect(await screen.findByRole('heading', { name: 'Minecraft', level: 1 })).toBeInTheDocument();
-    expect(screen.getByText('Kommt bald')).toBeInTheDocument();
-    expect(screen.getByText(/Live-Konsole/)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Server einrichten' })).toBeDisabled();
   });
 
   it('leitet unbekannte Adressen zur Übersicht um', async () => {
