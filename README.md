@@ -19,6 +19,7 @@
 - **Optional AI hints** (Google Gemini, free tier): a plain-language headline, a guess why an app keeps crashing, patterns like "restarts every night at 3" and what happened overnight; scrubbed of IPs and device names, capped per day, and without a key everything works as before
 - **CPU, RAM and disk per app**, so you see which app eats your server
 - **Windows app**: Mainframe in its own window with the logo in the taskbar (the phone keeps the web app)
+- **Network share**: one folder of the server's disk as a drive in the Windows Explorer, switched on with a wizard ([setup](docs/network-share.md))
 - **Server monitor**: a screen on the server shows a full-screen terminal-style status view that flashes red when something breaks, watch only ([setup](docs/server-monitor.md))
 - **Command palette**: hit `Ctrl+K` and do anything in a second
 - **Built for a small box**: the whole thing is tuned to run next to a Minecraft server on an 8 GB machine

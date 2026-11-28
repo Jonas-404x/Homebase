@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Network share (server move, part 1)
+
+- **The server's disk in the Windows Explorer**: Settings › Netzwerk › Netzwerkfreigabe shares one folder, `/mnt/hdd/Mainframe`, as `\<server>\Mainframe`. Your other folders on the disk stay invisible
+- **Switched on with a small wizard** and its own share password (only handed to Samba, never stored or logged); the done screen shows the `net use M: …` command for the PC. Changing the password uses the same wizard
+- **Hard to switch off by accident**: turning it off asks for your Mainframe password (and the 2FA code if on). Files stay on the disk
+- **Safe defaults**: own `mainframe-share` account without login or sudo, SMB 3 only, no guests, only the LAN subnet and Tailscale, no connection while the disk is not mounted, symlinks not followed
+- **New `scripts/linux/setup-server.sh`** (first step: Samba). See `docs/network-share.md`
+
 ### Server monitor (screen on the server)
 
 - **New full-screen view `/monitor`** for a screen plugged into the server: terminal look on pure black, htop-style boxes with character bars for CPU (total and per core), RAM, temperature and disks, a `docker ps`-like app table with live LEDs, network with sparkline, internet status and a journal-like log. The clock is white, everything else green, orange and red
