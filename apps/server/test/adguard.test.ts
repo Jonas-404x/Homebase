@@ -96,6 +96,9 @@ describe('AdGuard-Routen', () => {
       dockerStatus: async () => ({ ok: true, message: null }),
     usage: async () => [],
     inspect: async () => ({ containers: [], logs: [] }),
+    reconfigure: async () => { throw new Error('nicht im Test'); },
+    exec: async () => '',
+    appDataDir: (id: string) => id,
     };
   }
 

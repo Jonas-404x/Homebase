@@ -6,6 +6,7 @@ import type { ComposeRunner } from '../src/apps/compose-runner.ts';
 import type { AppInspect, DockerStatus } from '../src/apps/docker-status.ts';
 import type { DfLike } from '../src/apps/usage.ts';
 import { createAppEngine, DOCKER_DOWN_MESSAGE } from '../src/apps/engine.ts';
+import { MainframeError } from '../src/errors.ts';
 import { createStateStore } from '../src/apps/state-store.ts';
 import { loadCatalog } from '../src/catalog/loader.ts';
 import { testConfig } from './helpers.ts';
@@ -15,8 +16,9 @@ const fixtures = path.join(import.meta.dirname, 'fixtures', 'catalog');
 class FakeCompose implements ComposeRunner {
   calls: string[] = [];
   failUp: string | null = null;
-  async up(dir: string) {
-    this.calls.push(`up ${path.basename(dir)}`);
+  execOut = 'ok';
+  async up(dir: string, opts?: { noStart?: boolean }) {
+    this.calls.push(`up ${path.basename(dir)}${opts?.noStart ? ' --no-start' : ''}`);
     if (this.failUp) {
       const msg = this.failUp;
       this.failUp = null;
@@ -29,6 +31,10 @@ class FakeCompose implements ComposeRunner {
   async start(dir: string) { this.calls.push(`start ${path.basename(dir)}`); }
   async stop(dir: string) { this.calls.push(`stop ${path.basename(dir)}`); }
   async restart(dir: string) { this.calls.push(`restart ${path.basename(dir)}`); }
+  async exec(dir: string, service: string, args: string[]) {
+    this.calls.push(`exec ${path.basename(dir)} ${service} ${args.join(' ')}`);
+    return this.execOut;
+  }
 }
 
 class FakeDocker implements DockerStatus {
@@ -310,5 +316,73 @@ describe('AppEngine.catalog', () => {
     expect((await engine.inspect('demo')).containers[0]).toMatchObject({ restartCount: 3, exitCode: 1 });
     expect(docker.inspected).toEqual(['demo']);
     await expect(engine.inspect('fremd')).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('formt Werte im prepare-Hook vor dem Rendern um', async () => {
+    const { engine } = await make();
+    const seen: (Record<string, string> | null)[] = [];
+    engine.hooks.set('demo', {
+      prepare: async (v, ctx) => {
+        seen.push(ctx.previous);
+        return { ...v, greeting: v.greeting!.toUpperCase() };
+      },
+    });
+    await engine.install('demo', { greeting: 'hi' });
+    expect(fs.readFileSync(path.join(dataRoot, 'apps', 'demo', 'docker-compose.yml'), 'utf8')).toContain('GREETING: HI');
+    expect(seen).toEqual([null]);
+  });
+
+  it('legt bei einem prepare-Fehler keinen Ordner an', async () => {
+    const { engine, compose } = await make();
+    engine.hooks.set('demo', { prepare: async () => { throw new MainframeError('invalid_input', 'Falsch.'); } });
+    await expect(engine.install('demo', { greeting: 'hi' })).rejects.toMatchObject({ code: 'invalid_input' });
+    expect(fs.existsSync(path.join(dataRoot, 'apps', 'demo'))).toBe(false);
+    expect(compose.calls).toEqual([]);
+  });
+
+  it('übernimmt beim Ändern neue Werte und behält die alten', async () => {
+    const { engine, compose } = await make();
+    const seen: (Record<string, string> | null)[] = [];
+    engine.hooks.set('demo', { prepare: async (v, ctx) => { seen.push(ctx.previous); return v; } });
+    await engine.install('demo', { greeting: 'hi' });
+    const before = JSON.parse(fs.readFileSync(path.join(dataRoot, 'apps', 'demo', 'app-state.json'), 'utf8'));
+    await engine.reconfigure('demo', { greeting: 'neu' });
+    const after = JSON.parse(fs.readFileSync(path.join(dataRoot, 'apps', 'demo', 'app-state.json'), 'utf8'));
+    expect(after.values).toEqual({ ...before.values, greeting: 'neu' });
+    expect(after.installedAt).toBe(before.installedAt);
+    expect(seen[1]?.greeting).toBe('hi');
+    expect(fs.readFileSync(path.join(dataRoot, 'apps', 'demo', 'docker-compose.yml'), 'utf8')).toContain('GREETING: neu');
+    expect(compose.calls.at(-1)).toBe('up demo');
+  });
+
+  it('lässt einen selbst angehaltenen Server beim Ändern aus', async () => {
+    const { engine, compose } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    await engine.stop('demo');
+    await engine.reconfigure('demo', { greeting: 'neu' });
+    expect(compose.calls.at(-1)).toBe('up demo --no-start');
+    const s = JSON.parse(fs.readFileSync(path.join(dataRoot, 'apps', 'demo', 'app-state.json'), 'utf8'));
+    expect(s.stoppedByUser).toBe(true);
+  });
+
+  it('rollt beim Ändern zurück, wenn der Start scheitert', async () => {
+    const { engine, compose } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    const yml = fs.readFileSync(path.join(dataRoot, 'apps', 'demo', 'docker-compose.yml'), 'utf8');
+    compose.failUp = 'kaputt';
+    await expect(engine.reconfigure('demo', { greeting: 'neu' })).rejects.toMatchObject({ code: 'action_failed' });
+    expect(fs.readFileSync(path.join(dataRoot, 'apps', 'demo', 'docker-compose.yml'), 'utf8')).toBe(yml);
+    const s = JSON.parse(fs.readFileSync(path.join(dataRoot, 'apps', 'demo', 'app-state.json'), 'utf8'));
+    expect(s.values.greeting).toBe('hi');
+    expect(compose.calls.slice(-2)).toEqual(['up demo', 'up demo']);
+  });
+
+  it('führt Befehle im Container aus und gibt die Ausgabe zurück', async () => {
+    const { engine, compose } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    expect(await engine.exec('demo', 'web', ['echo', 'a'])).toBe('ok');
+    expect(compose.calls.at(-1)).toBe('exec demo web echo a');
+    expect(engine.appDataDir('demo')).toBe(path.join(dataRoot, 'apps', 'demo', 'data'));
+    await expect(engine.exec('fremd', 'web', [])).rejects.toMatchObject({ status: 404 });
   });
 });

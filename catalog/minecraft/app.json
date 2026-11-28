@@ -1,0 +1,18 @@
+{
+  "id": "minecraft",
+  "name": "Minecraft",
+  "description": "Dein eigener Java-Server mit Paper oder Fabric, Live-Konsole und Mods. Eingerichtet wird er im Minecraft-Tab.",
+  "icon": "pickaxe",
+  "fields": [
+    { "key": "serverType", "label": "Server-Typ", "type": "string", "required": true, "default": "FABRIC" },
+    { "key": "version", "label": "Version", "type": "string", "required": true, "default": "26.3" },
+    { "key": "memory", "label": "RAM", "type": "string", "required": true, "default": "4G" },
+    { "key": "perfMods", "label": "Spar-Mods", "type": "boolean", "required": false, "default": true },
+    { "key": "eula", "label": "Minecraft-EULA akzeptiert", "type": "boolean", "required": true, "default": false },
+    { "key": "rconPassword", "label": "RCON-Passwort", "type": "secret", "required": false, "generate": "password" },
+    { "key": "modrinthProjects", "label": "Mods von Modrinth", "type": "string", "required": false, "default": "" }
+  ],
+  "ports": [
+    { "key": "game", "label": "Spiel-Port", "container": 25565, "protocol": "tcp", "default": 25565, "devDefault": 25565 }
+  ]
+}

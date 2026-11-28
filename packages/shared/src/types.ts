@@ -348,8 +348,28 @@ export interface ShareStatus {
   diskMounted: boolean;
   path: string;
   user: string;
-  /** z. B. \192.168.1.23\Mainframe */
+  /** z. B. \\192.168.1.23\Mainframe */
   unc: string | null;
   freeBytes: number | null;
   totalBytes: number | null;
+}
+
+/** Minecraft-Server (Teil 5): was der Minecraft-Tab anzeigt. */
+export interface MinecraftInfo {
+  /** "<LAN-IP>:<Port>" im Heimnetz; null, wenn keine Adresse gefunden wurde. */
+  address: string | null;
+  port: number;
+  serverType: 'PAPER' | 'FABRIC';
+  version: string;
+  memory: string;
+  perfMods: boolean;
+  /** Spar-Mods, die es für diese Version (noch) nicht gibt. */
+  skippedMods: string[];
+  /** Ordner für eigene .jar-Dateien: Fabric "mods", Paper "plugins". */
+  modDir: 'mods' | 'plugins';
+}
+
+export interface MinecraftMod {
+  name: string;
+  size: number;
 }

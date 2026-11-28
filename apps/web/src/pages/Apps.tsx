@@ -1,5 +1,6 @@
 import { CircleAlert, CircleCheck, CircleDot, CirclePause, ExternalLink, KeyRound, LoaderCircle, Play, RotateCw, ScrollText, Square, Stethoscope, Trash2, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { defaultPrefs, type AppState, type AppUsage, type CatalogApp, type InstalledApp } from '@mainframe/shared';
 import { api, errorText, post } from '../api/client.ts';
 import { usePrefs } from '../api/prefs.tsx';
@@ -62,7 +63,8 @@ export function Apps() {
   const installedIds = new Set((apps ?? []).map((a) => a.id));
   const available = catalog.filter((c) => !installedIds.has(c.id));
   const iconOf = (id: string) => catalog.find((c) => c.id === id)?.icon ?? 'box';
-  const hasFields = (id: string) => (catalog.find((c) => c.id === id)?.fields.length ?? 0) > 0;
+  // Minecraft-Felder sind Einstellungen, keine Zugangsdaten.
+  const hasFields = (id: string) => id !== 'minecraft' && (catalog.find((c) => c.id === id)?.fields.length ?? 0) > 0;
 
   async function act(app: InstalledApp, action: 'start' | 'stop' | 'restart') {
     setBusy(`${app.id}:${action}`);
@@ -151,9 +153,16 @@ export function Apps() {
               <AppIcon name={c.icon} size={28} />
               <strong>{c.name}</strong>
               <p className="secondary">{c.description}</p>
-              <button type="button" className="button" aria-label={`${c.name} installieren`} onClick={() => setInstalling(c)}>
-                Installieren
-              </button>
+              {c.id === 'minecraft' ? (
+                // Minecraft hat ein eigenes Einrichten (Typ, Version, EULA) im Minecraft-Tab.
+                <Link className="button" to="/minecraft" aria-label={`${c.name} einrichten`}>
+                  Einrichten
+                </Link>
+              ) : (
+                <button type="button" className="button" aria-label={`${c.name} installieren`} onClick={() => setInstalling(c)}>
+                  Installieren
+                </button>
+              )}
             </div>
           ))}
         </div>

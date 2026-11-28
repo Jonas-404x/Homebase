@@ -8,7 +8,9 @@ export function mockApi(routes: Record<string, Handler>) {
   const fn = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
     const method = (init?.method ?? 'GET').toUpperCase();
-    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+    let body: unknown = init?.body;
+    // JSON-Bodies auslesen, Dateien (Uploads) unverändert lassen.
+    if (typeof body === 'string') body = JSON.parse(body);
     const key = `${method} ${url.pathname}${url.search}`;
     calls.push({ method, path: `${url.pathname}${url.search}`, body });
     const h = routes[key] ?? routes[`${method} ${url.pathname}`];
