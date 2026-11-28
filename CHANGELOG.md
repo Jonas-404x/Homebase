@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Minecraft server, part 1 (setup, console, mods)
+
+- **The Minecraft tab is now a real server panel.** Set up a Java server with **Fabric or Paper**, pick the version (list of all releases from Mojang, newest preselected), RAM (2–6 GB, default 4 GB) and tick the Minecraft EULA yourself. Runs as the catalog app `minecraft` with `itzg/minecraft-server`, so start/stop, crash detection, status, diagnose and the server monitor work like for every other app
+- **Perf mods with one tick** (Fabric): Fabric API, Lithium, FerriteCore and Krypton are downloaded from Modrinth by the image. Mainframe first checks which of them exist for the chosen version and shows the ones that are missing
+- **Live console**: the server log in real time and a command line (`rcon-cli` inside the container, the RCON port is never published), command history with arrow up/down
+- **Own mods and plugins**: drag `.jar` files onto the card or pick them, see the list and delete them; a hint offers a restart because changes need one. Only plain `.jar` names are accepted, never a path
+- **Change settings later**: type, version, RAM and perf mods; the container is recreated and the world stays. Older versions are not offered and are rejected by the server, a server you stopped stays stopped
+- **Address to join** in your home network (`<LAN IP>:25565`) with a copy button
+- Stopping gives the server 90 s to save the world
+- Engine: generic `prepare` hook, `reconfigure()` and `exec()` for catalog apps
+
 ### Server monitor (screen on the server)
 
 - **New full-screen view `/monitor`** for a screen plugged into the server: terminal look on pure black, htop-style boxes with character bars for CPU (total and per core), RAM, temperature and disks, a `docker ps`-like app table with live LEDs, network with sparkline, internet status and a journal-like log. The clock is white, everything else green, orange and red

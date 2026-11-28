@@ -45,6 +45,9 @@ function fakeEngine() {
     dockerStatus: async () => ({ ok: false, message: "Docker läuft gerade nicht." }),
     usage: async () => [{ appId: 'adguard', cpuPercent: 1.5, memBytes: 50_000_000, diskBytes: 12_000_000 }],
     inspect: async () => ({ containers: [], logs: [] }),
+    reconfigure: async () => { throw new Error('nicht im Test'); },
+    exec: async () => '',
+    appDataDir: (id: string) => id,
   };
   return { engine, calls, logStopped: () => logStopped };
 }

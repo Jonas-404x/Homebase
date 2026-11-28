@@ -10,6 +10,7 @@ import { loadCatalog } from './catalog/loader.ts';
 import { loadConfig } from './config.ts';
 import { openDb } from './db.ts';
 import { createKioskStore } from './kiosk/store.ts';
+import { registerMinecraft } from './minecraft/routes.ts';
 
 const config = loadConfig();
 fs.mkdirSync(config.dataRoot, { recursive: true });
@@ -24,10 +25,11 @@ const engine = createAppEngine({
 });
 
 registerAdguardHook(engine);
+const minecraftRoutes = registerMinecraft(engine);
 // Schlüssel für den Server-Monitor: einmal anlegen, dann bleibt er (siehe docs/server-monitor.md).
 const kiosk = createKioskStore(db, config.dataRoot, (m) => console.warn(m));
 kiosk.ensureKey();
-const app = await buildApp({ config, db, engine, kiosk, plugins: [(a) => registerAdguardRoutes(a, engine)] });
+const app = await buildApp({ config, db, engine, kiosk, plugins: [(a) => registerAdguardRoutes(a, engine), minecraftRoutes] });
 
 setInterval(() => db.deleteExpiredSessions(Date.now()), 60 * 60 * 1000).unref();
 

@@ -12,6 +12,8 @@ import { diskByApp, dirSize } from './usage.ts';
 import type { AppStateFile, StateStore } from './state-store.ts';
 
 export interface AppHook {
+  /** Prüft und ergänzt Werte vor dem Rendern (Installieren: previous = null, Ändern: alte Werte). */
+  prepare?: (values: Record<string, string>, ctx: { previous: Record<string, string> | null }) => Promise<Record<string, string>>;
   beforeUp?: (ctx: { appDataDir: string; values: Record<string, string> }) => Promise<void>;
 }
 
@@ -19,6 +21,12 @@ export interface AppEngine {
   catalog(): CatalogApp[];
   list(): Promise<InstalledApp[]>;
   install(id: string, input: Record<string, unknown>): Promise<InstalledApp>;
+  /** Neue Werte übernehmen und Container neu erzeugen; Daten bleiben, angehalten bleibt angehalten. */
+  reconfigure(id: string, input: Record<string, unknown>): Promise<InstalledApp>;
+  /** Befehl in einem Dienst der App ausführen (stdout). */
+  exec(id: string, service: string, args: string[]): Promise<string>;
+  /** Datenordner der App auf dem Host. */
+  appDataDir(id: string): string;
   start(id: string): Promise<void>;
   stop(id: string): Promise<void>;
   restart(id: string): Promise<void>;
@@ -183,7 +191,9 @@ export function createAppEngine(deps: {
       if (await store.get(id)) throw new MainframeError('already_installed', `${entry.app.name} ist schon installiert.`, 409);
       await assertDocker();
 
-      const values = resolveValues(entry.app, input, config.dev);
+      const hook = hooks.get(id);
+      const resolved = resolveValues(entry.app, input, config.dev);
+      const values = hook?.prepare ? await hook.prepare(resolved, { previous: null }) : resolved;
       const dir = appDir(id);
       const dataDir = path.join(dir, 'data');
       const existedBefore = await fs.stat(dir).then(() => true, () => false);
@@ -216,6 +226,40 @@ export function createAppEngine(deps: {
       const now = (await list()).find((a) => a.id === id);
       return now!;
     },
+
+    async reconfigure(id, input) {
+      const entry = entryOf(id);
+      const old = await installed(id);
+      await assertDocker();
+      // Nur übergebene Felder ändern; Rest (z. B. erzeugte Passwörter) bleibt.
+      const given = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+      const resolved = resolveValues(entry.app, { ...old.values, ...given }, config.dev);
+      const hook = hooks.get(id);
+      const values = hook?.prepare ? await hook.prepare({ ...old.values, ...resolved }, { previous: old.values }) : { ...old.values, ...resolved };
+      const dir = appDir(id);
+      const file = path.join(dir, 'docker-compose.yml');
+      const oldYml = await fs.readFile(file, 'utf8');
+      const upNow = () => compose.up(dir, old.stoppedByUser ? { noStart: true } : undefined);
+      await fs.writeFile(file, renderCompose(entry.composeTemplate, values, { appId: id, appDataDir: path.join(dir, 'data'), dev: config.dev }));
+      await store.save({ ...old, values, lastError: null });
+      try {
+        await upNow();
+      } catch (err) {
+        await fs.writeFile(file, oldYml);
+        await store.save(old);
+        await upNow().catch(() => {});
+        throw new MainframeError('action_failed', explainComposeError(err instanceof Error ? err.message : String(err)), 500);
+      }
+      return (await list()).find((a) => a.id === id)!;
+    },
+
+    async exec(id, service, args) {
+      await installed(id);
+      await assertDocker();
+      return compose.exec(appDir(id), service, args);
+    },
+
+    appDataDir: (id) => path.join(appDir(id), 'data'),
 
     start: action((d) => compose.start(d), false),
     stop: action((d) => compose.stop(d), true),
