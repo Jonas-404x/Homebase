@@ -14,7 +14,7 @@
 - **One-click apps**: install, start, stop and watch services like AdGuard Home, Uptime Kuma, Jellyfin, Navidrome, Vaultwarden, ntfy or Home Assistant, no terminal needed
 - **Reach it from anywhere** with Tailscale (free): no open router ports, only your own devices get in
 - **Network-wide ad blocking** with AdGuard Home, preconfigured out of the box
-- **Minecraft panel like a paid host** *(planned)*: players with skins, stats, live console with commands, troll buttons, world uploads, plugins, backups, plus a public address your friends can join via playit.gg
+- **Minecraft panel like a paid host**: Fabric or Paper server with version picker, live console with commands, drag-and-drop mods and plugins, settings you can change later *(next: playit.gg address for friends, players with skins, stats, troll buttons, worlds, backups)*
 - **Knows when something is wrong**: a status overview shows at a glance whether everything runs and what needs you, and a diagnose button explains in plain words why an app or the whole system has a problem and how to fix it
 - **Optional AI hints** (Google Gemini, free tier): a plain-language headline, a guess why an app keeps crashing, patterns like "restarts every night at 3" and what happened overnight; scrubbed of IPs and device names, capped per day, and without a key everything works as before
 - **CPU, RAM and disk per app**, so you see which app eats your server
@@ -37,7 +37,7 @@ Node 24 + TypeScript, Fastify, React, Docker Compose. Every service runs in its 
 3. **Services and network**: uptime checks, network scanner and device inventory, internet watcher with speedtest, two-factor login ✓
    - 3.1: status overview, diagnose button, CPU/RAM/disk per app, stricter service check, Windows app ✓
 4. **Server move**: Ubuntu setup script, network share visible in Windows Explorer, Wake-on-LAN, AdGuard for the whole network, HTTPS
-5. **Minecraft**: server with live console, playit.gg, players, stats, worlds, plugins, backups
+5. **Minecraft**: server with live console and mods ✓, playit.gg, players, stats, worlds, backups
 6. **Notifications and backups**: push via ntfy and Discord, automatic backups
 7. **Discord bot**, 8. **more apps**, 9. **Claude on the server** (assistant inside Mainframe), 10. **AI farm** (agents that work on projects on their own)
 
