@@ -7,6 +7,10 @@ export interface Config {
   dev: boolean;
   catalogDir: string;
   webDistDir: string | null;
+  /** Ordner, der als Netzwerkfreigabe sichtbar wird. */
+  shareRoot: string;
+  /** Einhängepunkt der Festplatte, auf der shareRoot liegt. */
+  shareMount: string;
 }
 
 /** Wurzel des Repos (apps/server/src → ../../..). */
@@ -27,5 +31,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const catalogDir = path.resolve(env.MAINFRAME_CATALOG_DIR ?? path.join(repoRoot, 'catalog'));
   const webDistDir = env.MAINFRAME_WEB_DIST ? path.resolve(env.MAINFRAME_WEB_DIST) : null;
 
-  return { dataRoot, port, dev, catalogDir, webDistDir };
+  const shareRoot = path.posix.resolve(env.MAINFRAME_SHARE_ROOT ?? '/mnt/hdd/Mainframe');
+  const shareMount = path.posix.resolve(env.MAINFRAME_SHARE_MOUNT ?? '/mnt/hdd');
+
+  return { dataRoot, port, dev, catalogDir, webDistDir, shareRoot, shareMount };
 }

@@ -43,6 +43,9 @@ import { mainframeVersion, systemInfo } from './system/info.ts';
 import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import type { AppUsage, StatusReport } from '@mainframe/shared';
+import { registerShareRoutes } from './share/routes.ts';
+import { createShareService, type ShareService } from './share/service.ts';
+import { createRealShareSystem } from './share/system.ts';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -89,6 +92,8 @@ export interface AppDeps {
   incidentOpenAfterMs?: number;
   /** Schlüssel und Sitzungen des Server-Monitors (Tests). ensureKey() ruft index.ts auf, nicht buildApp. */
   kiosk?: KioskStore;
+  /** Netzwerkfreigabe (Tests). Standard: echtes Samba, nur auf dem Linux-Server aktiv. */
+  share?: ShareService;
   /** Weitere Routen (z. B. AdGuard), die Zugriff auf Engine und Hub brauchen. */
   plugins?: ((app: FastifyInstance) => void | Promise<void>)[];
 }
@@ -132,6 +137,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   app.addHook('preClose', async () => hub.closeAll());
   registerPrefsRoutes(app, prefs, hub);
+  registerShareRoutes(app, {
+    share: deps.share ?? createShareService(createRealShareSystem(), { root: deps.config.shareRoot, mount: deps.config.shareMount }),
+    db: deps.db,
+    events,
+  });
   registerAdminRoutes(app, {
     config: deps.config,
     db: deps.db,

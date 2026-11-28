@@ -4,7 +4,7 @@ import { openDb } from '../src/db.ts';
 import type { AppDeps } from '../src/app.ts';
 
 export function testConfig(overrides: Partial<Config> = {}): Config {
-  return { dataRoot: '/tmp/mf-test', port: 0, dev: true, catalogDir: '/tmp/mf-catalog', webDistDir: null, ...overrides };
+  return { dataRoot: '/tmp/mf-test', port: 0, dev: true, catalogDir: '/tmp/mf-catalog', webDistDir: null, shareRoot: '/mnt/hdd/Mainframe', shareMount: '/mnt/hdd', ...overrides };
 }
 
 export function testDeps(overrides: Partial<AppDeps> = {}): AppDeps {
