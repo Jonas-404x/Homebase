@@ -1,0 +1,19 @@
+services:
+  minecraft:
+    image: itzg/minecraft-server:latest
+    # Kein tty: sonst kommen die Logs nicht im Docker-Format (Live-Konsole) an. Befehle laufen über rcon-cli.
+    environment:
+      EULA: "TRUE"
+      TYPE: "${field.serverType}"
+      VERSION: "${field.version}"
+      MEMORY: "${field.memory}"
+      ENABLE_RCON: "true"
+      RCON_PASSWORD: "${field.rconPassword}"
+      MODRINTH_PROJECTS: "${field.modrinthProjects}"
+      TZ: "Europe/Berlin"
+    # Zeit zum Speichern der Welt beim Stoppen.
+    stop_grace_period: 90s
+    volumes:
+      - "${app.dataDir}:/data"
+    ports:
+      - "${port.game}:25565/tcp"
