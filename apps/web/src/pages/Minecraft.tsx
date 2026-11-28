@@ -36,6 +36,8 @@ function ServerView({ app, reload }: { app: InstalledApp; reload: () => Promise<
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [settings, setSettings] = useState(false);
+  // Zählt bei jedem neuen Container-Lauf hoch, damit die Konsole den neuen Log-Strom abonniert.
+  const [logEpoch, setLogEpoch] = useState(0);
 
   const loadInfo = useCallback(() => {
     api<MinecraftInfo>('/api/minecraft/info').then(setInfo, (e) => setError(errorText(e)));
@@ -49,6 +51,7 @@ function ServerView({ app, reload }: { app: InstalledApp; reload: () => Promise<
     setError(null);
     try {
       await post(`/api/apps/minecraft/${action}`);
+      if (action !== 'stop') setLogEpoch((n) => n + 1);
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -118,7 +121,7 @@ function ServerView({ app, reload }: { app: InstalledApp; reload: () => Promise<
         </section>
       )}
 
-      <Console state={app.state} />
+      <Console state={app.state} epoch={logEpoch} />
       {info && <ModsCard modDir={info.modDir} onRestart={() => act('restart')} />}
 
       {settings && info && (
@@ -127,6 +130,7 @@ function ServerView({ app, reload }: { app: InstalledApp; reload: () => Promise<
           onClose={() => setSettings(false)}
           onSaved={() => {
             setSettings(false);
+            setLogEpoch((n) => n + 1);
             loadInfo();
             void reload();
           }}

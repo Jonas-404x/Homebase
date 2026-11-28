@@ -95,6 +95,15 @@ describe('Minecraft-Server', () => {
     expect(input).toHaveValue('list');
   });
 
+  it('abonniert nach einem Neustart den neuen Log-Strom', async () => {
+    const user = userEvent.setup();
+    const { socket } = renderPage([running], { 'POST /api/apps/minecraft/restart': () => ({ status: 204 }) });
+    await screen.findByText('192.168.1.20:25565');
+    await user.click(screen.getByRole('button', { name: 'Neu starten' }));
+    await waitFor(() => expect(socket.sent.filter((m) => m.type === 'subscribe-logs')).toHaveLength(2));
+    expect(socket.sent).toContainEqual({ type: 'unsubscribe-logs', appId: 'minecraft' });
+  });
+
   it('lädt eine hineingezogene Mod hoch und bietet einen Neustart an', async () => {
     const { calls } = renderPage([running]);
     const zone = await screen.findByTestId('mod-drop');

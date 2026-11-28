@@ -100,6 +100,8 @@ export function registerMinecraft(engine: AppEngine, deps: MinecraftDeps = {}): 
       const body = req.body ?? {};
       const input: Record<string, unknown> = {};
       for (const key of ['serverType', 'version', 'memory', 'perfMods'] as const) if (key in body) input[key] = body[key];
+      // Der Container wird neu erzeugt: das ist dein Neustart, kein Absturz (Verlauf, Server-Monitor).
+      app.insights?.userAction(MINECRAFT_ID, 'restart');
       try {
         const result = await engine.reconfigure(MINECRAFT_ID, input);
         app.events?.add('info', 'Minecraft: Einstellungen geändert');

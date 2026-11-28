@@ -18,7 +18,7 @@ const loadHistory = (): string[] => {
 };
 
 /** Live-Log des Servers plus Befehlszeile (Verlauf mit Pfeil hoch/runter, im Browser gemerkt). */
-export function Console({ state }: { state: AppState }) {
+export function Console({ state, epoch }: { state: AppState; epoch: number }) {
   const socket = useLiveSocket();
   const [lines, setLines] = useState<string[]>([]);
   const [command, setCommand] = useState('');
@@ -32,14 +32,15 @@ export function Console({ state }: { state: AppState }) {
     setLines((prev) => [...prev, ...more].slice(-MAX_CONSOLE_LINES));
   }, []);
 
-  // Nach Start/Neustart gibt es einen neuen Log-Strom: neu abonnieren (der Server schickt die letzten Zeilen mit).
+  // Nach Start/Neustart/Ändern gibt es einen neuen Log-Strom (epoch zählt hoch): neu abonnieren,
+  // der Server schickt die letzten Zeilen mit.
   const live = state === 'running' || state === 'restarting';
   useEffect(() => {
     if (!live) return;
     setLines([]);
     socket.send({ type: 'subscribe-logs', appId: 'minecraft' });
     return () => socket.send({ type: 'unsubscribe-logs', appId: 'minecraft' });
-  }, [socket, live]);
+  }, [socket, live, epoch]);
 
   useLive(
     'log',
