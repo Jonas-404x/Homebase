@@ -139,7 +139,7 @@ from its parent), and the share root, once it exists, is a real directory (not a
 recursively) and never deletes, moves, `chown`s or `chmod`s anything on the HDD. `root preexec`
 uses the configured mount point.
 
-**Frame folder (admin to confirm).** Frame owns its folder layout (`library/<uuid>/…`), so manual
+**Frame folder (confirmed by the admin 2026-11-28).** Frame owns its folder layout (`library/<uuid>/…`), so manual
 edits there would break it. Frame therefore gets its own root next to the share,
 `/mnt/hdd/Frame`, not inside it. Both are separate from the backups. The share wizard does not create
 it; Frame does, when it is built.
