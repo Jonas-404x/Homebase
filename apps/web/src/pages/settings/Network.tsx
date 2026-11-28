@@ -2,7 +2,8 @@ import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
 import { defaultPrefs } from '@mainframe/shared';
 import { usePrefs } from '../../api/prefs.tsx';
-import { Choice, Group, Row, SERVER_ONLY, useSave, useSettings } from './Row.tsx';
+import { Choice, Group, Row, useSave, useSettings } from './Row.tsx';
+import { ShareGroup } from './ShareGroup.tsx';
 
 /** Tailscale vergibt Adressen aus 100.64.0.0/10. */
 export const isTailscale = (ip: string) => {
@@ -42,7 +43,6 @@ export function NetworkPane() {
   const ts = info?.addresses.find((a) => isTailscale(a.ip))?.ip;
   const url = info && lan ? `http://${lan}:${info.port}` : null;
   const tsUrl = info && ts ? `http://${ts}:${info.port}` : null;
-  const later = info?.isServer ? 'Kommt mit dem Server-Umzug' : SERVER_ONLY;
 
   return (
     <div className="stack-l">
@@ -99,9 +99,7 @@ export function NetworkPane() {
           />
         </Row>
       </Group>
-      <Group title="Später">
-        <Row label="Netzwerkfreigabe" hint="Den Speicher des Servers im Windows-Explorer als Laufwerk sehen." disabledReason={later} />
-      </Group>
+      <ShareGroup />
     </div>
   );
 }
