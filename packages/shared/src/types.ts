@@ -337,3 +337,19 @@ export interface KioskSnapshot {
 
 /** Fehlertext jeder App, solange Docker nicht antwortet. */
 export const DOCKER_DOWN_MESSAGE = 'Docker läuft gerade nicht oder startet noch. Mainframe prüft das alle paar Sekunden von selbst.';
+
+/** Zustand der Netzwerkfreigabe (Samba). Wird immer vom System gelesen, nicht aus der Datenbank. */
+export interface ShareStatus {
+  /** false am Windows-PC oder ohne Samba vom Setup-Skript. */
+  available: boolean;
+  reason?: 'not_server' | 'samba_missing';
+  /** Freigabe eingetragen und smbd läuft. */
+  enabled: boolean;
+  diskMounted: boolean;
+  path: string;
+  user: string;
+  /** z. B. \192.168.1.23\Mainframe */
+  unc: string | null;
+  freeBytes: number | null;
+  totalBytes: number | null;
+}
