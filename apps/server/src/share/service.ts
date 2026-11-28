@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { ShareStatus } from '@mainframe/shared';
 import { MainframeError } from '../errors.ts';
 import { SHARE_NAME, SHARE_USER, hasShare, lanSubnet, renderShareConf } from './conf.ts';
@@ -43,6 +44,8 @@ export function createShareService(sys: ShareSystem, o: { root: string; mount: s
     if (!s.available) throw new MainframeError('share_unavailable', 'Die Freigabe gibt es nur auf dem Server mit installiertem Samba.', 409);
     if (!s.diskMounted) throw new MainframeError('disk_missing', 'Die Festplatte ist nicht angeschlossen.', 409);
     const invalid = () => new MainframeError('share_path_invalid', 'Der Freigabe-Ordner ist kein normaler Ordner auf der Festplatte.', 409);
+    // Nur ein direkter Unterordner der Festplatte, nie die ganze Platte oder etwas daneben.
+    if (o.root === o.mount || path.posix.dirname(o.root) !== o.mount) throw invalid();
     const kind = await sys.inspectDir(o.root);
     if (kind === 'other') throw invalid();
     if (kind === 'missing') await sys.mkdir(o.root);
@@ -50,6 +53,9 @@ export function createShareService(sys: ShareSystem, o: { root: string; mount: s
     const lan = sys.lan();
     if (!lan) throw new MainframeError('share_no_network', 'Der Server hat gerade keine Netzwerkadresse.', 409);
     const owner = await sys.owner(o.root);
+    if (owner.uid === 0 || owner.gid === 0) {
+      throw new MainframeError('share_owner_invalid', 'Der Freigabe-Ordner gehört root. Prüfe die Einhängeoptionen der Festplatte (uid=1000).', 409);
+    }
     await sys.writeConfChecked(
       renderShareConf({ path: o.root, mount: o.mount, forceUser: owner.user, forceGroup: owner.group, subnet: lanSubnet(lan.ip, lan.netmask) }),
     );

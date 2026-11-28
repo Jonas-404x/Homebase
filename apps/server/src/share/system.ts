@@ -17,7 +17,7 @@ export interface ShareSystem {
   realpath(p: string): Promise<string>;
   /** Legt genau einen Ordner an, nicht rekursiv. */
   mkdir(p: string): Promise<void>;
-  owner(p: string): Promise<{ user: string; group: string }>;
+  owner(p: string): Promise<{ user: string; group: string; uid: number; gid: number }>;
   lan(): { ip: string; netmask: string } | null;
   readConf(): Promise<string>;
   /** Schreibt in eine Temp-Datei, prüft mit testparm und ersetzt erst dann die echte Datei. */
@@ -34,6 +34,8 @@ function exec(cmd: string, args: string[], stdin?: string): Promise<{ code: numb
       const code = err ? (typeof (err as { code?: unknown }).code === 'number' ? (err as { code: number }).code : 1) : 0;
       resolve({ code, stdout: String(stdout) });
     });
+    // Fehlt das Programm, meldet stdin EPIPE. Ohne Listener würde das den Server abstürzen lassen.
+    child.stdin?.on('error', () => {});
     if (stdin !== undefined) child.stdin?.end(stdin);
   });
 }
@@ -85,7 +87,7 @@ export function createRealShareSystem(): ShareSystem {
     mkdir: (p) => fs.mkdir(p),
     async owner(p) {
       const s = await fs.stat(p);
-      return { user: await nameOf('/etc/passwd', s.uid), group: await nameOf('/etc/group', s.gid) };
+      return { user: await nameOf('/etc/passwd', s.uid), group: await nameOf('/etc/group', s.gid), uid: s.uid, gid: s.gid };
     },
     lan() {
       for (const [name, list] of Object.entries(os.networkInterfaces())) {

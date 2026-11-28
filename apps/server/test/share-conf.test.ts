@@ -18,7 +18,7 @@ describe('renderShareConf', () => {
       '   follow symlinks = no',
       '   wide links = no',
       '   hosts allow = 127.0.0.1 192.168.1.0/24 100.64.0.0/10',
-      '   hosts deny = 0.0.0.0/0',
+      '   hosts deny = ALL',
       '   root preexec = /usr/bin/mountpoint -q /mnt/hdd',
       '   root preexec close = yes',
     ]) {

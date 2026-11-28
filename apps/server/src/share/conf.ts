@@ -50,7 +50,8 @@ export function renderShareConf(o: { path: string; mount: string; forceUser: str
     '   follow symlinks = no',
     '   wide links = no',
     `   hosts allow = 127.0.0.1 ${safe(o.subnet, 'subnet')} ${TAILSCALE}`,
-    '   hosts deny = 0.0.0.0/0',
+    // ALL statt 0.0.0.0/0: sonst kämen IPv6-Geräte an der Liste vorbei.
+    '   hosts deny = ALL',
     // Ohne eingehängte Festplatte keine Verbindung: sonst landen Dateien auf der SSD.
     `   root preexec = /usr/bin/mountpoint -q ${safe(o.mount, 'mount')}`,
     '   root preexec close = yes',

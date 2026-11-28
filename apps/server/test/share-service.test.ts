@@ -14,6 +14,8 @@ interface FakeOpts {
   real?: string;
   testparmFails?: boolean;
   slowRun?: boolean;
+  ownerRoot?: boolean;
+  root?: string;
 }
 
 function fake(o: FakeOpts = {}) {
@@ -32,7 +34,7 @@ function fake(o: FakeOpts = {}) {
       calls.push('mkdir ' + p);
       dir = 'dir';
     },
-    owner: async () => ({ user: 'jonas', group: 'jonas' }),
+    owner: async () => (o.ownerRoot ? { user: 'root', group: 'root', uid: 0, gid: 0 } : { user: 'jonas', group: 'jonas', uid: 1000, gid: 1000 }),
     lan: () => ({ ip: '192.168.1.23', netmask: '255.255.255.0' }),
     readConf: async () => conf,
     writeConfChecked: async (text) => {
@@ -50,7 +52,7 @@ function fake(o: FakeOpts = {}) {
     smbdActive: async () => active,
     statfs: async () => ({ freeBytes: 100, totalBytes: 200 }),
   };
-  return { sys, calls, stdins, service: createShareService(sys, { root: ROOT, mount: MOUNT }) };
+  return { sys, calls, stdins, service: createShareService(sys, { root: o.root ?? ROOT, mount: MOUNT }) };
 }
 
 describe('ShareService.enable', () => {
@@ -111,6 +113,22 @@ describe('ShareService.enable', () => {
     expect(runs.slice(0, 5)[4]).toBe('run smbcontrol smbd reload-config');
     expect(runs[5]).toMatch(/^write/);
     expect(f.stdins).toEqual(['geheim123\ngeheim123\n', 'anderes123\nanderes123\n']);
+  });
+});
+
+describe('ShareService.enable: Ort und Besitzer', () => {
+  for (const root of ['/mnt/hdd', '/srv/x', '/mnt/hdd/a/b']) {
+    it(`verweigert ${root}, weil es kein direkter Unterordner der Festplatte ist`, async () => {
+      const f = fake({ root });
+      await expect(f.service.enable('geheim123')).rejects.toMatchObject({ code: 'share_path_invalid' });
+      expect(f.calls.some((c) => c.startsWith('mkdir') || c.startsWith('write'))).toBe(false);
+    });
+  }
+
+  it('verweigert einen Ordner, der root gehört', async () => {
+    const f = fake({ ownerRoot: true });
+    await expect(f.service.enable('geheim123')).rejects.toMatchObject({ code: 'share_owner_invalid' });
+    expect(f.calls.some((c) => c.startsWith('write'))).toBe(false);
   });
 });
 
