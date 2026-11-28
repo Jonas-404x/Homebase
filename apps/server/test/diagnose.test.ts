@@ -48,6 +48,7 @@ function engineWith(apps: InstalledApp[] = [installed()], over: Partial<AppEngin
     hooks: new Map(), catalog: () => [], list: async () => apps, install: async () => apps[0]!,
     start: async () => {}, stop: async () => {}, restart: async () => {}, remove: async () => {},
     followLogs: async () => () => {}, values: async () => ({}),
+    reconfigure: async () => apps[0]!, exec: async () => '', appDataDir: (id: string) => id,
     dockerStatus: async () => ({ ok: true, message: null }), usage: async () => [],
     inspect: async () => ({ containers: [container()], logs: [] }), ...over,
   };
