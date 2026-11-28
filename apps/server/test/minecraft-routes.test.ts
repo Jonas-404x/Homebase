@@ -45,7 +45,7 @@ const fakeFetch = (async (url: string | URL) => {
   if (u.includes('mojang')) {
     return new Response(JSON.stringify({ versions: [{ id: '26.3', type: 'release' }, { id: '26.4-pre-1', type: 'snapshot' }, { id: '26.2', type: 'release' }] }));
   }
-  return new Response(JSON.stringify([{ id: 'x' }]));
+  return new Response(JSON.stringify([{ id: 'x', version_type: 'release' }]));
 }) as typeof fetch;
 
 let dataRoot: string;

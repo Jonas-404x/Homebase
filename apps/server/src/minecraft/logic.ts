@@ -30,7 +30,8 @@ export async function availablePerfMods(
       );
       if (!response.ok) return false;
       const versions: unknown = await response.json();
-      return Array.isArray(versions) && versions.length > 0;
+      // Das Image nimmt nur Release-Builds (MODRINTH_ALLOWED_VERSION_TYPE=release): Beta zählt nicht.
+      return Array.isArray(versions) && versions.some((v) => (v as { version_type?: unknown })?.version_type === 'release');
     } catch {
       return false;
     }
@@ -65,15 +66,17 @@ export function createMinecraftPrepare(deps: {
 
     const previousVersion = ctx.previous?.version;
     if (previousVersion && previousVersion !== version) {
-      let releases: string[] = [];
+      // Ohne sichere Reihenfolge kein Wechsel: ein Downgrade kann die Welt kaputt machen.
+      let releases: string[];
       try {
         releases = await deps.releases();
       } catch {
-        // Ohne Versionsliste entfällt die Downgrade-Prüfung.
+        throw new MainframeError('versions_unavailable', 'Die Versionsliste ist gerade nicht erreichbar. Versuch den Versionswechsel gleich nochmal.', 502);
       }
       const previousIndex = releases.indexOf(previousVersion);
       const nextIndex = releases.indexOf(version);
-      if (previousIndex !== -1 && nextIndex !== -1 && nextIndex > previousIndex) {
+      if (nextIndex === -1) throw new MainframeError('invalid_input', 'Diese Minecraft-Version gibt es nicht.');
+      if (previousIndex !== -1 && nextIndex > previousIndex) {
         throw new MainframeError('downgrade', 'Ältere Versionen können deine Welt kaputt machen.', 400);
       }
     }

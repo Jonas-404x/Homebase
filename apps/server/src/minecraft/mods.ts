@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { MinecraftMod } from '@mainframe/shared';
@@ -24,15 +25,25 @@ export async function listMods(dir: string): Promise<MinecraftMod[]> {
 export async function saveMod(dir: string, name: string, data: Buffer, ownerOf?: string): Promise<void> {
   const target = path.join(dir, checkModName(name));
   await fs.mkdir(dir, { recursive: true });
-  const tmp = `${target}.upload`;
-  await fs.writeFile(tmp, data);
-  await fs.rename(tmp, target);
+  // Der Ordner gehört dem Minecraft-Container: ein dort angelegter Symlink darf Mainframe (root)
+  // nicht woandershin schreiben lassen. Darum kein Symlink als Ordner und eine frische Hilfsdatei
+  // mit Zufallsnamen, die exklusiv angelegt wird ("wx" folgt keinem vorhandenen Eintrag).
+  if ((await fs.lstat(dir)).isSymbolicLink()) throw new MainframeError('invalid_dir', 'Der Mod-Ordner ist kein normaler Ordner.', 400);
+  const tmp = path.join(dir, `.upload-${randomUUID()}`);
+  try {
+    await fs.writeFile(tmp, data, { flag: 'wx' });
+    await fs.rename(tmp, target);
+  } catch (err) {
+    await fs.rm(tmp, { force: true }).catch(() => {});
+    throw err;
+  }
   // Mainframe läuft auf dem Server als root, Minecraft als UID 1000: Besitzer des Datenordners übernehmen.
   if (ownerOf && process.platform === 'linux') {
     try {
       const st = await fs.stat(ownerOf);
-      await fs.chown(dir, st.uid, st.gid);
-      await fs.chown(target, st.uid, st.gid);
+      // lchown folgt keinem Symlink
+      await fs.lchown(dir, st.uid, st.gid);
+      await fs.lchown(target, st.uid, st.gid);
     } catch {
       // nur ein Versuch, das Hochladen soll daran nicht scheitern
     }
@@ -41,6 +52,8 @@ export async function saveMod(dir: string, name: string, data: Buffer, ownerOf?:
 
 export async function deleteMod(dir: string, name: string): Promise<void> {
   const target = path.join(dir, checkModName(name));
+  const st = await fs.lstat(dir).catch(() => null);
+  if (st?.isSymbolicLink()) throw new MainframeError('invalid_dir', 'Der Mod-Ordner ist kein normaler Ordner.', 400);
   try {
     await fs.rm(target);
   } catch {

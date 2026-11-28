@@ -176,6 +176,33 @@ export function createAppEngine(deps: {
     if (s.lastError || Boolean(s.stoppedByUser) !== stoppedByUser) await store.save({ ...s, lastError: null, stoppedByUser });
   };
 
+  const reconfiguring = new Map<string, Promise<InstalledApp>>();
+  const reconfigureNow = async (id: string, input: Record<string, unknown>): Promise<InstalledApp> => {
+    const entry = entryOf(id);
+    const old = await installed(id);
+    await assertDocker();
+    // Nur übergebene Felder ändern; Rest (z. B. erzeugte Passwörter) bleibt.
+    const given = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+    const resolved = resolveValues(entry.app, { ...old.values, ...given }, config.dev);
+    const hook = hooks.get(id);
+    const values = hook?.prepare ? await hook.prepare({ ...old.values, ...resolved }, { previous: old.values }) : { ...old.values, ...resolved };
+    const dir = appDir(id);
+    const file = path.join(dir, 'docker-compose.yml');
+    const oldYml = await fs.readFile(file, 'utf8');
+    const upNow = () => compose.up(dir, old.stoppedByUser ? { noStart: true } : undefined);
+    await fs.writeFile(file, renderCompose(entry.composeTemplate, values, { appId: id, appDataDir: path.join(dir, 'data'), dev: config.dev }));
+    await store.save({ ...old, values, lastError: null });
+    try {
+      await upNow();
+    } catch (err) {
+      await fs.writeFile(file, oldYml);
+      await store.save(old);
+      await upNow().catch(() => {});
+      throw new MainframeError('action_failed', explainComposeError(err instanceof Error ? err.message : String(err)), 500);
+    }
+    return (await list()).find((a) => a.id === id)!;
+  };
+
   return {
     hooks,
     // Ports mit dem Standard, der in dieser Umgebung wirklich gilt (Dev: devDefault).
@@ -227,30 +254,11 @@ export function createAppEngine(deps: {
       return now!;
     },
 
-    async reconfigure(id, input) {
-      const entry = entryOf(id);
-      const old = await installed(id);
-      await assertDocker();
-      // Nur übergebene Felder ändern; Rest (z. B. erzeugte Passwörter) bleibt.
-      const given = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined && v !== null && v !== ''));
-      const resolved = resolveValues(entry.app, { ...old.values, ...given }, config.dev);
-      const hook = hooks.get(id);
-      const values = hook?.prepare ? await hook.prepare({ ...old.values, ...resolved }, { previous: old.values }) : { ...old.values, ...resolved };
-      const dir = appDir(id);
-      const file = path.join(dir, 'docker-compose.yml');
-      const oldYml = await fs.readFile(file, 'utf8');
-      const upNow = () => compose.up(dir, old.stoppedByUser ? { noStart: true } : undefined);
-      await fs.writeFile(file, renderCompose(entry.composeTemplate, values, { appId: id, appDataDir: path.join(dir, 'data'), dev: config.dev }));
-      await store.save({ ...old, values, lastError: null });
-      try {
-        await upNow();
-      } catch (err) {
-        await fs.writeFile(file, oldYml);
-        await store.save(old);
-        await upNow().catch(() => {});
-        throw new MainframeError('action_failed', explainComposeError(err instanceof Error ? err.message : String(err)), 500);
-      }
-      return (await list()).find((a) => a.id === id)!;
+    reconfigure: (id, input) => {
+      // Nacheinander pro App: zwei gleichzeitige Änderungen würden sonst denselben alten Stand lesen.
+      const run = (reconfiguring.get(id) ?? Promise.resolve()).catch(() => {}).then(() => reconfigureNow(id, input));
+      reconfiguring.set(id, run);
+      return run;
     },
 
     async exec(id, service, args) {

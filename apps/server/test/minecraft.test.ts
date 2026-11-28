@@ -5,7 +5,7 @@ import { availablePerfMods, createMinecraftPrepare, fetchReleases, PERF_MODS, US
 function modFetch(responses: Record<string, unknown> = {}) {
   return vi.fn<typeof fetch>(async (input) => {
     const id = new URL(String(input)).pathname.split('/')[3];
-    return Response.json(responses[id] ?? [{ id: 'passende-version' }]);
+    return Response.json(responses[id] ?? [{ id: 'passende-version', version_type: 'release' }]);
   });
 }
 
@@ -75,13 +75,13 @@ describe('Minecraft-Performance-Mods', () => {
     const fetchImpl = vi.fn<typeof fetch>(() => new Promise<Response>((resolve) => pending.push(resolve)));
     const result = availablePerfMods('26.3', fetchImpl);
     expect(fetchImpl).toHaveBeenCalledTimes(4);
-    pending.reverse().forEach((resolve) => resolve(Response.json([{}])));
+    pending.reverse().forEach((resolve) => resolve(Response.json([{ version_type: 'release' }])));
     expect(await result).toEqual({ ok: [...PERF_MODS], skipped: [] });
   });
 
   it('überspringt Mods bei HTTP-Fehlern und ungültigen Antworten', async () => {
     const fetchImpl = modFetch();
-    fetchImpl.mockResolvedValueOnce(Response.json([{}]))
+    fetchImpl.mockResolvedValueOnce(Response.json([{ version_type: 'release' }]))
       .mockResolvedValueOnce(new Response('', { status: 503 }))
       .mockResolvedValueOnce(Response.json({ id: 'keine-liste' }))
       .mockResolvedValueOnce(new Response('kein JSON'));
@@ -172,15 +172,20 @@ describe('Minecraft-Vorbereitung', () => {
     await expect(prepare(values, { previous: { version: '25.1' } })).resolves.toMatchObject({ version: '26.3' });
   });
 
-  it('erlaubt einen Wechsel bei unbekannter neuer Version', async () => {
+  it('lehnt beim Wechsel eine unbekannte neue Version ab', async () => {
     const { prepare } = setup();
-    await expect(prepare({ ...values, version: '25.1' }, { previous: { version: '26.3' } })).resolves.toMatchObject({ version: '25.1' });
+    await expect(prepare({ ...values, version: '25.1' }, { previous: { version: '26.3' } })).rejects.toMatchObject({ code: 'invalid_input' });
   });
 
-  it('überspringt die Downgrade-Prüfung bei nicht erreichbarer Versionsliste', async () => {
+  it('lehnt einen Versionswechsel ab, wenn die Versionsliste nicht erreichbar ist', async () => {
     const { prepare, releases } = setup();
     releases.mockRejectedValueOnce(new Error('offline'));
-    await expect(prepare({ ...values, version: '26.1' }, { previous: { version: '26.3' } })).resolves.toMatchObject({ version: '26.1' });
+    await expect(prepare({ ...values, version: '26.1' }, { previous: { version: '26.3' } })).rejects.toMatchObject({ code: 'versions_unavailable' });
+  });
+
+  it('zählt Beta-Builds bei den Spar-Mods nicht', async () => {
+    const fetchImpl = modFetch({ krypton: [{ id: 'b', version_type: 'beta' }] });
+    expect(await availablePerfMods('26.3', fetchImpl)).toEqual({ ok: ['fabric-api', 'lithium', 'ferrite-core'], skipped: ['krypton'] });
   });
 
   it('fragt bei unveränderter Version keine Versionsliste ab', async () => {

@@ -385,4 +385,13 @@ describe('AppEngine.catalog', () => {
     expect(engine.appDataDir('demo')).toBe(path.join(dataRoot, 'apps', 'demo', 'data'));
     await expect(engine.exec('fremd', 'web', [])).rejects.toMatchObject({ status: 404 });
   });
+
+  it('ändert gleichzeitige Einstellungen nacheinander und verliert keine', async () => {
+    const { engine } = await make();
+    await engine.install('demo', { greeting: 'hi' });
+    engine.hooks.set('demo', { prepare: async (v) => { await new Promise((r) => setTimeout(r, 5)); return v; } });
+    await Promise.all([engine.reconfigure('demo', { greeting: 'eins' }), engine.reconfigure('demo', { web: 18081 })]);
+    const s = JSON.parse(fs.readFileSync(path.join(dataRoot, 'apps', 'demo', 'app-state.json'), 'utf8'));
+    expect(s.values).toMatchObject({ greeting: 'eins', web: '18081' });
+  });
 });
